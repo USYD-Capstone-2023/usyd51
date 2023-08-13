@@ -34,11 +34,14 @@ At minimum, success for the client would be developing a working version with th
 
 ## Human Resources
 
-
+We had contact with an engineer at CISCO who works on a similar product called Meraki. This provided valuable insight into the implementation level details of a project such as ours.
+We will attempt to reach out to other companies that create similar products such as Ubiquiti, Fritz, Aruba and more to get further feedback and expert opinions.
+Our facilitator also has experience working on a similar project, and has many helpful insights into the mechanics and potential implementation of the product.
 
 ## Other Resources
 
-e.g. research into existing tools (Unify, Mesh, Airwaves, Meraki)
+Other resources used for this project will mainly be those for learning, such as tutorials, written guides and articles on related topics.
+We will also do extensive research into similar products such as Unify, AirWave, SolarWinds, Mesh and LogicMonitor.
 
 ## Reporting/Meeting Frequency
 
