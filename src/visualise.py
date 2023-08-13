@@ -10,8 +10,6 @@ if (destination == ""):
 locations = traceroute.get_ip_route(destination)
 n_vertices = len(locations)
 edges = [(i, i+1) for i in range(len(locations)-1)]
-edges.append((0,len(locations)-1))
-
 
 
 graph = ig.Graph(n_vertices, edges)
