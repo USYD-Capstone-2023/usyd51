@@ -1,9 +1,4 @@
-# Allows us to map the route from the host computer to any ip on a network.
-# At the minute is setup for remote servers with known hostnames as its hard to test on a network as flat as mine...
-
-import socket
-import struct
-import subprocess
+import struct, socket, subprocess
 
 # UDP port
 PORT = 33434
@@ -27,6 +22,7 @@ def init_sockets():
 
 def trace(target_ip, icmp_socket, udp_socket):
 
+    path = []
     print(f"Tracing route from {socket.gethostname()} to {target_ip}")
 
     ttl = 1
@@ -60,19 +56,23 @@ def trace(target_ip, icmp_socket, udp_socket):
                     pass
 
                 print(f"Hopped to {ip[0]} ({host_name}); ttl: {ttl}")
+
+                path.append((ip[0], host_name));
             
                 # Ends if the target was reached
                 if ip[0] == target_ip:
+
                     print(f"Reached target in {ttl} hops\n")
-                    return  
+                    return path
                 
                 break          
 
         # Increments ttl to get the next router in the path
         ttl += 1
-    
+
     print(f"Failed to reach target: {target_ip}\n")
 
+    return path
 
 # Pings the target_ip and returns whether it is up or not.
 # Note that this is not portable, and will not work on windows. This will be changed later
