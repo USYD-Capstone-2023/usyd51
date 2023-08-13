@@ -22,7 +22,7 @@ def init_sockets():
 
 def trace(target_ip, icmp_socket, udp_socket):
 
-    path = []
+    path = [("192.168.1.1", socket.gethostbyaddr("192.168.1.1")[0])]
     print(f"Tracing route from {socket.gethostname()} to {target_ip}")
 
     ttl = 1

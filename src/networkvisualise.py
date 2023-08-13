@@ -10,7 +10,8 @@ verticies = []
 icmp_socket, udp_socket = traceroute.init_sockets()
 
 # Some random websites, hopefully from around the world
-known_ips = ["google.com", "facebook.com", "maps.google.com", "packetswitch.co.uk"]
+# known_ips = ["google.com", "facebook.com", "maps.google.com", "packetswitch.co.uk"]
+known_ips = traceroute.get_addresses(icmp_socket, udp_socket)
 
 for current_ip in known_ips:
     if (traceroute.ping(current_ip, icmp_socket, udp_socket) != None):
