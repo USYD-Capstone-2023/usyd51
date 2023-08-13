@@ -10,7 +10,10 @@ The aim is to contribute to/begin development on an open source network mapping,
 
 ## Objectives (SMART)
 
-
+- Develop web-based GUI for displaying network topology data (current and historical), navigable with mouse and keyboard visually displaying device information and layout in both map and list format
+- Develop a data storage solution for keeping track of past data and recording new data, local only
+- Develop a backend tool that scans the current LAN for all connected devices and as much information as possible to gain from each one, and stores it in the data system
+- Create user documentation that details how to setup and use the software, as well as detailed information on any advanced features
 
 ## Success Criteria
 
@@ -18,19 +21,30 @@ At minimum, success for the client would be developing a working version with th
 
 ## Deliverables
 
-
+- Software package/final product
+- User documentation
+- Development documentation, including meeting minutes/notes, research documentation, sprint plans, etc.
+- Progress log videos for each client meeting
 
 ## Scope
 
-
+- Scan a network and find all online devices
+- Gather and record information about each device over time
+- Ability to customise monitoring frequency/what information is checked per device
+- Automatically provide information about the network itself (configuration, etc)
+- View current and past network/device status and information in a GUI. There should be a visual map layout and a list layout for easier reading with sorting/filtering capabilities
 
 ## Out Scope
 
-
+- Manage/control/execute commands remotely on devices and/or groups of devices on the network
 
 ## Milestones
 
-
+- Client approval of scope
+- First UI prototype
+- First prototype of network scanner/logger backend tool
+- Integrate front end and back end
+- Week 6 Project Demo Presentation
 
 ## Human Resources
 
