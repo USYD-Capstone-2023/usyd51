@@ -3,75 +3,113 @@
 
 import socket
 import struct
+import subprocess
 
 # UDP port
-port = 33434
-max_hops = 30
+PORT = 33434
+MAX_HOPS = 30
 
-# Initialize sockets
-icmp_proto = socket.getprotobyname("icmp")
-icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp_proto)
+def init_sockets():
+    # Request timeout information
+    timeout_data = struct.pack("ll", 1, 0)
 
-udp_proto = socket.getprotobyname("udp")
-udp_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM, udp_proto)
+    # Initialize sockets
+    icmp_proto = socket.getprotobyname("icmp")
+    icmp_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp_proto)
+    icmp_socket.bind(("", PORT))
+    icmp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, timeout_data)
 
-# Request timeout information
-timeout_data = struct.pack("ll", 1, 0)
+    udp_proto = socket.getprotobyname("udp")
+    udp_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM, udp_proto)
 
-icmp_socket.bind(("", port))
-icmp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, timeout_data)
+    return icmp_socket, udp_socket
 
-# Temporary target for basic implementation, final version will do a ping sweep to get all connected local addresses, then trace
-# the route to those. 
-target = "google.com"
-target_ip = socket.gethostbyname(target)
 
-print(f"Tracing route from {socket.gethostname()} to {target_ip} ({target})")
+def trace(target_ip, icmp_socket, udp_socket):
 
-ttl = 1
-found_target = False
-while ttl < max_hops and not found_target:
+    print(f"Tracing route from {socket.gethostname()} to {target_ip}")
 
-    # Sends a message on UDP to the target with a limited ttl
-    udp_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
-    udp_socket.sendto(b"", (target_ip, port))
+    ttl = 1
+    found_target = False
+    while ttl < MAX_HOPS and not found_target:
 
-    attempts = 5
-    responded = False
+        # Sends a message on UDP to the target with a limited ttl
+        udp_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
+        udp_socket.sendto(b"", (target_ip, PORT))
 
-    # Awaits an ICMP response from a router on the path stating that ttl has expired, or the goal has been reached
-    while attempts > 0:
+        attempts = 2
+        responded = False
 
-        # Gets information of the router that responded and prints it
-        try:
-            responded = True
-            pack, ip = icmp_socket.recvfrom(512)
-        except socket.error:
-            attempts -= 1
-            continue
-    
-        if responded:
-            host_name = "UNKNOWN"
+        # Awaits an ICMP response from a router on the path stating that ttl has expired, or the goal has been reached
+        while attempts > 0:
+
+            # Gets information of the router that responded and prints it
             try:
-                # Resolves hostname if possible. 
-                # As far as i can tell this will be a bit more difficult on LAN
-                host_name = socket.gethostbyaddr(ip[0])[0]
-            except:
-                pass
-
-            print(f"Hopped to {ip[0]} ({host_name}); ttl: {ttl}")
-           
-            # Ends if the target was reached
-            if ip[0] == target_ip:
-                found_target = True
+                responded = True
+                pack, ip = icmp_socket.recvfrom(512)
+            except socket.error:
+                attempts -= 1
+                continue
         
-            break 
+            if responded:
+                host_name = "UNKNOWN"
+                try:
+                    # Resolves hostname if possible. 
+                    # As far as i can tell this will be a bit more difficult on LAN
+                    host_name = socket.gethostbyaddr(ip[0])[0]
+                except:
+                    pass
 
-    # Increments ttl to get the next router in the path
-    ttl += 1
+                print(f"Hopped to {ip[0]} ({host_name}); ttl: {ttl}")
+            
+                # Ends if the target was reached
+                if ip[0] == target_ip:
+                    found_target = True
+            
+                break 
 
-print(f"Reached target in {ttl} hops")
+        # Increments ttl to get the next router in the path
+        ttl += 1
 
+    if (found_target):
+        print(f"Reached target in {ttl} hops")
+    else:
+        print(f"Failed to reach target: {target_ip}")
 
+# Pings the target_ip and returns whether it is up or not.
+# Note that this is not portable, and will not work on windows. This will be changed later
+def ping(target_ip, icmp_socket, udp_socket):
 
+    try:
+        subprocess.call("ping -c 1 %s > /dev/null" % (target_ip), shell=True, timeout=0.1)
+        return True
+    except subprocess.TimeoutExpired :
+        return False;
 
+# Returns a list of all active ips on the lan
+def get_addresses(icmp_socket, udp_socket):
+
+    ret = []
+    for i in range(1,40):
+        ip = "192.168.1.%d" % (i)
+        if ping(ip, icmp_socket, udp_socket):
+            print(ip)
+            ret.append(ip)
+
+    return ret
+
+def main():
+
+    icmp_socket, udp_socket = init_sockets()
+
+    # Traces the route from the host to all other active devices on the network
+    ip_ls = get_addresses(icmp_socket, udp_socket)
+    for ip in ip_ls:
+        print(ip)
+        trace(ip, icmp_socket, udp_socket)
+
+    icmp_socket.close() 
+    udp_socket.close()
+
+if __name__ == "__main__":
+    main()
