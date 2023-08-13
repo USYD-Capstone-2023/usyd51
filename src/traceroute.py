@@ -30,8 +30,7 @@ def trace(target_ip, icmp_socket, udp_socket):
     print(f"Tracing route from {socket.gethostname()} to {target_ip}")
 
     ttl = 1
-    found_target = False
-    while ttl < MAX_HOPS and not found_target:
+    while ttl < MAX_HOPS:
 
         # Sends a message on UDP to the target with a limited ttl
         udp_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
@@ -64,24 +63,23 @@ def trace(target_ip, icmp_socket, udp_socket):
             
                 # Ends if the target was reached
                 if ip[0] == target_ip:
-                    found_target = True
-            
-                break 
+                    print(f"Reached target in {ttl} hops\n")
+                    return  
+                
+                break          
 
         # Increments ttl to get the next router in the path
         ttl += 1
+    
+    print(f"Failed to reach target: {target_ip}\n")
 
-    if (found_target):
-        print(f"Reached target in {ttl} hops")
-    else:
-        print(f"Failed to reach target: {target_ip}")
 
 # Pings the target_ip and returns whether it is up or not.
 # Note that this is not portable, and will not work on windows. This will be changed later
 def ping(target_ip, icmp_socket, udp_socket):
 
     try:
-        subprocess.call("ping -c 1 %s > /dev/null" % (target_ip), shell=True, timeout=0.1)
+        subprocess.call("ping -c 1 %s > /dev/null" % (target_ip), shell=True, timeout=0.5)
         return True
     except subprocess.TimeoutExpired :
         return False;
@@ -89,11 +87,13 @@ def ping(target_ip, icmp_socket, udp_socket):
 # Returns a list of all active ips on the lan
 def get_addresses(icmp_socket, udp_socket):
 
+    print("Getting active devices on 192.168.1.xxx")
     ret = []
+    # Small range just for testing convenience
     for i in range(1,40):
         ip = "192.168.1.%d" % (i)
         if ping(ip, icmp_socket, udp_socket):
-            print(ip)
+            print("%s is up!" % (ip))
             ret.append(ip)
 
     return ret
@@ -104,8 +104,9 @@ def main():
 
     # Traces the route from the host to all other active devices on the network
     ip_ls = get_addresses(icmp_socket, udp_socket)
+
+    print("\nTracing routes...\n")
     for ip in ip_ls:
-        print(ip)
         trace(ip, icmp_socket, udp_socket)
 
     icmp_socket.close() 
