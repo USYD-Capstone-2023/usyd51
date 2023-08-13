@@ -1,8 +1,6 @@
-# from ping3 import ping
 import traceroute
 import igraph as ig
 import matplotlib.pyplot as plt
-import socket
 
 edges = []
 verticies = []
@@ -16,7 +14,7 @@ known_ips = traceroute.get_addresses(icmp_socket, udp_socket)
 for current_ip in known_ips:
     if (traceroute.ping(current_ip, icmp_socket, udp_socket) != None):
         print(f"Found IP: {current_ip} in network, tracing path.")
-        current_path = traceroute.trace(socket.gethostbyname(current_ip), icmp_socket, udp_socket)
+        current_path = traceroute.trace(current_ip, icmp_socket, udp_socket)
         print("Path traced, constructing graph for current IP.")
         previous_hostname = None
         for node in current_path:
