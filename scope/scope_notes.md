@@ -6,7 +6,7 @@ Other solutions exist but require hardware from specific brands and for all devi
 
 ## Aim
 
-The aim is to contribute to/begin development on an open source network mapping, monitoring, and management tool. It will be able to find basic information about all devices on the network, display it in a user friendly map topology UI, and record that data over time. The tool will have a simple setup process and be able to run on any user machine.
+The aim is to contribute to/begin development on an open source, vendor agnostic network mapping, monitoring, and management tool. It will be able to find basic information about all devices on the network, display it in a user friendly map topology UI, and record that data over time. The tool will have a simple setup process and be able to run on any user machine.
 
 ## Objectives (SMART)
 
