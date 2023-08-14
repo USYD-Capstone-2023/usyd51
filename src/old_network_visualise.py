@@ -1,4 +1,4 @@
-import traceroute
+import old_traceroute as traceroute
 import igraph as ig
 import matplotlib.pyplot as plt
 
