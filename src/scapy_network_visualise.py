@@ -3,6 +3,8 @@ import igraph as ig
 import matplotlib.pyplot as plt
 import re, socket
 
+GATEWAY = "192.168.1.1"
+
 def arp_scan(ip_range, clients):
 
     # Creating arp packet
@@ -17,6 +19,7 @@ def arp_scan(ip_range, clients):
 
         ip = response[1].psrc
         mac = response[1].hwsrc
+        print(ip)
 
         # resolves hostname if possible. Massive time cost here, need to find a better solution +++
         name = ip
@@ -47,12 +50,10 @@ def tcp_scan(ip_range, clients):
 
         # resolves hostname if possible. Massive time cost here, need to find a better solution +++
         name = ip
-        try:
-            name = socket.gethostbyaddr(ip)[0]
-        except:
-            pass
-
-        print("Resolved %s as %s" % (ip, name))
+        # try:
+        #     name = socket.gethostbyaddr(ip)[0]
+        # except:
+        #     pass
 
         clients[ip] = {"mac" : mac, "name" : name, "route" : []}
 
@@ -72,6 +73,7 @@ def get_clients(ip_range):
 
     clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, "192.168.1.1"]}}
     # tcp_scan("192.168.1.0/24", clients)
+    # for i in range(5):
     arp_scan("192.168.1.0/24", clients)
 
     return clients
@@ -83,16 +85,19 @@ def tcp_traceroute(ip):
 
     # Runs traceroute.
     # Emits TCP packets with incrementing ttl until the target is reached
-    # answers = scapy.sr(scapy.IP(dst=ip, ttl=(1, MAX_HOPS))/scapy.TCP(dport=53, flags="S"), timeout=3, verbose=False)[0]
-    answers = scapy.traceroute(ip, verbose=False)[0]
+    answers = scapy.srp(scapy.IP(dst=ip, ttl=(1, 30))/scapy.TCP(dport=53, flags="S"), timeout=3, verbose=False)[0]
+    # answers = scapy.traceroute(ip, verbose=False)[0]
 
-    addrs = []
+    addrs = [GATEWAY]
     for response in answers:
 
-        ip = response.answer.src
-        if not addrs or ip != addrs[len(addrs) - 1]:
-            addrs.append(ip)
-                
+        resp_ip = response.answer.src
+        if resp_ip != addrs[len(addrs) - 1]:
+            addrs.append(resp_ip)
+
+    if ip not in addrs:
+        addrs.append(ip)
+
     return addrs
 
 # Prints network visualisation
@@ -129,7 +134,7 @@ def draw_graph(edges, vertices):
 
 if __name__ == "__main__":
 
-    clients = get_clients("192.168.1.0/24")
+    clients = get_clients("192.168.0/24.0/24")
 
     route_clients = {}
     vertices = []
