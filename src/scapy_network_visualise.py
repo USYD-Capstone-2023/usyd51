@@ -3,32 +3,16 @@ import igraph as ig
 import matplotlib.pyplot as plt
 import re, socket
 
-def get_clients(ip_range):
-
-    print("Getting active devices on local network...")
+def arp_scan(ip_range, clients):
 
     # Creating arp packet
     arp_frame = scapy.ARP(pdst=ip_range)
     ethernet_frame = scapy.Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 
-    # Adding this computer to list of clients in the map
-    own_ip = scapy.get_if_addr(scapy.conf.iface)
-    own_mac = scapy.Ether().src
-    own_name = own_ip
-    try:
-        own_name = socket.gethostbyaddr(own_ip)[0]
-    except:
-        pass
-
-    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip]}}
-
     # Run arp scan to retrieve active ips
     responded = scapy.srp(request, timeout=1, retry=10, verbose=False)[0]
 
-    print("Discovered %d devices!\nResolving hostnames..." % (len(responded)))
-    # Gather and store all relevant data for current client
-    cursor = 0
     for response in responded:
 
         ip = response[1].psrc
@@ -41,9 +25,54 @@ def get_clients(ip_range):
         # except:
         #     pass
 
-        print("[%d] Name is %s" % (cursor, name))
-        cursor += 1
         clients[ip] = {"mac" : mac, "name" : name, "route" : []}
+
+
+def tcp_scan(ip_range, clients):
+
+    try:
+        syn = scapy.IP(dst=ip_range) / scapy.TCP(dport=[80, 443], flags="S")
+    except socket.gaierror:
+        raise ValueError('Hostname {} could not be resolved.'.format(ip))
+
+    responded = scapy.sr(syn, timeout=2, retry=8)[0]
+
+    print("Discovered %d devices!\nResolving hostnames..." % (len(responded)))
+    # Gather and store all relevant data for current client
+    cursor = 0
+    for response in responded:
+
+        ip = response[1][scapy.IP].src
+        mac = "na"
+
+        # resolves hostname if possible. Massive time cost here, need to find a better solution +++
+        name = ip
+        try:
+            name = socket.gethostbyaddr(ip)[0]
+        except:
+            pass
+
+        print("Resolved %s as %s" % (ip, name))
+
+        clients[ip] = {"mac" : mac, "name" : name, "route" : []}
+
+
+def get_clients(ip_range):
+
+    print("Getting active devices on local network...")
+
+    # Adding this computer to list of clients in the map
+    own_ip = scapy.get_if_addr(scapy.conf.iface)
+    own_mac = scapy.Ether().src
+    own_name = own_ip
+    try:
+        own_name = socket.gethostbyaddr(own_ip)[0]
+    except:
+        pass
+
+    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, "192.168.1.1"]}}
+    # tcp_scan("192.168.1.0/24", clients)
+    arp_scan("192.168.1.0/24", clients)
 
     return clients
 
