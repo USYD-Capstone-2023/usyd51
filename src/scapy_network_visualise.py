@@ -1,13 +1,94 @@
 import scapy.all as scapy
 import igraph as ig
 import matplotlib.pyplot as plt
-import re, socket
-import json
-from mac_vendor_lookup import MacLookup
+import json, wget, os, csv, datetime
+# import socket
 
-
+# This is a problem as you either have one gateway or the other. 
+# Im 1.1 and yall are 0.1
 GATEWAY = "192.168.0.1"
+# GATEWAY = "192.168.1.1"
 GATEWAY_FANGED = GATEWAY.split(".")
+MAC_TABLE_FILEPATH = "../cache/oui.csv"
+
+mac_table = {}
+
+# Retrieves the MAC -> Vendor lookup table
+def init_mac_table():
+
+    print("[INFO] Fetching MAC vendors table, please wait...")
+
+    refresh = True
+
+    date_format = "%d/%m/%Y"
+    today = datetime.datetime.now()
+
+    # Checks if the cached MAC table was downloaded in the past 7 days
+    try:
+        with open(MAC_TABLE_FILEPATH, "r") as f:
+            reader = csv.reader(f)
+            row = next(reader)
+            if row:
+                delta = today - datetime.datetime.strptime(row[0], date_format)
+                if delta.days < 7:
+                    refresh = False
+                else:
+                    print("[INFO] MAC cache file is out of date.")
+
+    except Exception as e:
+        print("[WARNING] Could not read or locate MAC table cache file.")
+        print(e)
+    
+    # Downloads the updated OUI table from IEEE, saves to cache file
+    if refresh:
+
+        print("[INFO] Retrieving table from 'https://standards-oui.ieee.org'")
+        try:
+            tmp_fp = MAC_TABLE_FILEPATH + ".tmp"
+            wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
+
+            with open(tmp_fp, 'r+') as f:
+                content = f.read()
+                f.seek(0, 0)
+                f.write(today.strftime(date_format) + "\n")
+
+            os.rename(tmp_fp, MAC_TABLE_FILEPATH)
+
+        except Exception as e:
+            print("[ERROR] A network error occurred.")
+            print(e)
+            # TODO - Add cleanup for unconfirmed (downloading) tempfiles 
+
+    # Read mac table data from cache file
+    print("[INFO] Reading MAC table from cache file.")
+    try:
+        # Skip first two rows of header information
+        skip = 2
+        with open(MAC_TABLE_FILEPATH, "r") as f:
+
+            reader = csv.reader(f)
+            for line in reader:
+                if skip > 0:
+                    skip -= 1
+                    continue
+
+                if len(line) < 3:
+                    continue
+
+                mac_table[line[1]] = line[2]
+
+    except Exception as e:
+        print("[ERROR] Failed to read MAC table from file... Continuing without MAC lookup.")
+        print(e)
+
+
+def find_vendor(mac_address):
+
+    oui = "".join([x for x in mac_address.split(":")[:3]]).upper()
+    if oui in mac_table.keys():
+        return mac_table[oui]
+
+    return "UNKNOWN"
 
 def arp_scan(ip_range, clients):
 
@@ -17,7 +98,7 @@ def arp_scan(ip_range, clients):
     request = ethernet_frame / arp_frame
 
     # Run arp scan to retrieve active ips
-    responded = scapy.srp(request, timeout=1, retry=10, verbose=False)[0]
+    responded = scapy.srp(request, timeout=1, retry=5, verbose=False)[0]
 
     for response in responded:
 
@@ -39,43 +120,9 @@ def arp_scan(ip_range, clients):
         clients[ip] = {"mac" : mac, "name" : name, "route" : [], "Vendor": vendor}
 
 
-def tcp_scan(ip_range, clients):
-
-    try:
-        syn = scapy.IP(dst=ip_range) / scapy.TCP(dport=[80, 443], flags="S")
-    except socket.gaierror:
-        raise ValueError('Hostname {} could not be resolved.'.format(ip))
-
-    responded = scapy.sr(syn, timeout=2, retry=8)[0]
-
-    print("Discovered %d devices!\nResolving hostnames..." % (len(responded)))
-    # Gather and store all relevant data for current client
-    cursor = 0
-    for response in responded:
-
-        ip = response[1][scapy.IP].src
-        mac = "na"
-
-        # resolves hostname if possible. Massive time cost here, need to find a better solution +++
-        name = ip
-        # try:
-        #     name = socket.gethostbyaddr(ip)[0]
-        # except:
-        #     pass
-
-        clients[ip] = {"mac" : mac, "name" : name, "route" : []}
-
-mac = MacLookup()
-mac.update_vendors()  # <- This can take a few seconds for the download
-
-def find_vendor(mac_address):
-    return mac.lookup(mac_address)
-
-
 def get_clients(ip_range):
 
-    print("Getting active devices on local network...")
-
+    print("[INFO] Getting active devices on local network...")
     # Adding this computer to list of clients in the map
     own_ip = scapy.get_if_addr(scapy.conf.iface)
     own_mac = scapy.Ether().src
@@ -86,21 +133,21 @@ def get_clients(ip_range):
         pass
 
     clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, GATEWAY], "Vendor": find_vendor(own_mac)}}
-    # tcp_scan("192.168.1.0/24", clients)
-    # for i in range(5):
-    arp_scan(f"{GATEWAY}/24", clients)
+    arp_scan(ip_range, clients)
+
+    print("[INFO] Found %d devices!" % (len(clients)))
 
     return clients
 
 # Gets the ip of all devices on the path from the host to the target ip
 def tcp_traceroute(ip):
 
-    print("Tracing route to %s" % (ip))
+    print("[INFO] Tracing route to %s" % (ip))
 
     # Runs traceroute.
     # Emits TCP packets with incrementing ttl until the target is reached
-    answers = scapy.srp(scapy.IP(dst=ip, ttl=(1, 30))/scapy.TCP(dport=53, flags="S"), timeout=3, verbose=False)[0]
-    # answers = scapy.traceroute(ip, verbose=False)[0]
+    # answers = scapy.srp(scapy.IP(dst=ip, ttl=(1, 30))/scapy.TCP(dport=53, flags="S"), timeout=3, verbose=False)[0]
+    answers = scapy.traceroute(ip, verbose=False)[0]
 
     addrs = [GATEWAY]
     for response in answers:
@@ -117,7 +164,7 @@ def tcp_traceroute(ip):
 # Prints network visualisation
 def draw_graph(edges, vertices):
 
-    print("Graph constructed, initialising visualisation")
+    print("[INFO] Graph constructed, initialising visualisation")
 
     n_vertices = len(vertices)
 
@@ -148,7 +195,9 @@ def draw_graph(edges, vertices):
 
 if __name__ == "__main__":
 
-    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}/24.{GATEWAY_FANGED[3]}/24")
+    init_mac_table()
+
+    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24")
 
     with open("clients.json", "w") as outfile:
         json.dump(clients, outfile)
