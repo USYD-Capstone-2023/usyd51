@@ -2,6 +2,7 @@ import scapy.all as scapy
 import igraph as ig
 import matplotlib.pyplot as plt
 import re, socket
+import json
 
 GATEWAY = "192.168.0.1"
 GATEWAY_FANGED = GATEWAY.split(".")
@@ -136,6 +137,9 @@ def draw_graph(edges, vertices):
 if __name__ == "__main__":
 
     clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}/24.{GATEWAY_FANGED[3]}/24")
+
+    with open("clients.json", "w") as outfile:
+        json.dump(clients, outfile)
 
     route_clients = {}
     vertices = []
