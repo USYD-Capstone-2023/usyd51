@@ -3,6 +3,8 @@ import igraph as ig
 import matplotlib.pyplot as plt
 import re, socket
 import json
+from mac_vendor_lookup import MacLookup
+
 
 GATEWAY = "192.168.0.1"
 GATEWAY_FANGED = GATEWAY.split(".")
@@ -29,8 +31,12 @@ def arp_scan(ip_range, clients):
         #     name = socket.gethostbyaddr(ip)[0]
         # except:
         #     pass
-
-        clients[ip] = {"mac" : mac, "name" : name, "route" : []}
+        vendor = "UNKNOWN"
+        try:
+            vendor = find_vendor(mac)
+        except:
+            pass
+        clients[ip] = {"mac" : mac, "name" : name, "route" : [], "Vendor": vendor}
 
 
 def tcp_scan(ip_range, clients):
@@ -59,6 +65,12 @@ def tcp_scan(ip_range, clients):
 
         clients[ip] = {"mac" : mac, "name" : name, "route" : []}
 
+mac = MacLookup()
+mac.update_vendors()  # <- This can take a few seconds for the download
+
+def find_vendor(mac_address):
+    return mac.lookup(mac_address)
+
 
 def get_clients(ip_range):
 
@@ -73,7 +85,7 @@ def get_clients(ip_range):
     except:
         pass
 
-    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, GATEWAY]}}
+    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, GATEWAY], "Vendor": find_vendor(own_mac)}}
     # tcp_scan("192.168.1.0/24", clients)
     # for i in range(5):
     arp_scan(f"{GATEWAY}/24", clients)
