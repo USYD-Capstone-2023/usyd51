@@ -3,7 +3,8 @@ import igraph as ig
 import matplotlib.pyplot as plt
 import re, socket
 
-GATEWAY = "192.168.1.1"
+GATEWAY = "192.168.0.1"
+GATEWAY_FANGED = GATEWAY.split(".")
 
 def arp_scan(ip_range, clients):
 
@@ -71,10 +72,10 @@ def get_clients(ip_range):
     except:
         pass
 
-    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, "192.168.1.1"]}}
+    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, GATEWAY]}}
     # tcp_scan("192.168.1.0/24", clients)
     # for i in range(5):
-    arp_scan("192.168.1.0/24", clients)
+    arp_scan(f"{GATEWAY}/24", clients)
 
     return clients
 
@@ -134,7 +135,7 @@ def draw_graph(edges, vertices):
 
 if __name__ == "__main__":
 
-    clients = get_clients("192.168.0/24.0/24")
+    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}/24.{GATEWAY_FANGED[3]}/24")
 
     route_clients = {}
     vertices = []
