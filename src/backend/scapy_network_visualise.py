@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 import json
 from Client import Client
 from MAC_table import MAC_table
-
-# import socket
+import IPy
 
 # This is a problem as you either have one gateway or the other. 
 # Im 1.1 and yall are 0.1
@@ -32,15 +31,10 @@ def arp_scan(ip_range, clients, mac_table):
         mac = response[1].hwsrc
 
         # resolves hostname if possible. Massive time cost here, need to find a better solution +++
-        name = ip
-        # try:
-        #     name = socket.gethostbyaddr(ip)[0]
-        # except:
-        #     pass
+        name = IPy.IP(ip).reverseName()
         vendor = mac_table.find_vendor(mac)
 
         clients[ip] = Client(ip, name, mac, vendor)
-        clients[GATEWAY] = Client(GATEWAY, GATEWAY, "UNKNOWN", "UNKNOWN")
 
 
 def get_clients(ip_range, mac_table):
@@ -49,14 +43,11 @@ def get_clients(ip_range, mac_table):
     # Adding this computer to list of clients in the map
     own_ip = scapy.get_if_addr(scapy.conf.iface)
     own_mac = scapy.Ether().src
-    own_name = own_ip
+    own_name = IPy.IP(own_ip).reverseName()
     own_vendor = mac_table.find_vendor(own_mac)
-    try:
-        own_name = socket.gethostbyaddr(own_ip)[0]
-    except:
-        print("[WARNING] Failed to resolve own hostname")
 
     clients = {own_ip : Client(own_ip, own_name, own_mac, own_vendor)}
+    clients[GATEWAY] = Client(GATEWAY, IPy.IP(GATEWAY).reverseName(), "UNKNOWN", "UNKNOWN")
     arp_scan(ip_range, clients, mac_table)
 
     print("[INFO] Found %d devices!" % (len(clients)))
@@ -84,7 +75,7 @@ def traceroute(ip, clients):
         resp_ip = answers[response_idx].answer.src
 
         if resp_ip not in clients.keys():
-            clients[resp_ip] = Client(resp_ip, resp_ip, "UNKNOWN", "UNKNOWN")
+            clients[resp_ip] = Client(resp_ip, IPy.IP(resp_ip).reverseName(), "UNKNOWN", "UNKNOWN")
 
         clients[prev_resp_ip].neighbours.add(clients[resp_ip])
         clients[resp_ip].neighbours.add(clients[prev_resp_ip])
@@ -131,9 +122,6 @@ if __name__ == "__main__":
     mac_table = MAC_table(MAC_TABLE_FILEPATH)
     clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table)
 
-    # with open("clients.json", "w") as outfile:
-    #     json.dump(clients, outfile)
-
     vertices = []
     edges = set()
     for ip in list(clients.keys()):
@@ -169,3 +157,11 @@ if __name__ == "__main__":
         layer = next_layer
 
     draw_graph(edges, vertices)
+
+    out = {}
+    for client in clients.keys():
+        c = clients[client]
+        out[client] = {"name" : c.name, "mac" : c.mac, "vendor" : c.vendor, "neighbours" : [x.name for x in c.neighbours]}
+
+    with open("clients.json", "w") as outfile:
+        json.dump(out, outfile)
