@@ -9,7 +9,7 @@ import json, wget, os, csv, datetime
 GATEWAY = "192.168.0.1"
 # GATEWAY = "192.168.1.1"
 GATEWAY_FANGED = GATEWAY.split(".")
-MAC_TABLE_FILEPATH = "../cache/oui.csv"
+MAC_TABLE_FILEPATH = "../../cache/oui.csv"
 
 mac_table = {}
 
