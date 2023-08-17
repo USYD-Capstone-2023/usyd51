@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import json
 from Client import Client
 from MAC_table import MAC_table
+import os
 
 # import socket
 
@@ -126,7 +127,12 @@ def draw_graph(edges, vertices):
     fig.savefig("output.png")
     plt.show()
 
+
 if __name__ == "__main__":
+
+    if (os.name == 'posix' and os.geteuid() != 0): # Determines if program is being run in root if on posix system.
+        print("Root permissions are required for this program to run.")
+        quit()
 
     mac_table = MAC_table(MAC_TABLE_FILEPATH)
     clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table)
