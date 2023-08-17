@@ -6,7 +6,9 @@ import json, wget, os, csv, datetime
 
 # This is a problem as you either have one gateway or the other. 
 # Im 1.1 and yall are 0.1
-GATEWAY = "192.168.0.1"
+GATEWAY = scapy.conf.route.route("0.0.0.0")[2]
+
+# GATEWAY = "192.168.0.1"
 # GATEWAY = "192.168.1.1"
 GATEWAY_FANGED = GATEWAY.split(".")
 MAC_TABLE_FILEPATH = "../cache/oui.csv"
