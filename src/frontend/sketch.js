@@ -90,16 +90,57 @@ function mouseClicked(){
 function loadData(data){
     allDevices = [];
 
-    for (device in data){
-        allDevices.push(new Device(random()*width, random()*height, 10, data[device], data[device].name))
+    let device_list = Object.keys(data)
+    device_list.sort((a, b) => data[a].layer_level - data[b].layer_level) // Sort by layer level
+
+    let total_levels = -1;
+    for (device of device_list){
+        if (data[device].layer_level > total_levels){
+            total_levels = data[device].layer_level
+        }
+    }
+    total_levels++; // Account for router being 0, not 1.
+    if (total_levels == 0){
+        console.log("Invalid data, cannot load.");
+        return;
+    }
+
+    // Map all nodes into their levels
+    
+    let levels_array = []
+    for (let i = 0; i < total_levels; i++){
+        levels_array.push([])
+    }
+
+    for (device of device_list){
+        levels_array[data[device].layer_level].push(device);
+    }
+
+    let horizontal_width = width/(total_levels+1); // Give even spacing on left and right.
+
+    for (let layer = 0; layer < levels_array.length; layer++){
+        let x_pos = horizontal_width*(layer+1);
+        console.log("Width: ", horizontal_width, "Layer+1: ", layer+1)
+        let height_difference = height/(levels_array[layer].length+1);
+        console.log("Height: ", height_difference)
+        for (let i = 0; i < levels_array[layer].length; i++){
+            let y_pos = height_difference*(i+1);
+            allDevices.push(new Device(x_pos, y_pos, 10, data[levels_array[layer][i]], data[levels_array[layer][i]].name))
+            console.log(x_pos, y_pos)
+        }
     }
 
 
+
+    // for (device in data){
+    //     allDevices.push(new Device(random()*width, random()*height, 10, data[device], data[device].name))
+    // }
+
+
     for (device of allDevices){
+        console.log(device)
         for (link of device.data.neighbours){
             for (other_device of allDevices){
-                console.log(other_device.name, "other");
-                console.log(link, "name")
                 if (other_device.name == link){
                     device.addLink(other_device);
                     break;

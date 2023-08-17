@@ -137,14 +137,21 @@ if __name__ == "__main__":
 
     gateway_client = clients[GATEWAY]
     layer = [gateway_client]
+    gateway_client.parent = '0'
     visited = set()
 
-    # Generates all edges
+    # Generates all edges and generates a distance from router attribute in each client.
+    distance_from_router = 0
     read_layer = True
     while layer:
 
+        for client in layer:
+                # Assign layer level
+                client.layer_level = distance_from_router
+
         if read_layer:
             for client in layer:
+                # Add vertex
                 for neighbour in client.neighbours:
                     v1 = min(vertices.index(client.name), vertices.index(neighbour.name))
                     v2 = max(vertices.index(client.name), vertices.index(neighbour.name))
@@ -157,16 +164,18 @@ if __name__ == "__main__":
             visited.add(client)
             for neighbour in client.neighbours:
                 if neighbour not in visited:
+                    neighbour.parent = client.name
                     next_layer.append(neighbour)
 
         layer = next_layer
+        distance_from_router  += 1
 
     draw_graph(edges, vertices)
 
     out = {}
     for client in clients.keys():
         c = clients[client]
-        out[client] = {"name" : c.name, "mac" : c.mac, "vendor" : c.vendor, "neighbours" : [x.name for x in c.neighbours]}
+        out[client] = {"name" : c.name, "mac" : c.mac, "vendor" : c.vendor, "neighbours" : [x.name for x in c.neighbours], "layer_level" : c.layer_level, "parent": c.parent}
 
     with open("clients.json", "w") as outfile:
         json.dump(out, outfile)
