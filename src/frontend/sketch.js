@@ -1,16 +1,20 @@
+
 var allDevices = []
 let deviceFound = undefined;
 let offset = [];
 let newCircle = false;
 
 
+
 class Device {
-    constructor(x, y, radius){
+    constructor(x, y, radius, data, name=''){
         this.x = x;
         this.y = y;
         this.radius = radius;
         this.colour = [255,100,100];
-        this.links = [];
+        this.data = data
+        this.links = []
+        this.name = name
     }
 
     addLink(device){
@@ -33,8 +37,8 @@ class Device {
 
 function setup(){
     createCanvas(windowWidth, windowHeight);
-    allDevices.push(new Device(100, 100, 20))
-    allDevices.push(new Device(200, 300, 20));
+    allDevices.push(new Device(100, 100, 20,{}))
+    allDevices.push(new Device(200, 300, 20,{}));
     allDevices[0].addLink(allDevices[1]);
 }
 
@@ -77,7 +81,35 @@ function keyPressed(){
 
 function mouseClicked(){
     if (newCircle){
-        allDevices.push(new Device(mouseX, mouseY, 20));
+        allDevices.push(new Device(mouseX, mouseY, 20,{}));
         newCircle = false;
     }
 }
+
+
+function loadData(data){
+    allDevices = [];
+
+    for (device in data){
+        allDevices.push(new Device(random()*width, random()*height, 10, data[device], data[device].name))
+    }
+
+
+    for (device of allDevices){
+        for (link of device.data.neighbours){
+            for (other_device of allDevices){
+                console.log(other_device.name, "other");
+                console.log(link, "name")
+                if (other_device.name == link){
+                    device.addLink(other_device);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+window.electronAPI.updateData((_event, value) => {
+    console.log("Attempting to visualise!");
+    loadData(value);
+})
