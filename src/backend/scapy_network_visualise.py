@@ -1,96 +1,22 @@
 import scapy.all as scapy
 import igraph as ig
 import matplotlib.pyplot as plt
-import json, wget, os, csv, datetime
+import json
+from Client import Client
+from MAC_table import MAC_table
+
 # import socket
 
 # This is a problem as you either have one gateway or the other. 
 # Im 1.1 and yall are 0.1
+# GATEWAY = scapy.conf.route.route("0.0.0.0")[2]
+
 GATEWAY = "192.168.0.1"
 # GATEWAY = "192.168.1.1"
 GATEWAY_FANGED = GATEWAY.split(".")
 MAC_TABLE_FILEPATH = "../../cache/oui.csv"
 
-mac_table = {}
-
-# Retrieves the MAC -> Vendor lookup table
-def init_mac_table():
-
-    print("[INFO] Fetching MAC vendors table, please wait...")
-
-    refresh = True
-
-    date_format = "%d/%m/%Y"
-    today = datetime.datetime.now()
-
-    # Checks if the cached MAC table was downloaded in the past 7 days
-    try:
-        with open(MAC_TABLE_FILEPATH, "r") as f:
-            reader = csv.reader(f)
-            row = next(reader)
-            if row:
-                delta = today - datetime.datetime.strptime(row[0], date_format)
-                if delta.days < 7:
-                    refresh = False
-                else:
-                    print("[INFO] MAC cache file is out of date.")
-
-    except Exception as e:
-        print("[WARNING] Could not read or locate MAC table cache file.")
-        print(e)
-    
-    # Downloads the updated OUI table from IEEE, saves to cache file
-    if refresh:
-
-        print("[INFO] Retrieving table from 'https://standards-oui.ieee.org'")
-        try:
-            tmp_fp = MAC_TABLE_FILEPATH + ".tmp"
-            wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
-
-            with open(tmp_fp, 'r+') as f:
-                content = f.read()
-                f.seek(0, 0)
-                f.write(today.strftime(date_format) + "\n")
-
-            os.rename(tmp_fp, MAC_TABLE_FILEPATH)
-
-        except Exception as e:
-            print("[ERROR] A network error occurred.")
-            print(e)
-            # TODO - Add cleanup for unconfirmed (downloading) tempfiles 
-
-    # Read mac table data from cache file
-    print("[INFO] Reading MAC table from cache file.")
-    try:
-        # Skip first two rows of header information
-        skip = 2
-        with open(MAC_TABLE_FILEPATH, "r") as f:
-
-            reader = csv.reader(f)
-            for line in reader:
-                if skip > 0:
-                    skip -= 1
-                    continue
-
-                if len(line) < 3:
-                    continue
-
-                mac_table[line[1]] = line[2]
-
-    except Exception as e:
-        print("[ERROR] Failed to read MAC table from file... Continuing without MAC lookup.")
-        print(e)
-
-
-def find_vendor(mac_address):
-
-    oui = "".join([x for x in mac_address.split(":")[:3]]).upper()
-    if oui in mac_table.keys():
-        return mac_table[oui]
-
-    return "UNKNOWN"
-
-def arp_scan(ip_range, clients):
+def arp_scan(ip_range, clients, mac_table):
 
     # Creating arp packet
     arp_frame = scapy.ARP(pdst=ip_range)
@@ -104,7 +30,6 @@ def arp_scan(ip_range, clients):
 
         ip = response[1].psrc
         mac = response[1].hwsrc
-        print(ip)
 
         # resolves hostname if possible. Massive time cost here, need to find a better solution +++
         name = ip
@@ -112,35 +37,34 @@ def arp_scan(ip_range, clients):
         #     name = socket.gethostbyaddr(ip)[0]
         # except:
         #     pass
-        vendor = "UNKNOWN"
-        try:
-            vendor = find_vendor(mac)
-        except:
-            pass
-        clients[ip] = {"mac" : mac, "name" : name, "route" : [], "Vendor": vendor}
+        vendor = mac_table.find_vendor(mac)
+
+        clients[ip] = Client(ip, name, mac, vendor)
+        clients[GATEWAY] = Client(GATEWAY, GATEWAY, "UNKNOWN", "UNKNOWN")
 
 
-def get_clients(ip_range):
+def get_clients(ip_range, mac_table):
 
     print("[INFO] Getting active devices on local network...")
     # Adding this computer to list of clients in the map
     own_ip = scapy.get_if_addr(scapy.conf.iface)
     own_mac = scapy.Ether().src
     own_name = own_ip
+    own_vendor = mac_table.find_vendor(own_mac)
     try:
         own_name = socket.gethostbyaddr(own_ip)[0]
     except:
-        pass
+        print("[WARNING] Failed to resolve own hostname")
 
-    clients = {own_ip : {"mac" : own_mac, "name" : own_name, "route" : [own_ip, GATEWAY], "Vendor": find_vendor(own_mac)}}
-    arp_scan(ip_range, clients)
+    clients = {own_ip : Client(own_ip, own_name, own_mac, own_vendor)}
+    arp_scan(ip_range, clients, mac_table)
 
     print("[INFO] Found %d devices!" % (len(clients)))
 
     return clients
 
 # Gets the ip of all devices on the path from the host to the target ip
-def tcp_traceroute(ip):
+def traceroute(ip, clients):
 
     print("[INFO] Tracing route to %s" % (ip))
 
@@ -150,16 +74,25 @@ def tcp_traceroute(ip):
     answers = scapy.traceroute(ip, verbose=False)[0]
 
     addrs = [GATEWAY]
-    for response in answers:
+    prev_resp_ip = GATEWAY
 
-        resp_ip = response.answer.src
-        if resp_ip != addrs[len(addrs) - 1]:
-            addrs.append(resp_ip)
+    for response_idx in range(1, len(answers)):
 
-    if ip not in addrs:
-        addrs.append(ip)
+        if answers[response_idx].answer.src == prev_resp_ip:
+            break
 
-    return addrs
+        resp_ip = answers[response_idx].answer.src
+
+        if resp_ip not in clients.keys():
+            clients[resp_ip] = Client(resp_ip, resp_ip, "UNKNOWN", "UNKNOWN")
+
+        clients[prev_resp_ip].neighbours.add(clients[resp_ip])
+        clients[resp_ip].neighbours.add(clients[prev_resp_ip])
+        prev_resp_ip = resp_ip
+
+    clients[prev_resp_ip].neighbours.add(clients[ip])
+    clients[ip].neighbours.add(clients[prev_resp_ip])
+
 
 # Prints network visualisation
 def draw_graph(edges, vertices):
@@ -195,59 +128,44 @@ def draw_graph(edges, vertices):
 
 if __name__ == "__main__":
 
-    init_mac_table()
+    mac_table = MAC_table(MAC_TABLE_FILEPATH)
+    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table)
 
-    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24")
+    # with open("clients.json", "w") as outfile:
+    #     json.dump(clients, outfile)
 
-    with open("clients.json", "w") as outfile:
-        json.dump(clients, outfile)
-
-    route_clients = {}
     vertices = []
     edges = set()
-    for client in clients.keys():
+    for ip in list(clients.keys()):
 
-        data = clients.get(client)
-        route = tcp_traceroute(client)
-        data["route"].extend(route)
+        traceroute(ip, clients)
 
-        # Creates a dictionary of all clients including those found in the path
-        route_clients[client] = data
-        # Generates all vertices
-        for ip in data["route"]:
-            if ip in route_clients.keys():
-                continue
+    vertices = [clients[key].name for key in clients.keys()]
 
-            elif ip in clients.keys():
-                route_clients[ip] = clients.get(ip)
-                route_clients[ip]["route"].extend(route)
-                vertices.append(clients[ip]["name"])
+    gateway_client = clients[GATEWAY]
+    layer = [gateway_client]
+    visited = set()
 
-            else:
-                route_clients[ip] = {"mac" : "UNKNOWN", "name" : ip, "route" : route}
-                vertices.append(ip)
-            
     # Generates all edges
-    for client in route_clients:
-        prev_client_name = None
-        for ip in route_clients.get(client)["route"]:
+    read_layer = True
+    while layer:
 
-            client_name = ip
-            if ip in route_clients.keys():
-                client_name = route_clients[ip]["name"]
+        if read_layer:
+            for client in layer:
+                for neighbour in client.neighbours:
+                    v1 = min(vertices.index(client.name), vertices.index(neighbour.name))
+                    v2 = max(vertices.index(client.name), vertices.index(neighbour.name))
+                    edges.add((v1, v2))
 
-            if prev_client_name and prev_client_name != client_name:
-                if client_name not in vertices:
-                    vertices.append(client_name)
+        read_layer = not read_layer
+        next_layer = []
 
-                if prev_client_name not in vertices:
-                    vertices.append(prev_client_name)
+        for client in layer:
+            visited.add(client)
+            for neighbour in client.neighbours:
+                if neighbour not in visited:
+                    next_layer.append(neighbour)
 
-                i1 = vertices.index(prev_client_name)
-                i2 = vertices.index(client_name)
-
-                edges.add((min(i1, i2), max(i1, i2)))
-
-            prev_client_name = client_name
+        layer = next_layer
 
     draw_graph(edges, vertices)
