@@ -13,6 +13,10 @@ class Client:
     mac = "unknown"
     mac_vendor = "unknown"
 
+    # distance from gateway
+    layer_level = -1
+    parent = ""
+
     def __init__(self):
         self.neighbours = set()
 
@@ -33,8 +37,8 @@ class Client:
 
     def to_map(self):
 
-        out = {"host_info" : {"name" : self.hostname, "mac" : self.mac, "mac_vendor" : self.mac_vendor},
-                "os_info" : {"os_type" : self.os_type, "os_vendor" : self.os_vendor, "os_family" : self.os_family},
-                "neighbours" : [x.hostname for x in self.neighbours]}
+        out = {"name" : self.hostname, "mac" : self.mac, "mac_vendor" : self.mac_vendor, "os_type" : self.os_type,
+                "os_vendor" : self.os_vendor, "os_family" : self.os_family, "neighbours" : [x.hostname for x in self.neighbours],
+                "layer_level" : self.layer_level, "parent" : self.parent}
 
         return out

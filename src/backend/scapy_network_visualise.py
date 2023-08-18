@@ -223,15 +223,22 @@ def get_graph_components(clients):
 
     gateway_client = clients[GATEWAY]
     layer = [gateway_client]
+    gateway_client.parent = '0'
     visited = set()
 
     # Performs a BFS from the gateway, taking the neighbours of every client in every second layer
     # as edges
+    distance_from_router = 0
     read_layer = True
     while layer:
 
+        for client in layer:
+            # Assign layer level
+            client.layer_level = distance_from_router
+
         if read_layer:
             for client in layer:
+                # Add edge between client and its neighbours
                 for neighbour in client.neighbours:
                     v1 = min(vertices.index(client.hostname), vertices.index(neighbour.hostname))
                     v2 = max(vertices.index(client.hostname), vertices.index(neighbour.hostname))
@@ -244,13 +251,20 @@ def get_graph_components(clients):
             for neighbour in client.neighbours:
                 if neighbour not in visited:
                     visited.add(neighbour)
+                    neighbour.parent = client.hostname
                     next_layer.append(neighbour)
 
         layer = next_layer
+        distance_from_router += 1
     
     return edges, vertices
 
 if __name__ == "__main__":
+
+    # Ensures that the user has root perms uf run on posix system.
+    if (os.name == 'posix' and os.geteuid() != 0): 
+        print("Root permissions are required for this program to run.")
+        quit()
 
     mac_table = MAC_table(MAC_TABLE_FILEPATH)
     nm = nmap.PortScanner()
