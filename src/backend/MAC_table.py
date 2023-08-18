@@ -38,7 +38,7 @@ class MAC_table:
 
             print("[INFO] Retrieving table from 'https://standards-oui.ieee.org'")
             try:
-                tmp_fp = MAC_TABLE_FILEPATH + ".tmp"
+                tmp_fp = filepath + ".tmp"
                 wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
 
                 with open(tmp_fp, 'r+') as f:
@@ -82,4 +82,4 @@ class MAC_table:
         if oui in self.mac_table.keys():
             return self.mac_table[oui]
 
-        return "UNKNOWN"
+        return "unknown"
