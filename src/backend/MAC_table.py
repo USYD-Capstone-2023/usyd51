@@ -10,6 +10,10 @@ class MAC_table:
     # Retrieves the MAC -> Vendor lookup table
     def init_mac_table(self, filepath):
 
+        dir = "".join([x + "/" for x in filepath.split("/")[:-1]])
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+            
         print("[INFO] Fetching MAC vendors table, please wait...")
 
         refresh = True
