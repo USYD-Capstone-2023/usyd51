@@ -33,7 +33,7 @@ function createWindow () {
   Menu.setApplicationMenu(menu);
 
   win.loadFile('index.html')
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
 
 }
 
