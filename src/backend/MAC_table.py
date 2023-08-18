@@ -82,4 +82,4 @@ class MAC_table:
         if oui in self.mac_table.keys():
             return self.mac_table[oui]
 
-        return "UNKNOWN"
+        return "unknown"
