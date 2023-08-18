@@ -87,10 +87,10 @@ def arp_scan(ip_range, clients, mac_table, nm):
         percent = 100.0 * counter / total_val
         sys.stdout.write('\r')
         progress = int(percent / (100.0 / length))
-        sys.stdout.write("[INFO] Scanned: [%s%s] %d%%" % ('-' * progress, ' ' * (length - progress), int(percent)))
+        sys.stdout.write("[INFO] Resolved: [%s%s] %d%%" % ('-' * progress, ' ' * (length - progress), int(percent)))
         sys.stdout.flush()
 
-    print("\n[INFO] Client scanning complete!")
+    print("\n[INFO] Hostname resolution complete!")
 
 
 def get_clients(ip_range, mac_table, nm):
@@ -99,7 +99,7 @@ def get_clients(ip_range, mac_table, nm):
     own_ip = scapy.get_if_addr(scapy.conf.iface)
     own_mac = scapy.Ether().src
     own_vendor = mac_table.find_vendor(own_mac)
-    own_name = s.gethostname()
+    own_name = platform.node()
 
     this_client = Client()
     this_client.add_host_info(own_ip, own_name, own_mac, own_vendor)
@@ -156,8 +156,6 @@ def get_os_info(clients, nm):
 
 # Gets the ip of all devices on the path from the host to the target ip
 def traceroute(ip, clients, nm):
-
-    print("[INFO] Tracing route to %s" % (ip))
 
     # Runs traceroute.
     # Emits TCP packets with incrementing ttl until the target is reached
@@ -225,18 +223,7 @@ def draw_graph(edges, vertices):
     fig.savefig("output.png")
     plt.show()
 
-
-if __name__ == "__main__":
-
-    mac_table = MAC_table(MAC_TABLE_FILEPATH)
-    nm = nmap.PortScanner()
-    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table, nm)
-
-    vertices = []
-    edges = set()
-    for ip in list(clients.keys()):
-
-        traceroute(ip, clients, nm)
+def get_graph_components(clients):
 
     vertices = [clients[key].hostname for key in clients.keys()]
 
@@ -265,14 +252,27 @@ if __name__ == "__main__":
                     next_layer.append(neighbour)
 
         layer = next_layer
+    
+    return edges, vertices
 
+if __name__ == "__main__":
+
+    mac_table = MAC_table(MAC_TABLE_FILEPATH)
+    nm = nmap.PortScanner()
+    clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table, nm)
+
+    vertices = []
+    edges = set()
+
+    for ip in list(clients.keys()):
+        traceroute(ip, clients, nm)
+        
+    edges, vertices = get_graph_components(clients)
     draw_graph(edges, vertices)
 
     get_os_info(clients, nm)
 
     out = {client.ip : client.to_map() for client in clients.values()}
-    # for client in clients.values():
-        # out[client.ip] = client.to_map()
 
     with open("clients.json", "w") as outfile:
         json.dump(out, outfile)
