@@ -2,11 +2,13 @@ import scapy.all as scapy
 import igraph as ig
 import matplotlib.pyplot as plt
 import json
-import sys
 from Client import Client
 from MAC_table import MAC_table
+from Loading_bar import Loading_bar
 import nmap
 import platform
+import os
+import sys
 
 # This is a problem as you either have one gateway or the other. 
 # Im 1.1 and yall are 0.1
@@ -16,9 +18,12 @@ GATEWAY = "192.168.1.1"
 GATEWAY_FANGED = GATEWAY.split(".")
 MAC_TABLE_FILEPATH = "../cache/oui.csv"
 
+
+# Retrieves os information of a device by approximation using TCP/IP stack fingerprinting
+# TODO - parallelise as much as possible. This is easily the slowest process in the entire program
 def nm_get_os(nm, ip):
 
-    data = nm.scan(ip, arguments = "-O") #  --host-timeout 10")
+    data = nm.scan(ip, arguments="-O", sudo=True)
     data = data["scan"]
 
     os_info = {"os_type" : "unknown", "os_vendor" : "unknown", "os_family" : "unknown"}
@@ -35,9 +40,12 @@ def nm_get_os(nm, ip):
 
     return os_info
 
+
+# Performs a reverse DNS lookup
+# TODO - parallelise as much as possible. Check timeout limits, unsure how fast dns is resolved but seems to work on my network
 def nm_get_hostname(nm, ip):
 
-    data = nm.scan(ip, arguments = "--host-timeout 0.1")
+    data = nm.scan(ip, arguments="--host-timeout 0.5", sudo=True)
     data = data["scan"]
     hostname = ""
     if ip in data.keys():
@@ -46,6 +54,8 @@ def nm_get_hostname(nm, ip):
     return ip if hostname == "" else hostname
 
 
+# Scans for all active ips (and MACs) on the network and converts them into Client objects
+# TODO - set ip range based on subnet mask not just GATEWAY/24
 def arp_scan(ip_range, clients, mac_table, nm):
 
     # Creating arp packet
@@ -55,19 +65,11 @@ def arp_scan(ip_range, clients, mac_table, nm):
 
     print("[INFO] Getting all active devices on network.")
     # Run arp scan to retrieve active ips
-    responded = scapy.srp(request, timeout=0.2, retry=2, verbose=False)[0]
-    print("[INFO] Found %d devices!" % (len(responded)))
+    responded = scapy.srp(request, timeout=1, retry=4, verbose=False)[0]
+    print("[INFO] Found %d devices!\n" % (len(responded)))
     print("[INFO] Resolving hostnames...")
 
-    # total length of progress bar in chars
-    length = 40 
-    # "full" value of progress bar
-    total_val = len(responded)  
-
-    sys.stdout.write('\r')
-    sys.stdout.write("[INFO] Scanned: [%s] %d%%" % (' ' * length, 0))
-    sys.stdout.flush()
-    counter = 0
+    lb = Loading_bar("Resolved", 40, len(responded))
 
     for response in responded:
         
@@ -81,18 +83,12 @@ def arp_scan(ip_range, clients, mac_table, nm):
         clients[ip] = Client()
         clients[ip].add_host_info(ip, name, mac, vendor)
 
-        # Update progress bar
-        counter += 1
+        lb.increment()
 
-        percent = 100.0 * counter / total_val
-        sys.stdout.write('\r')
-        progress = int(percent / (100.0 / length))
-        sys.stdout.write("[INFO] Resolved: [%s%s] %d%%" % ('-' * progress, ' ' * (length - progress), int(percent)))
-        sys.stdout.flush()
-
-    print("\n[INFO] Hostname resolution complete!")
+    print("\n[INFO] Hostname resolution complete!\n")
 
 
+# Creates a Client object for all connected clients on the network, including the current computer and gateway
 def get_clients(ip_range, mac_table, nm):
 
     # Adding this computer to list of clients in the map
@@ -106,7 +102,7 @@ def get_clients(ip_range, mac_table, nm):
     this_client.add_os_info("general", "%s %s %s" % (platform.system(), platform.release(), platform.version()), platform.system())
 
     # Adding gateway to list of clients
-    print("[INFO] Getting gateway information.")
+    print("\n[INFO] Getting gateway information.")
     gateway_hostname = nm_get_hostname(nm, GATEWAY)
     gateway_mac = scapy.getmacbyip(GATEWAY)
     if gateway_mac == None:
@@ -118,78 +114,73 @@ def get_clients(ip_range, mac_table, nm):
     gateway_client.add_host_info(GATEWAY, gateway_hostname, gateway_mac, gateway_vendor)
     clients = {own_ip : this_client, GATEWAY : gateway_client}
 
-    # Scans for all clients on the network
+    # Gets all other clients on the network
     arp_scan(ip_range, clients, mac_table, nm)
 
     return clients
 
+# Retrieves the OS info of all known clients on the network 
 def get_os_info(clients, nm):
 
     print("[INFO] Retrieving OS information from devices")
 
-    # total length of progress bar in chars
-    length = 40 
-    # "full" value of progress bar
-    total_val = len(clients.keys())  
-
-    sys.stdout.write('\r')
-    sys.stdout.write("[INFO] Scanned: [%s] %d%%" % (' ' * length, 0))
-    sys.stdout.flush()
-    counter = 0
+    lb = Loading_bar("Scanned", 40, len(clients.keys()))
 
     for ip in clients.keys():
 
         data = nm_get_os(nm, ip)
         clients[ip].add_os_info(data["os_type"], data["os_vendor"], data["os_family"])
         
-        # Update progress bar
-        counter += 1
+        lb.increment()
 
-        percent = 100.0 * counter / total_val
-        sys.stdout.write('\r')
-        progress = int(percent / (100.0 / length))
-        sys.stdout.write("[INFO] Scanned: [%s%s] %d%%" % ('-' * progress, ' ' * (length - progress), int(percent)))
-        sys.stdout.flush()
-
-    print("\n[INFO] Completed OS scan!")
+    print("\n[INFO] Completed OS scan!\n")
 
 
-# Gets the ip of all devices on the path from the host to the target ip
-def traceroute(ip, clients, nm):
+# Gets the ip of all devices on the path from the host to every ip on the LAN
+# TODO - Parallelise this if possible
+def map_network(clients, nm):
 
-    # Runs traceroute.
-    # Emits TCP packets with incrementing ttl until the target is reached
-    # answers = scapy.srp(scapy.IP(dst=ip, ttl=(1, 30))/scapy.TCP(dport=53, flags="S"), timeout=1, retry=5, verbose=False)[0]
-    answers = scapy.traceroute(ip, verbose=False)[0]
+    print("[INFO] Mapping network...")
+    lb = Loading_bar("Mapped", 40, len(clients.keys()))
 
-    addrs = [GATEWAY]
-    prev_resp_ip = GATEWAY
+    for ip in clients.keys():
 
-    for response_idx in range(1, len(answers)):
+        # Emits TCP packets with incrementing ttl until the target is reached
+        answers = scapy.srp(scapy.IP(dst=ip, ttl=(1, 30), id=scapy.RandShort())/scapy.TCP(flags=0x2), verbose=False, timeout=1)[0]
 
-        if answers[response_idx].answer.src == prev_resp_ip:
-            break
+        addrs = [GATEWAY]
+        prev_resp_ip = GATEWAY
 
-        resp_ip = answers[response_idx].answer.src
+        for response_idx in range(1, len(answers)):
 
-        if resp_ip not in clients.keys():
+            # Dont register if the packet hit the same router again
+            if answers[response_idx].answer.src == prev_resp_ip:
+                break
 
-            resp_name = nm_get_hostname(nm, resp_ip)
-            resp_mac = scapy.getmacbyip(resp_ip)
-            if resp_mac == None:
-                resp_mac = "unknown"
-            
-            resp_vendor = mac_table.find_vendor(resp_mac)
+            resp_ip = answers[response_idx].answer.src
 
-            clients[resp_ip] = Client()
-            clients[resp_ip].add_host_info(resp_ip, resp_name, resp_mac, resp_vendor)
+            # Create a new Client object if the ip is not registered
+            if resp_ip not in clients.keys():
+                
+                resp_name = nm_get_hostname(nm, resp_ip)
+                resp_mac = scapy.getmacbyip(resp_ip)
+                if resp_mac == None:
+                    resp_mac = "unknown"
+                
+                resp_vendor = mac_table.find_vendor(resp_mac)
 
-        clients[prev_resp_ip].neighbours.add(clients[resp_ip])
-        clients[resp_ip].neighbours.add(clients[prev_resp_ip])
-        prev_resp_ip = resp_ip
+                clients[resp_ip] = Client()
+                clients[resp_ip].add_host_info(resp_ip, resp_name, resp_mac, resp_vendor)
 
-    clients[prev_resp_ip].neighbours.add(clients[ip])
-    clients[ip].neighbours.add(clients[prev_resp_ip])
+            clients[prev_resp_ip].neighbours.add(clients[resp_ip])
+            clients[resp_ip].neighbours.add(clients[prev_resp_ip])
+            prev_resp_ip = resp_ip
+
+        clients[prev_resp_ip].neighbours.add(clients[ip])
+        clients[ip].neighbours.add(clients[prev_resp_ip])
+
+        lb.increment()
+    print("\n[INFO] Mapping complete!\n")
 
 # Prints network visualisation
 def draw_graph(edges, vertices):
@@ -223,15 +214,19 @@ def draw_graph(edges, vertices):
     fig.savefig("output.png")
     plt.show()
 
+
+# Converts the client map into a tuple of vertices and edges
 def get_graph_components(clients):
 
     vertices = [clients[key].hostname for key in clients.keys()]
+    edges = set()
 
     gateway_client = clients[GATEWAY]
     layer = [gateway_client]
     visited = set()
 
-    # Generates all edges
+    # Performs a BFS from the gateway, taking the neighbours of every client in every second layer
+    # as edges
     read_layer = True
     while layer:
 
@@ -261,12 +256,8 @@ if __name__ == "__main__":
     nm = nmap.PortScanner()
     clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table, nm)
 
-    vertices = []
-    edges = set()
+    map_network(clients, nm)
 
-    for ip in list(clients.keys()):
-        traceroute(ip, clients, nm)
-        
     edges, vertices = get_graph_components(clients)
     draw_graph(edges, vertices)
 
