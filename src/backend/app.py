@@ -7,7 +7,7 @@ import nmap, os, socket, platform
 MAC_TABLE_FP = "../cache/oui.csv"
 
 app = Flask(__name__)
-mac_table = MAC_table(MAC_TABLE_FP)
+mac_table = MAC_table()
 own_ip = scapy.get_if_addr(scapy.conf.iface)
 own_mac = scapy.Ether().src
 own_name = platform.node()
@@ -22,7 +22,7 @@ def init():
 @app.get("/mac_vendor/<macs>")
 def get_mac_vendor(macs):
     if not mac_table.initialized:
-        mac_table.init_mac_table()
+        mac_table.init_mac_table(MAC_TABLE_FP)
 
     ret = {}
     macs = macs.split(",")
