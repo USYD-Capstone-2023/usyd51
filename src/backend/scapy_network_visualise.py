@@ -266,8 +266,19 @@ if __name__ == "__main__":
         print("Root permissions are required for this program to run.")
         quit()
 
-    mac_table = MAC_table(MAC_TABLE_FILEPATH)
-    nm = nmap.PortScanner()
+    # More windows directory shenanigans :)
+    mac_path = "../cache/oui.csv"
+    if os.name == "nt":
+        mac_path = "..\\cache\\oui.csv"
+
+    mac_table = MAC_table(mac_path)
+
+    # TODO This will probably have to be a setting of some sort for the user to put their nmap path on windows
+    # I love the windows operating system
+    if os.name == "nt":
+        nm = nmap.PortScanner(nmap_search_path=["C:\\Program Files (x86)\\Nmap\\nmap.exe",])
+    else:
+        nm = nmap.PortScanner()
     clients = get_clients(f"{GATEWAY_FANGED[0]}.{GATEWAY_FANGED[1]}.{GATEWAY_FANGED[2]}.{GATEWAY_FANGED[3]}/24", mac_table, nm)
 
     map_network(clients, nm)

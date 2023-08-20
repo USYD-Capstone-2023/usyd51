@@ -10,7 +10,11 @@ class MAC_table:
     # Retrieves the MAC -> Vendor lookup table
     def init_mac_table(self, filepath):
 
-        dir = "".join([x + "/" for x in filepath.split("/")[:-1]])
+        # windows directories are great aren't they?
+        slash = "\\" if os.name == "nt" else "/"
+
+        dir = "".join([x + slash for x in filepath.split(slash)[:-1]])
+
         if not os.path.exists(dir):
             os.makedirs(dir)
             
@@ -36,7 +40,7 @@ class MAC_table:
         except Exception as e:
             print("[WARNING] Could not read or locate MAC table cache file.")
             print(e)
-        
+    
         # Downloads the updated OUI table from IEEE, saves to cache file
         if refresh:
 
@@ -53,7 +57,7 @@ class MAC_table:
                 os.rename(tmp_fp, filepath)
 
             except Exception as e:
-                print("[ERROR] A network error occurred.")
+                print("\n[ERROR] A network error occurred.")
                 print(e)
                 # TODO - Add cleanup for unconfirmed (downloading) tempfiles 
 
