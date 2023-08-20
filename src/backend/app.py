@@ -1,5 +1,4 @@
 from flask import Flask
-from Client import Client
 from MAC_table import MAC_table
 from Loading_bar import Loading_bar
 import scapy.all as scapy
@@ -89,7 +88,7 @@ def get_devices():
 def os_scan(nm, addr):
 
     # Performs scan
-    data = nm.scan(addr, arguments="-O -R")
+    data = nm.scan(addr, arguments="-O")
     data = data["scan"]
 
     os_info = {"os_type" : "unknown", "os_vendor" : "unknown", "os_family" : "unknown"}
