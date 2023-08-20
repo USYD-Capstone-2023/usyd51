@@ -24,4 +24,8 @@ class Loading_bar:
         sys.stdout.write('\r')
         progress = int(percent / (100.0 / self.length))
         sys.stdout.write("[INFO] %s: [%s%s] %d%%" % (self.label, '-' * progress, ' ' * (self.length - progress), int(percent)))
+
+        if self.counter == self.total_value:
+            sys.stdout.write("\n")  
+
         sys.stdout.flush()
