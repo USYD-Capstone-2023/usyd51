@@ -3,17 +3,18 @@ import wget, os, csv, datetime
 class MAC_table:
 
     mac_table = {}
+    initialized = False
 
     def __init__(self, filepath):
-        self.init_mac_table(filepath)
+        self.filepath = filepath
 
     # Retrieves the MAC -> Vendor lookup table
-    def init_mac_table(self, filepath):
+    def init_mac_table(self):
 
         # windows directories are great aren't they?
         slash = "\\" if os.name == "nt" else "/"
 
-        dir = "".join([x + slash for x in filepath.split(slash)[:-1]])
+        dir = "".join([x + slash for x in self.filepath.split(slash)[:-1]])
 
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -27,7 +28,7 @@ class MAC_table:
 
         # Checks if the cached MAC table was downloaded in the past 7 days
         try:
-            with open(filepath, "r") as f:
+            with open(self.filepath, "r") as f:
                 reader = csv.reader(f)
                 row = next(reader)
                 if row:
@@ -46,7 +47,7 @@ class MAC_table:
 
             print("[INFO] Retrieving table from 'https://standards-oui.ieee.org'")
             try:
-                tmp_fp = filepath + ".tmp"
+                tmp_fp = self.filepath + ".tmp"
                 wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
 
                 with open(tmp_fp, 'r+') as f:
@@ -54,7 +55,7 @@ class MAC_table:
                     f.seek(0, 0)
                     f.write(today.strftime(date_format) + "\n")
 
-                os.rename(tmp_fp, filepath)
+                os.rename(tmp_fp, self.filepath)
 
             except Exception as e:
                 print("\n[ERROR] A network error occurred.")
@@ -66,7 +67,7 @@ class MAC_table:
         try:
             # Skip first two rows of header information
             skip = 2
-            with open(filepath, "r") as f:
+            with open(self.filepath, "r") as f:
 
                 reader = csv.reader(f)
                 for line in reader:
