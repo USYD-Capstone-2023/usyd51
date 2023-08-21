@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  updateData: (callback) => ipcRenderer.on('update-data', callback)
+  updateData: (callback) => ipcRenderer.on('update-data', callback),
+  getDataUpdate: (request) => ipcRenderer.send('get-data-update', request),
+  processDataUpdate: (callback) => ipcRenderer.on('device-data', callback)
 })
+
 
 
 window.addEventListener('DOMContentLoaded', () => {
