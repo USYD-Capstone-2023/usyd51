@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   updateData: (callback) => ipcRenderer.on('update-data', callback),
   requestNetworks: () => ipcRenderer.send('request-networks'),
-  networkList: (data) => ipcRenderer.on("network-list", data)
+  networkList: (data) => ipcRenderer.on("network-list", data),
+  loadNetwork: (filename) => ipcRenderer.send("load-network", filename)
 })
 
 

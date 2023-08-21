@@ -2,7 +2,7 @@
 
 window.electronAPI.requestNetworks();
 
-function createNetworkBox(name, ssid){
+function createNetworkBox(filename, name, ssid){
     let networkBox = document.createElement('div');
     networkBox.setAttribute("class", "network-box");
     
@@ -23,6 +23,12 @@ function createNetworkBox(name, ssid){
     let arrowButton = document.createElement('div');
     arrowButton.setAttribute('class', 'arrow-button');
     arrowButton.innerText = '→';
+    arrowButton.onclick = () => {
+        // We want to request data from the backend and load the corresponding page.
+        window.electronAPI.loadNetwork(filename);
+    }
+            
+            
     networkBox.appendChild(arrowButton);
 
 
@@ -31,9 +37,8 @@ function createNetworkBox(name, ssid){
 
 
 window.electronAPI.networkList((_event, data) => {
-    for (let network of Object.values(data)){
+    for (let network of Object.keys(data)){
         console.log(network)
-        createNetworkBox(network["name"], network['ssid']);
+        createNetworkBox(network, data[network]["name"], data[network]['ssid']);
     }
-    console.log('h')
 })
