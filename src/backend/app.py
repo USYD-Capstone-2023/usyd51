@@ -3,9 +3,11 @@ from MAC_table import MAC_table
 from Loading_bar import Loading_bar
 from scapy.all import *
 import nmap, os, socket, platform
-import time, threading
+import time, threading, socket
+from dns import resolver
 
 MAC_TABLE_FP = "../cache/oui.csv"
+GATEWAY = "192.168.1.1"
 
 # Ensures that the user has root perms uf run on posix system.
 if os.name == "posix" and os.geteuid() != 0: 
@@ -18,30 +20,68 @@ own_mac = Ether().src
 own_name = platform.node()
 app = Flask(__name__)
 wifi = {"bssid" : [], "ssid" : []}
+devices = {}
 
+# packet sniffing daemon to get hostnames
 def wifi_sniffer_callback(pkt):
 
-    print("wowowow")
-    if pkt.haslayer(Dot11Beacon):
-        if pkt.addr2 not in wifi["bssid"]:
+    # Sniffs mDNS responses for new hostnames
+    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
 
-            wifi["bssid"].append(pkt.addr2)
-            wifi["ssid"].append(pkt.info)
+        if pkt[IP].src in devices.keys():
+            return
+
+        if DNSRR in pkt:
+            name = pkt[DNSRR].rrname.decode("utf-8")
+            if name.split(".")[-2] != "arpa" and name[0] != "_":
+                devices[pkt[IP].src] = name.split(".")[0]
+
+    # Reliably gets hostname when a device enters the network
+    if pkt.haslayer(DHCP):
+
+        hostname = "unknown"
+        addr = ""
+        for item in pkt[DHCP].options:
+            try:
+                key, val = item
+            except ValueError:
+                continue
+
+            print(f"%s %s" % (key, val))
+            if key == "hostname":
+                hostname = val
+            
+            if key == "requesed_addr":
+                val
+        devices[addr] = hostname
 
 def temp_info_thread():
     while True:
         # os.system("clear")
-        print(wifi)
+        print(devices)
         print("\n")
+        time.sleep(0.5)
+
+def change_channel(iface):
+    ch = 1
+    while True:
+        os.system(f"iwconfig {iface} channel {ch}")
+        # switch channel from 1 to 14 each 0.5s
+        ch = (ch + 1) % 14
         time.sleep(0.5)
 
 @app.get("/network_info")
 def get_network_info():
 
     iface = conf.iface
+    print(iface)
     info_thread = threading.Thread(target=temp_info_thread)
     info_thread.daemon = True
     info_thread.start()
+
+    channel_switch = threading.Thread(target=change_channel, args=(iface,))
+    channel_switch.daemon = True
+    channel_switch.start()
     sniff(prn=wifi_sniffer_callback, iface=iface)
 
 
@@ -65,25 +105,85 @@ def get_mac_vendor(macs):
 @app.get("/hostname/<hosts>")
 def get_hostnames(hosts):
 
+    iface = conf.iface
     ret = {}
-    hosts = hosts.split(",")
     lb = Loading_bar("Resolving Hostnames", 40, len(hosts))
+
+    hosts = hosts.split(",")
     for host in hosts:
 
-        if host == own_ip:
-            ret[host] = own_name
-            continue
+        # host_rev = "".join(["%s." % x for x in host.split(".")[::-1]]) + "in-addr.arpa"
 
-        hostname = host
+        # query = Ether(src=own_mac, dst="FF:FF:FF:FF:FF:FF") / \
+        #         IP(src=own_ip, dst="224.0.0.252") / \
+        #         UDP(sport=60403, dport=5355)/ \
+        #         LLMNRQuery(id=1, qd=DNSQR(qname=host_rev, qtype="PTR", qclass="IN"))
+
+        # response = srp1(query)
+
+        # if response and LLMNRResponse in response:
+        #     name = response[LLMNRResponse].qd.qname.decode()
+        #     print("resolved hostname: %s" % (name))
+        #     print("ip: %d" % (response[LLMNRResponse].an.rdata))
+        #     ret[host] = name
+
+        # mdns_ip = "224.0.0.251"
+        # mdns_mac = "01:00:5e:00:00:fb"
+
+        # mdns_query = Ether(src=own_mac, dst=mdns_mac) / \
+        #              IP(src=own_ip, dst=mdns_ip) / \
+        #              UDP(sport=5353, dport=5353) / \
+        #              DNS(rd=1, qd=DNSQR(qname=host_rev, qtype="PTR"))
+
+        # responses, _ = srp(mdns_query, verbose=0, timeout=2)
+
+        # for response in responses:
+        #     if DNSRR in response[1] and response[1][DNSRR].type == 12:
+        #         name = response[1][DNSRR].rdata.decode()
+        #         print("resolved hostname: %s" % (name))
+        #         ret[host] = name
         try:
-            hostname = socket.gethostbyaddr(host)[0]
+            ret[host] = socket.gethostbyaddr(host)
         except:
-            pass
-
-        ret[host] = hostname
+            ret[host] = "unknown"
         lb.increment()
 
     return ret
+
+@app.get("/traceroute/<hosts>")
+def get_traceroute(hosts):
+
+    print("[INFO] Tracing Routes...")
+
+    ret = {}
+    lb = Loading_bar("Traced", 40, len(hosts))
+
+    hosts = hosts.split(",")
+    for host in hosts:
+
+        # Emits TCP packets with incrementing ttl until the target is reached
+        answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort())/TCP(flags=0x2), verbose=False)[0]
+
+        addrs = [GATEWAY]
+
+        for response_idx in range(1, len(answers)):
+
+            print(answers[response_idx].answer.src)
+
+            # Dont register if the packet hit the same router again
+            if answers[response_idx].answer.src == prev_resp_ip:
+                break
+
+            resp_ip = answers[response_idx].answer.src
+            addrs.append(resp_ip)
+
+        addrs.append(host)
+        ret[host] = addrs
+        lb.increment()
+    print("\n[INFO] Traceroute complete!\n")
+
+    return ret
+
 
 # Gets the IP and MAC of all devices currently active on the network 
 @app.get("/devices")
