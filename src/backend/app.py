@@ -6,17 +6,16 @@ import nmap, os, socket, platform
 
 MAC_TABLE_FP = "../cache/oui.csv"
 
-app = Flask(__name__)
+# Ensures that the user has root perms uf run on posix system.
+if os.name == "posix" and os.geteuid() != 0: 
+    print("Root permissions are required for this program to run.")
+    quit()
+
 mac_table = MAC_table()
 own_ip = scapy.get_if_addr(scapy.conf.iface)
 own_mac = scapy.Ether().src
 own_name = platform.node()
-
-def init():
-    # Ensures that the user has root perms uf run on posix system.
-    if (os.name == 'posix' and os.geteuid() != 0): 
-        print("Root permissions are required for this program to run.")
-        quit()
+app = Flask(__name__)
 
 # Returns the vendor associated with each ip provided in "macs"
 @app.get("/mac_vendor/<macs>")
@@ -127,6 +126,3 @@ def get_os_info(addrs):
     print("\n[INFO] Completed OS scan!\n")
 
     return ret
-
-if __name__ == "__main__":
-    init()
