@@ -1,8 +1,9 @@
 from flask import Flask
 from MAC_table import MAC_table
 from Loading_bar import Loading_bar
-import scapy.all as scapy
+from scapy.all import *
 import nmap, os, socket, platform
+import time, threading
 
 MAC_TABLE_FP = "../cache/oui.csv"
 
@@ -12,10 +13,37 @@ if os.name == "posix" and os.geteuid() != 0:
     quit()
 
 mac_table = MAC_table()
-own_ip = scapy.get_if_addr(scapy.conf.iface)
-own_mac = scapy.Ether().src
+own_ip = get_if_addr(conf.iface)
+own_mac = Ether().src
 own_name = platform.node()
 app = Flask(__name__)
+wifi = {"bssid" : [], "ssid" : []}
+
+def wifi_sniffer_callback(pkt):
+
+    print("wowowow")
+    if pkt.haslayer(Dot11Beacon):
+        if pkt.addr2 not in wifi["bssid"]:
+
+            wifi["bssid"].append(pkt.addr2)
+            wifi["ssid"].append(pkt.info)
+
+def temp_info_thread():
+    while True:
+        # os.system("clear")
+        print(wifi)
+        print("\n")
+        time.sleep(0.5)
+
+@app.get("/network_info")
+def get_network_info():
+
+    iface = conf.iface
+    info_thread = threading.Thread(target=temp_info_thread)
+    info_thread.daemon = True
+    info_thread.start()
+    sniff(prn=wifi_sniffer_callback, iface=iface)
+
 
 # Returns the vendor associated with each ip provided in "macs"
 @app.get("/mac_vendor/<macs>")
@@ -62,13 +90,13 @@ def get_hostnames(hosts):
 def get_devices():
 
     # Creating ARP packet
-    arp_frame = scapy.ARP(pdst="192.168.1.0/24")
-    ethernet_frame = scapy.Ether(dst="FF:FF:FF:FF:FF:FF")
+    arp_frame = ARP(pdst="192.168.1.0/24")
+    ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 
     print("[INFO] Getting all active devices on network.")
     # Run ARP scan to retrieve active IPs
-    responded = scapy.srp(request, timeout=2, retry=3, verbose=False)[0]
+    responded = srp(request, timeout=2, retry=3, verbose=False)[0]
     print("[INFO] Found %d devices!\n" % (len(responded)))
 
     ret = {}
