@@ -32,12 +32,22 @@ function createWindow () {
   ])
   Menu.setApplicationMenu(menu);
 
-  win.loadFile('index.html')
+  win.loadFile('home/home.html')
   // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
+}
 
+
+function sendNetworks(event, data){
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  let networkData = JSON.parse(fs.readFileSync('../cache/index.json'))
+
+  // This is clearly a preconfigured list. In future we will load this information from the documents
+  win.webContents.send("network-list", networkData)
 }
 
 app.whenReady().then(() => {
+  ipcMain.on('request-networks', sendNetworks)
   createWindow()
 
   app.on('activate', () => {
