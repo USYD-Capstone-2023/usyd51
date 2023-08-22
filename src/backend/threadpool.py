@@ -38,11 +38,11 @@ class Threadpool:
         self.stopping_condition.notify_all()
         self.stopping_condition.release()
 
-        print("waiting on threads to exit")
+        print("Waiting on threads to exit...")
         for thread in self.threads:
             thread.join()
 
-        print("Successfully terminated threadpool")
+        print("Successfully terminated threadpool!")
 
 
     def add_job(self, job):

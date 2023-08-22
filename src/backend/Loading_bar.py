@@ -13,15 +13,15 @@ class Loading_bar:
         self.counter = 0
 
         sys.stdout.write('\r')
-        sys.stdout.write("[INFO] %s: [%s] %d%%" % (self.label, ' ' * self.length, 0))
+        sys.stdout.write("[INFO] %s: [%s] %d%% (%d / %d)" % (self.label, ' ' * self.length, 0, 0, self.total_value))
         sys.stdout.flush()
 
-    def set_progress(self, progress):
-        self.counter = progress
+    def set_progress(self, val):
+        self.counter = val
         percent = 100.0 * self.counter / self.total_value
         sys.stdout.write('\r')
         progress = int(percent / (100.0 / self.length))
-        sys.stdout.write("[INFO] %s: [%s%s] %d%%" % (self.label, '-' * progress, ' ' * (self.length - progress), int(percent)))
+        sys.stdout.write("[INFO] %s: [%s%s] %d%% (%d / %d)" % (self.label, '-' * progress, ' ' * (self.length - progress), int(percent), self.counter, self.total_value))
 
         if self.counter == self.total_value:
             sys.stdout.write("\n")  

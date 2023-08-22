@@ -6,7 +6,6 @@ from threadpool import Threadpool
 from scapy.all import *
 import nmap, os, socket, platform
 import time, threading, socket
-from dns import resolver
 import atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
@@ -23,7 +22,7 @@ threadpool = Threadpool(NUM_THREADS)
 
 def cleanup():
     threadpool.end()
-    print("finished cleaning up.")
+    print("Finished cleaning up! Server will now shut down.")
 
 atexit.register(cleanup)
 
@@ -34,6 +33,7 @@ own_name = platform.node()
 app = Flask(__name__)
 wifi = {"bssid" : [], "ssid" : []}
 devices = {}
+
 
 # Returns the vendor associated with each ip provided in "macs"
 # Runs in single thread as it is O(n)
@@ -193,13 +193,13 @@ def get_traceroute(hosts):
         cond.wait()
         lb.set_progress(counter_ptr[0])
     mutex.release()
+    threadpool.stop()
     print("\n[INFO] Traceroute complete!\n")
 
     ret = {}
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
-    threadpool.stop()
 
     return ret
 
@@ -230,9 +230,10 @@ def get_devices():
 
     return ret
 
-# Gets the OS information of the given ip address through TCP fingerprinting
-def os_scan(nm, addr):
+def os_helper(args):
 
+    nm = args[0]
+    addr = args[1]
     # Performs scan
     data = nm.scan(addr, arguments="-O")
     data = data["scan"]
@@ -252,26 +253,42 @@ def os_scan(nm, addr):
 
     return os_info
 
-# Retrieves the OS information of all devices corresponding to IPs entered in "addrs" 
-@app.get("/os_info/<addrs>")
-def get_os_info(addrs):
 
-    addrs = addrs.split(",")
-    ret = {}
+# Gets the OS information of the given ip address through TCP fingerprinting
+@app.get("/os_info/<hosts>")
+def os_scan(hosts):
 
-    print("[INFO] Retrieving OS information from devices")
-
-    lb = Loading_bar("Scanning", 40, len(addrs))
+    print("[INFO] Getting OS info...")
     nm = nmap.PortScanner()
 
-    for addr in addrs:
+    hosts = hosts.split(",")
+    returns = [-1] * len(hosts)
+    
+    lb = Loading_bar("Scanned", 40, len(hosts))
+    mutex = threading.Lock()
+    cond = threading.Condition(lock=mutex)
+    counter_ptr = [0]
 
-        data = os_scan(nm, addr)
-        ret[addr] = {"os_type" : data["os_type"], "os_vendor" : data["os_vendor"], "os_family" : data["os_family"]}
-        lb.increment()
+    for i in range(len(hosts)):
+        if not threadpool.add_job(Job(fptr=os_helper, args=(nm, hosts[i]), ret_ls=returns,\
+                               ret_id=i, counter_ptr=counter_ptr, cond=cond)):
 
-    print("\n[INFO] Completed OS scan!\n")
+            return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
+    threadpool.start()
+
+    mutex.acquire()
+    while counter_ptr[0] < len(hosts):
+        cond.wait()
+        lb.set_progress(counter_ptr[0])
+    mutex.release()
+    threadpool.stop()
+    print("\n[INFO] OS scan complete!\n")
+
+    ret = {}
+    for i in range(len(hosts)):
+        ret[hosts[i]] = returns[i]
+    
     return ret
 
 
@@ -285,12 +302,10 @@ def wlan_sniffer_callback(pkt):
         print(f"dns {pkt.summary()}")
     # Sniffs mDNS responses for new hostnames
     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-
         if pkt[IP].src in devices.keys():
             return
 
         if DNSRR in pkt:
-            print("fucking DNS momenet!\n\n\n\n")
             name = pkt[DNSRR].rrname.decode("utf-8")
             if name.split(".")[-2] != "arpa" and name[0] != "_":
                 devices[pkt[IP].src] = name.split(".")[0]
@@ -314,7 +329,7 @@ def wlan_sniffer_callback(pkt):
                 val
         devices[addr] = hostname
 
-# In theory allows us to scan all network channels, but i think its unnecessary for the minute 
+# Allows us to scan all network channels, unix only iwconfig unfortunately
 def change_channel(iface):
     ch = 1
     while True:
@@ -341,4 +356,6 @@ def start_sniff_thread(iface):
 # sniffer.start()
 
 # ---------------------------------------- WIP -----------------------------------------
+
+
     

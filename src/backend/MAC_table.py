@@ -8,13 +8,9 @@ class MAC_table:
     # Retrieves the MAC -> Vendor lookup table
     def init_mac_table(self, filepath):
 
-        # windows directories are great aren't they?
-
         dir = "".join([x + "/" for x in filepath.split("/")[:-1]])
         if os.name == "nt":
             dir = dir.replace("/", "\\")
-
-        print(dir)
 
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -50,7 +46,7 @@ class MAC_table:
                 tmp_fp = filepath + ".tmp"
                 wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
 
-                # This posts charmap decode error TODO
+                # This posts charmap decode error on windows TODO
                 with open(tmp_fp, 'r+') as f:
                     content = f.read()
                     f.seek(0, 0)
