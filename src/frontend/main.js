@@ -36,6 +36,12 @@ function createWindow () {
   // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
 }
 
+function loadHome(event) {
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  win.loadFile('home/home.html');
+}
+
 function loadNetwork(event, data){
   const webContents = event.sender;
   const win = BrowserWindow.fromWebContents(webContents);
@@ -56,6 +62,7 @@ function sendNetworks(event, data){
 app.whenReady().then(() => {
   ipcMain.on('load-network', loadNetwork)
   ipcMain.on('request-networks', sendNetworks)
+  ipcMain.on('load-home', loadHome)
 
   createWindow()
 

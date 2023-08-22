@@ -48,6 +48,7 @@ header {
 
 .net-box-clickable:hover {
     transform: scale(1.2);
+    cursor: pointer;
 }
 
 .back-container {
