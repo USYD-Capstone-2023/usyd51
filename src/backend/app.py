@@ -1,18 +1,31 @@
 from flask import Flask
 from MAC_table import MAC_table
 from Loading_bar import Loading_bar
+from job import Job
+from threadpool import Threadpool
 from scapy.all import *
 import nmap, os, socket, platform
 import time, threading, socket
 from dns import resolver
+import atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
 GATEWAY = "192.168.1.1"
+NUM_THREADS = 10
 
 # Ensures that the user has root perms uf run on posix system.
 if os.name == "posix" and os.geteuid() != 0: 
     print("Root permissions are required for this program to run.")
     quit()
+
+
+threadpool = Threadpool(NUM_THREADS)
+
+def cleanup():
+    threadpool.end()
+    print("finished cleaning up.")
+
+atexit.register(cleanup)
 
 mac_table = MAC_table()
 own_ip = get_if_addr(conf.iface)
@@ -22,70 +35,8 @@ app = Flask(__name__)
 wifi = {"bssid" : [], "ssid" : []}
 devices = {}
 
-# packet sniffing daemon to get hostnames
-def wifi_sniffer_callback(pkt):
-
-    # Sniffs mDNS responses for new hostnames
-    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-
-        if pkt[IP].src in devices.keys():
-            return
-
-        if DNSRR in pkt:
-            name = pkt[DNSRR].rrname.decode("utf-8")
-            if name.split(".")[-2] != "arpa" and name[0] != "_":
-                devices[pkt[IP].src] = name.split(".")[0]
-
-    # Reliably gets hostname when a device enters the network
-    if pkt.haslayer(DHCP):
-
-        hostname = "unknown"
-        addr = ""
-        for item in pkt[DHCP].options:
-            try:
-                key, val = item
-            except ValueError:
-                continue
-
-            print(f"%s %s" % (key, val))
-            if key == "hostname":
-                hostname = val
-            
-            if key == "requesed_addr":
-                val
-        devices[addr] = hostname
-
-def temp_info_thread():
-    while True:
-        # os.system("clear")
-        print(devices)
-        print("\n")
-        time.sleep(0.5)
-
-def change_channel(iface):
-    ch = 1
-    while True:
-        os.system(f"iwconfig {iface} channel {ch}")
-        # switch channel from 1 to 14 each 0.5s
-        ch = (ch + 1) % 14
-        time.sleep(0.5)
-
-@app.get("/network_info")
-def get_network_info():
-
-    iface = conf.iface
-    print(iface)
-    info_thread = threading.Thread(target=temp_info_thread)
-    info_thread.daemon = True
-    info_thread.start()
-
-    channel_switch = threading.Thread(target=change_channel, args=(iface,))
-    channel_switch.daemon = True
-    channel_switch.start()
-    sniff(prn=wifi_sniffer_callback, iface=iface)
-
-
 # Returns the vendor associated with each ip provided in "macs"
+# Runs in single thread as it is O(n)
 @app.get("/mac_vendor/<macs>")
 def get_mac_vendor(macs):
     if not mac_table.initialized:
@@ -101,16 +52,53 @@ def get_mac_vendor(macs):
 
     return ret
 
+
+# Thread task for reverse DNS lookup
+def hostname_helper(host):
+    try:
+        return socket.gethostbyaddr(host)
+    except:
+        return "unknown"
+    
+
 # Performs a reverse DNS lookup on all hosts entered in "hosts"
 @app.get("/hostname/<hosts>")
 def get_hostnames(hosts):
 
-    iface = conf.iface
-    ret = {}
-    lb = Loading_bar("Resolving Hostnames", 40, len(hosts))
 
     hosts = hosts.split(",")
-    for host in hosts:
+    returns = [-1] * len(hosts)
+    
+    lb = Loading_bar("Resolving Hostnames", 40, len(hosts))
+    mutex = threading.Lock()
+    cond = threading.Condition(lock=mutex)
+    counter_ptr = [0]
+
+    for i in range(len(hosts)):
+
+        if not threadpool.add_job(Job(fptr=hostname_helper, args=hosts[i], ret_ls=returns,\
+                                ret_id=i, counter_ptr=counter_ptr, cond=cond)):
+                                
+            return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
+
+    threadpool.start()
+
+    mutex.acquire()
+    while counter_ptr[0] < len(hosts):
+        cond.wait()
+        lb.set_progress(counter_ptr[0])
+    mutex.release()
+
+    ret = {}
+    for i in range(len(hosts)):
+        ret[hosts[i]] = returns[i]
+    
+    threadpool.stop()
+
+# Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
+# ---------------------------------------- WIP -----------------------------------------
+
+        # iface = conf.iface
 
         # host_rev = "".join(["%s." % x for x in host.split(".")[::-1]]) + "in-addr.arpa"
 
@@ -127,6 +115,8 @@ def get_hostnames(hosts):
         #     print("ip: %d" % (response[LLMNRResponse].an.rdata))
         #     ret[host] = name
 
+        # print(ret[host])
+
         # mdns_ip = "224.0.0.251"
         # mdns_mac = "01:00:5e:00:00:fb"
 
@@ -142,45 +132,74 @@ def get_hostnames(hosts):
         #         name = response[1][DNSRR].rdata.decode()
         #         print("resolved hostname: %s" % (name))
         #         ret[host] = name
-        try:
-            ret[host] = socket.gethostbyaddr(host)
-        except:
-            ret[host] = "unknown"
-        lb.increment()
+
+        # print(ret[host])
+        # try:
+        #     ret[host] = socket.gethostbyaddr(host)
+        # except:
+        #     ret[host] = "unknown"
+# ---------------------------------------- WIP -----------------------------------------
 
     return ret
+
+
+# Thread task to get path to "host"
+def traceroute_helper(host):
+
+    # This one seems to have issues, but doesnt give mac res errors
+    # answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
+
+    # Emits TCP packets with incrementing ttl until the target is reached
+    answers = traceroute(host, verbose=False)[0]
+    addrs = [GATEWAY]
+
+    for response_idx in range(1, len(answers)):
+
+        # Dont register if the packet hit the same router again
+        if answers[response_idx].answer.src == addrs[-1]:
+            break
+
+        addrs.append(answers[response_idx].answer.src)
+
+    # Occurs in cases where there is no found connection and traceroute fails
+    if host not in addrs:
+        addrs.append(host)
+
+    return addrs
 
 @app.get("/traceroute/<hosts>")
 def get_traceroute(hosts):
 
     print("[INFO] Tracing Routes...")
 
-    ret = {}
-    lb = Loading_bar("Traced", 40, len(hosts))
-
     hosts = hosts.split(",")
-    for host in hosts:
+    returns = [-1] * len(hosts)
+    
+    lb = Loading_bar("Traced", 40, len(hosts))
+    mutex = threading.Lock()
+    cond = threading.Condition(lock=mutex)
+    counter_ptr = [0]
 
-        # Emits TCP packets with incrementing ttl until the target is reached
-        answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort())/TCP(flags=0x2), verbose=False)[0]
+    for i in range(len(hosts)):
+        if not threadpool.add_job(Job(fptr=traceroute_helper, args=hosts[i], ret_ls=returns,\
+                               ret_id=i, counter_ptr=counter_ptr, cond=cond)):
 
-        addrs = [GATEWAY]
+            return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
-        for response_idx in range(1, len(answers)):
+    threadpool.start()
 
-            print(answers[response_idx].answer.src)
-
-            # Dont register if the packet hit the same router again
-            if answers[response_idx].answer.src == prev_resp_ip:
-                break
-
-            resp_ip = answers[response_idx].answer.src
-            addrs.append(resp_ip)
-
-        addrs.append(host)
-        ret[host] = addrs
-        lb.increment()
+    mutex.acquire()
+    while counter_ptr[0] < len(hosts):
+        cond.wait()
+        lb.set_progress(counter_ptr[0])
+    mutex.release()
     print("\n[INFO] Traceroute complete!\n")
+
+    ret = {}
+    for i in range(len(hosts)):
+        ret[hosts[i]] = returns[i]
+    
+    threadpool.stop()
 
     return ret
 
@@ -254,3 +273,72 @@ def get_os_info(addrs):
     print("\n[INFO] Completed OS scan!\n")
 
     return ret
+
+
+# Seems to only work on some networks, potentially a proxy or firewall issue.
+# ---------------------------------------- WIP -----------------------------------------
+# packet sniffing daemon to get hostnames
+def wlan_sniffer_callback(pkt):
+
+    # print(pkt.summary())
+    if DNSRR in pkt:
+        print(f"dns {pkt.summary()}")
+    # Sniffs mDNS responses for new hostnames
+    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+
+        if pkt[IP].src in devices.keys():
+            return
+
+        if DNSRR in pkt:
+            print("fucking DNS momenet!\n\n\n\n")
+            name = pkt[DNSRR].rrname.decode("utf-8")
+            if name.split(".")[-2] != "arpa" and name[0] != "_":
+                devices[pkt[IP].src] = name.split(".")[0]
+
+    # Reliably gets hostname when a device enters the network
+    if pkt.haslayer(DHCP):
+
+        hostname = "unknown"
+        addr = ""
+        for item in pkt[DHCP].options:
+            try:
+                key, val = item
+            except ValueError:
+                continue
+
+            print(f"%s %s" % (key, val))
+            if key == "hostname":
+                hostname = val
+            
+            if key == "requesed_addr":
+                val
+        devices[addr] = hostname
+
+# In theory allows us to scan all network channels, but i think its unnecessary for the minute 
+def change_channel(iface):
+    ch = 1
+    while True:
+        os.system(f"iwconfig {iface} channel {ch}")
+        # switch channel from 1 to 14 each 0.5s
+        ch = (ch + 1) % 14
+        time.sleep(0.5)
+
+@app.get("/network_info")
+def get_network_info():
+
+    return devices
+
+def start_sniff_thread(iface):
+    sniff(prn=wlan_sniffer_callback, iface=iface)
+
+# iface = conf.iface
+# channel_switch = threading.Thread(target=change_channel, args=(iface,))
+# channel_switch.daemon = True
+# channel_switch.start()
+
+# sniffer = threading.Thread(target=start_sniff_thread, args=(iface,))
+# sniffer.daemon = True
+# sniffer.start()
+
+# ---------------------------------------- WIP -----------------------------------------
+    

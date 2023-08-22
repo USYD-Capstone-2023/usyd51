@@ -16,10 +16,8 @@ class Loading_bar:
         sys.stdout.write("[INFO] %s: [%s] %d%%" % (self.label, ' ' * self.length, 0))
         sys.stdout.flush()
 
-    # Updates progress bar and re prints with one more unit of completion
-    def increment(self):
-        self.counter += 1
-
+    def set_progress(self, progress):
+        self.counter = progress
         percent = 100.0 * self.counter / self.total_value
         sys.stdout.write('\r')
         progress = int(percent / (100.0 / self.length))
@@ -29,3 +27,10 @@ class Loading_bar:
             sys.stdout.write("\n")  
 
         sys.stdout.flush()
+
+    # Updates progress bar and re prints with one more unit of completion
+    def increment(self):
+        self.counter += 1
+        self.set_progress(self.counter)
+
+        
