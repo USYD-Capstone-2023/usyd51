@@ -109,11 +109,14 @@ def get_hostnames(hosts):
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
+    dispatched = len(hosts)
 
     for i in range(len(hosts)):
 
         # If hostname has been found in wlan DNSRR sniffer use it instead
         if hosts[i] in devices.keys():
+            lb.increment()
+            dispatched -= 1
             returns[i] = devices[hosts[i]]
             continue
 
@@ -125,9 +128,9 @@ def get_hostnames(hosts):
     threadpool.start()
 
     mutex.acquire()
-    while counter_ptr[0] < len(hosts):
+    while counter_ptr[0] < dispatched:
         cond.wait()
-        lb.set_progress(counter_ptr[0])
+        lb.set_progress(counter_ptr[0] + (len(hosts) - dispatched))
     mutex.release()
 
     ret = {}
