@@ -1,15 +1,19 @@
+# External
 from flask import Flask
+from scapy.all import *
+import nmap, socket, platform
+
+# Local
 from MAC_table import MAC_table
-from Loading_bar import Loading_bar
+from loading_bar import Loading_bar
 from job import Job
 from threadpool import Threadpool
-from scapy.all import *
-import nmap, os, socket, platform
-import time, threading, socket
-import atexit
+from DHCP_info import get_dhcp_server_info
+
+# Stdlib
+import time, threading, socket, os, atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
-GATEWAY = "192.168.1.1"
 NUM_THREADS = 10
 
 # Ensures that the user has root perms uf run on posix system.
@@ -17,6 +21,19 @@ if os.name == "posix" and os.geteuid() != 0:
     print("Root permissions are required for this program to run.")
     quit()
 
+mac_table = MAC_table()
+own_ip = get_if_addr(conf.iface)
+own_mac = Ether().src
+own_name = platform.node()
+app = Flask(__name__)
+devices = {}
+
+# Default value, gets resolved on initialization by DHCP server
+gateway = "192.168.1.1"
+dhcp_server_info = get_dhcp_server_info()
+print(dhcp_server_info)
+if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
+    gateway = dhcp_server_info["server_id"]
 
 threadpool = Threadpool(NUM_THREADS)
 
@@ -26,13 +43,33 @@ def cleanup():
 
 atexit.register(cleanup)
 
-mac_table = MAC_table()
-own_ip = get_if_addr(conf.iface)
-own_mac = Ether().src
-own_name = platform.node()
-app = Flask(__name__)
-wifi = {"bssid" : [], "ssid" : []}
-devices = {}
+def init():
+
+    # Seems to only work on some networks, potentially a proxy or firewall issue.
+    # ---------------------------------------- WIP -----------------------------------------
+    # packet sniffing daemon to get hostnames
+    def wlan_sniffer_callback(pkt):
+
+        # Sniffs mDNS responses for new hostnames
+        if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+            if pkt[IP].src in devices.keys():
+                return
+
+            if DNSRR in pkt:
+                name = pkt[DNSRR].rrname.decode("utf-8")
+                if name.split(".")[-2] != "arpa" and name[0] != "_":
+                    devices[pkt[IP].src] = name.split(".")[0]
+
+
+    def start_sniff_thread(iface):
+        sniff(prn=wlan_sniffer_callback, iface=iface)
+
+    # ---------------------------------------- WIP -----------------------------------------
+    channel_switch = threading.Thread(target=start_sniff_thread, args=(conf.iface,))
+    channel_switch.daemon = True
+    channel_switch.start()
+
+init()
 
 
 # Returns the vendor associated with each ip provided in "macs"
@@ -53,17 +90,16 @@ def get_mac_vendor(macs):
     return ret
 
 
-# Thread task for reverse DNS lookup
-def hostname_helper(host):
-    try:
-        return socket.gethostbyaddr(host)
-    except:
-        return "unknown"
-    
-
 # Performs a reverse DNS lookup on all hosts entered in "hosts"
 @app.get("/hostname/<hosts>")
 def get_hostnames(hosts):
+
+    # Thread task for reverse DNS lookup
+    def hostname_helper(host):
+        try:
+            return socket.gethostbyaddr(host)[0]
+        except:
+            return "unknown"
 
 
     hosts = hosts.split(",")
@@ -75,6 +111,11 @@ def get_hostnames(hosts):
     counter_ptr = [0]
 
     for i in range(len(hosts)):
+
+        # If hostname has been found in wlan DNSRR sniffer use it instead
+        if hosts[i] in devices.keys():
+            returns[i] = devices[hosts[i]]
+            continue
 
         if not threadpool.add_job(Job(fptr=hostname_helper, args=hosts[i], ret_ls=returns,\
                                 ret_id=i, counter_ptr=counter_ptr, cond=cond)):
@@ -91,6 +132,9 @@ def get_hostnames(hosts):
 
     ret = {}
     for i in range(len(hosts)):
+        if returns[i] != "unknown" and hosts[i] not in devices.keys():
+            devices[hosts[i]] = returns[i]
+
         ret[hosts[i]] = returns[i]
     
     threadpool.stop()
@@ -142,33 +186,32 @@ def get_hostnames(hosts):
 
     return ret
 
-
-# Thread task to get path to "host"
-def traceroute_helper(host):
-
-    # This one seems to have issues, but doesnt give mac res errors
-    # answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
-
-    # Emits TCP packets with incrementing ttl until the target is reached
-    answers = traceroute(host, verbose=False)[0]
-    addrs = [GATEWAY]
-
-    for response_idx in range(1, len(answers)):
-
-        # Dont register if the packet hit the same router again
-        if answers[response_idx].answer.src == addrs[-1]:
-            break
-
-        addrs.append(answers[response_idx].answer.src)
-
-    # Occurs in cases where there is no found connection and traceroute fails
-    if host not in addrs:
-        addrs.append(host)
-
-    return addrs
-
 @app.get("/traceroute/<hosts>")
 def get_traceroute(hosts):
+
+    # Thread task to get path to "host"
+    def traceroute_helper(host):
+
+        # This one seems to have issues, but doesnt give mac res errors
+        # answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
+
+        # Emits TCP packets with incrementing ttl until the target is reached
+        answers = traceroute(host, verbose=False)[0]
+        addrs = [gateway]
+
+        for response_idx in range(1, len(answers)):
+            # Dont register if the packet hit the same router again
+            if answers[response_idx].answer.src == addrs[-1]:
+                break
+
+            addrs.append(answers[response_idx].answer.src)
+
+        # Occurs in cases where there is no found connection and traceroute fails
+        if host not in addrs:
+            addrs.append(host)
+
+        return addrs
+        
 
     print("[INFO] Tracing Routes...")
 
@@ -200,7 +243,6 @@ def get_traceroute(hosts):
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
-
     return ret
 
 
@@ -208,8 +250,10 @@ def get_traceroute(hosts):
 @app.get("/devices")
 def get_devices():
 
+    ip_range = gateway + "/24"
+    
     # Creating ARP packet
-    arp_frame = ARP(pdst="192.168.1.0/24")
+    arp_frame = ARP(pdst=ip_range)
     ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 
@@ -230,36 +274,37 @@ def get_devices():
 
     return ret
 
-def os_helper(args):
-
-    nm = args[0]
-    addr = args[1]
-    # Performs scan
-    data = nm.scan(addr, arguments="-O")
-    data = data["scan"]
-
-    os_info = {"os_type" : "unknown", "os_vendor" : "unknown", "os_family" : "unknown"}
-
-    # Parses output for os info
-    if addr in data.keys():
-        if "osmatch" in data[addr] and len(data[addr]["osmatch"]) > 0:
-            osmatch = data[addr]["osmatch"][0]
-            if 'osclass' in osmatch and len(osmatch["osclass"]) > 0:
-                osclass = osmatch["osclass"][0]
-
-                os_info["os_type"] = osclass["type"]
-                os_info["os_vendor"] = osclass["vendor"]
-                os_info["os_family"] = osclass["osfamily"]
-
-    return os_info
-
 
 # Gets the OS information of the given ip address through TCP fingerprinting
 @app.get("/os_info/<hosts>")
 def os_scan(hosts):
 
-    print("[INFO] Getting OS info...")
     nm = nmap.PortScanner()
+
+    # Thread worker to get os info from the provided ip address
+    def os_helper(addr):
+
+        # Performs scan
+        data = nm.scan(addr, arguments="-O")
+        data = data["scan"]
+
+        os_info = {"os_type" : "unknown", "os_vendor" : "unknown", "os_family" : "unknown"}
+
+        # Parses output for os info
+        if addr in data.keys():
+            if "osmatch" in data[addr] and len(data[addr]["osmatch"]) > 0:
+                osmatch = data[addr]["osmatch"][0]
+                if 'osclass' in osmatch and len(osmatch["osclass"]) > 0:
+                    osclass = osmatch["osclass"][0]
+
+                    os_info["os_type"] = osclass["type"]
+                    os_info["os_vendor"] = osclass["vendor"]
+                    os_info["os_family"] = osclass["osfamily"]
+
+        return os_info
+
+
+    print("[INFO] Getting OS info...")
 
     hosts = hosts.split(",")
     returns = [-1] * len(hosts)
@@ -270,7 +315,7 @@ def os_scan(hosts):
     counter_ptr = [0]
 
     for i in range(len(hosts)):
-        if not threadpool.add_job(Job(fptr=os_helper, args=(nm, hosts[i]), ret_ls=returns,\
+        if not threadpool.add_job(Job(fptr=os_helper, args=hosts[i], ret_ls=returns,\
                                ret_id=i, counter_ptr=counter_ptr, cond=cond)):
 
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
@@ -292,84 +337,15 @@ def os_scan(hosts):
     return ret
 
 
-# Seems to only work on some networks, potentially a proxy or firewall issue.
-# ---------------------------------------- WIP -----------------------------------------
-# packet sniffing daemon to get hostnames
-def wlan_sniffer_callback(pkt):
+@app.get("/dhcp_info")
+def serve_dhcp_server_info():
+    global dhcp_server_info
+    if not dhcp_server_info or "error" in dhcp_server_info.keys():
+        dhcp_server_info = get_dhcp_server_info()
 
-    # print(pkt.summary())
-    if DNSRR in pkt:
-        print(f"dns {pkt.summary()}")
-    # Sniffs mDNS responses for new hostnames
-    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-        if pkt[IP].src in devices.keys():
-            return
-
-        if DNSRR in pkt:
-            name = pkt[DNSRR].rrname.decode("utf-8")
-            if name.split(".")[-2] != "arpa" and name[0] != "_":
-                devices[pkt[IP].src] = name.split(".")[0]
-
-    # Reliably gets hostname when a device enters the network
-    if pkt.haslayer(DHCP):
-
-        hostname = "unknown"
-        addr = ""
-        for item in pkt[DHCP].options:
-            try:
-                key, val = item
-            except ValueError:
-                continue
-
-            print(f"%s %s" % (key, val))
-            if key == "hostname":
-                hostname = val
-            
-            if key == "requesed_addr":
-                val
-        devices[addr] = hostname
-
-# Allows us to scan all network channels, unix only iwconfig unfortunately
-def change_channel(iface):
-    ch = 1
-    while True:
-        os.system(f"iwconfig {iface} channel {ch}")
-        # switch channel from 1 to 14 each 0.5s
-        ch = (ch + 1) % 14
-        time.sleep(0.5)
-
-@app.get("/network_info")
-def get_network_info():
-
-    return devices
-
-def start_sniff_thread(iface):
-    sniff(prn=wlan_sniffer_callback, iface=iface)
+    return dhcp_server_info
 
 
-def PacketHandler(pkt):
-    print(pkt)
-    if pkt.haslayer(Dot11):
-        dot11_layer = pkt.getlayer(Dot11)
-          
-        if dot11_layer.addr2 and (dot11_layer.addr2 not in devices):
-            devices.add(dot11_layer.addr2)
-            print(len(devices), dot11_layer.addr2, dot11_layer.payload.name)
-  
-  
-print(conf.iface)
-sniff(iface=conf.iface, count=100, prn=PacketHandler)
-
-# iface = conf.iface
-# channel_switch = threading.Thread(target=change_channel, args=(iface,))
-# channel_switch.daemon = True
-# channel_switch.start()
-
-# sniffer = threading.Thread(target=start_sniff_thread, args=(iface,))
-# sniffer.daemon = True
-# sniffer.start()
-
-# ---------------------------------------- WIP -----------------------------------------
 
 
     
