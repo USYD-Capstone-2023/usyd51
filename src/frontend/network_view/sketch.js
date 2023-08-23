@@ -142,9 +142,6 @@ function rmouseY(){
 function setup(){
     createCanvas(windowWidth, windowHeight);
     frameRate(60);
-    allDevices.push(new Device(100, 100, 20,{}))
-    allDevices.push(new Device(200, 300, 20,{}));
-    allDevices[0].addLink(allDevices[1]);
 }
 
 
