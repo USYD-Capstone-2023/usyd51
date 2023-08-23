@@ -346,6 +346,20 @@ def get_network_info():
 def start_sniff_thread(iface):
     sniff(prn=wlan_sniffer_callback, iface=iface)
 
+
+def PacketHandler(pkt):
+    print(pkt)
+    if pkt.haslayer(Dot11):
+        dot11_layer = pkt.getlayer(Dot11)
+          
+        if dot11_layer.addr2 and (dot11_layer.addr2 not in devices):
+            devices.add(dot11_layer.addr2)
+            print(len(devices), dot11_layer.addr2, dot11_layer.payload.name)
+  
+  
+print(conf.iface)
+sniff(iface=conf.iface, count=100, prn=PacketHandler)
+
 # iface = conf.iface
 # channel_switch = threading.Thread(target=change_channel, args=(iface,))
 # channel_switch.daemon = True
