@@ -6,7 +6,6 @@ TIMEOUT = 10
 def get_dhcp_server_info():
 
     dhcp_server_info = {}
-    mutex = threading.Lock()
     event = threading.Event()
     start = time.time()
     exit_flag = False
@@ -15,19 +14,14 @@ def get_dhcp_server_info():
     # if it finds a valid one. Runs in its own thread
     def dhcp_response(pkt):
         
-        mutex.acquire()
         for option in pkt[DHCP].options:
             if option == "end" or  option == "pad" or (option[0] == "message-type" and option[1] == 1):
                 break
 
             dhcp_server_info[option[0]] = str(option[1])
-        mutex.release()
 
     def stop_filter(_):
-        mutex.acquire()
-        condition = time.time() - start > TIMEOUT or len(dhcp_server_info.keys()) > 0
-        mutex.release()
-        return condition
+        return time.time() - start > TIMEOUT or len(dhcp_server_info.keys()) > 0
 
 
     def start_sniff_thread(iface):
