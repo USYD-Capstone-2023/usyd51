@@ -8,15 +8,15 @@ header {
     display: flex;
     align-items: center;
     padding: 20px;
-    justify-content: flex-start; /* Align header content to the left */
-    width: 100%; /* Set header to full width */
+    justify-content: flex-start;
+    width: 100%;
     margin-left: 30px;
 }
 
 .current-network-box {
-    display: flex; /* Use flexbox to create a horizontal layout */
-    align-items: center; /* Align items vertically in the middle */
-    gap: 10px; /* Add a bit of spacing between the icon and text */
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .current-network {
@@ -27,13 +27,7 @@ header {
     font-weight: 600;
     line-height: normal;
 }
-
-/* Set a minimum width and height for the viewport */
-@media (min-width: 800px) and (min-height: 600px) {
-    body {
-    }
-}
-  
+ 
 body {
     display: flex;
     flex-direction: column;
@@ -77,14 +71,13 @@ body {
 }
 
 .button:hover {
-    background-color: rgba(75, 163, 195, 0.8); /* Darken the background color on hover */
+    background-color: rgba(75, 163, 195, 0.8);
 }
-
 
 .create-new-network {
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* Align items to the left */
+    justify-content: flex-start;
     width: 100%;
 }
 
@@ -124,8 +117,8 @@ body {
     font-style: normal;
     font-weight: 700;
     line-height: normal;
-    margin-top: 15vh; /* Adjust this value to position the subtitle */
-    align-self: flex-start; /* Align the subtitle to the left edge */
+    margin-top: 15vh;
+    align-self: flex-start;
 }
 
 .network-box {
@@ -149,7 +142,7 @@ body {
 }
 
 .network-box:hover {
-    background-color: rgba(134, 203, 233, 0.8); /* Darken the background color on hover */
+    background-color: rgba(134, 203, 233, 0.8);
 }
 
 .network-info {
