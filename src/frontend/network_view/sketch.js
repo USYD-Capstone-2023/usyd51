@@ -22,6 +22,40 @@ class Device {
         this.links = []
         this.linkLines = []
         this.name = name
+        this.infoBox = Device.createInfoBox();
+    }
+
+     //Creates The popup infoBox to be used
+     static createInfoBox() {
+        if (document.getElementById('infoBox')){
+            return;
+        } 
+        let infoBox = document.createElement('div');
+        infoBox.id = 'infoBox';
+        infoBox.classList.add('infoBox');
+    
+        let fields = ['IP', 'MAC Address', 'Parent'];
+        for (let field of fields) {
+            let p = document.createElement('p');
+        
+            let strong = document.createElement('strong');
+            strong.textContent = field + ': ';
+            p.appendChild(strong);
+
+            let span = document.createElement('span');
+            span.id = 'device' + field.replace(/\s+/g, ''); 
+            p.appendChild(span);
+
+            infoBox.appendChild(p);
+            document.body.appendChild(infoBox);
+        }
+    }
+     //Hides the infoBox
+     static hideInfoBox() {
+        let infoBox = document.getElementById('infoBox');
+        if (infoBox) {
+            infoBox.style.display = 'none';
+        }
     }
 
     // Visualise the links with curved lines. Increase line segments for a potentially smoother look.
@@ -50,7 +84,22 @@ class Device {
 
     draw(){
         if (this.hoverCheck()){
-            // Deal with hover here
+            // Don't show infoBox if you're trying to move circle
+            if (!keyIsDown(SHIFT)){
+                // remove unneccesary suffix
+                let name = this.data.name.replace(".in-addr.arpa.", "");
+                let parent = this.data.parent.replace(".in-addr.arpa.", "");
+
+                let infoBox = document.getElementById('infoBox');
+                document.getElementById('deviceIP').innerText = name || 'N/A';
+                document.getElementById('deviceMACAddress').innerText = this.data.mac || 'N/A';
+                // document.getElementById('deviceLayerLevel').innerText = this.data.layer_level || 'N/A';
+                document.getElementById('deviceParent').innerText = parent || 'N/A';
+
+                infoBox.style.display = 'block';
+                infoBox.style.left = `${this.x + offset[0] + 10}px`;
+                infoBox.style.top = `${this.y + offset[1] + 10}px`;
+            }
             strokeWeight(2);
             stroke(0, 0, 255);
         } else {
@@ -102,6 +151,7 @@ function setup(){
 
 function draw(){
     background(100);
+    Device.hideInfoBox();
     translate(offset[0], offset[1])
     for (device of allDevices){
         device.drawLinks();
