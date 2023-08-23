@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8=';">
     <title>Network Renderer</title>
     <link rel="stylesheet" href="../font-awesome-4.7.0/css/font-awesome.min.css">
   </head>
@@ -19,12 +19,13 @@
         <i class="fa fa-cog net-box-icon net-box-clickable" id="settings_symbol"></i>
       </div>
     </header>
+    <div id="cy"></div>
 
   </body>
   <link href="style.css" rel="stylesheet">
   <script language="javascript" type="text/javascript" src="renderer.js"></script>
-
-  <script language="javascript" type="text/javascript" src="p5.js"></script>
+  <script language="javascript" type="text/javascript" src="tippy.js"></script>
+  <script language="javascript" type="text/javascript" src="cytoscape.js"></script>
   <script language="javascript" type="text/javascript" src="sketch.js"></script>
 
 </html>
