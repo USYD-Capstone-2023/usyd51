@@ -129,7 +129,7 @@ body {
 }
 
 .network-box {
-    width: 100%;
+    width: 60%;
     max-width: 800px;
     height: 68px;
     flex-shrink: 0;
@@ -145,6 +145,11 @@ body {
     position: relative;
     z-index: 1;
     cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.network-box:hover {
+    background-color: rgba(134, 203, 233, 0.8); /* Darken the background color on hover */
 }
 
 .network-info {

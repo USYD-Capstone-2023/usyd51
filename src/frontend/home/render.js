@@ -3,8 +3,12 @@
 window.electronAPI.requestNetworks();
 
 function createNetworkBox(filename, name, ssid){
+    // let networkContainer = document.createElement('div');
+    // networkContainer.setAttribute("class", "networkContainer");
+
     let networkBox = document.createElement('button');
     networkBox.setAttribute("class", "network-box");
+    // networkBox.appendChild(networkContainer);
     
     let networkInfo = document.createElement('div');
     networkInfo.setAttribute('class', 'network-info');
