@@ -1,5 +1,3 @@
-
-
 html {
     margin: 0px;
     overflow: hidden;
@@ -7,29 +5,4 @@ html {
 
 body {
     margin: 0px;
-}
-.infoBox {
-    display: none;
-    position: absolute;
-    padding: 16px;
-    background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
-    border: 1px solid #ccc;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1) inset; /* outer and inner shadow */
-    border-radius: 7px;
-    z-index: 10;
-    font-family: 'Roboto', sans-serif;
-    transition: transform 0.2s, box-shadow 0.2s; /* Smooth transition */
-}
-
-.infoBox p {
-    margin-bottom: 10px;
-}
-
-.infoBox strong {
-    color: #333;
-    font-weight: 600;
-}
-
-.infoBox span {
-    color: #555;
 }

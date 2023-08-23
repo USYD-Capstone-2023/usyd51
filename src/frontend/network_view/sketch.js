@@ -86,11 +86,15 @@ class Device {
         if (this.hoverCheck()){
             // Don't show infoBox if you're trying to move circle
             if (!keyIsDown(SHIFT)){
+                // remove unneccesary suffix
+                let name = this.data.name.replace(".in-addr.arpa.", "");
+                let parent = this.data.parent.replace(".in-addr.arpa.", "");
+
                 let infoBox = document.getElementById('infoBox');
-                document.getElementById('deviceIP').innerText = this.data.name || 'N/A';
+                document.getElementById('deviceIP').innerText = name || 'N/A';
                 document.getElementById('deviceMACAddress').innerText = this.data.mac || 'N/A';
                 // document.getElementById('deviceLayerLevel').innerText = this.data.layer_level || 'N/A';
-                document.getElementById('deviceParent').innerText = this.data.parent || 'N/A';
+                document.getElementById('deviceParent').innerText = parent || 'N/A';
 
                 infoBox.style.display = 'block';
                 infoBox.style.left = `${this.x + offset[0] + 10}px`;
