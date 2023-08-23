@@ -1,0 +1,59 @@
+from scapy.all import *
+import time, threading
+
+TIMEOUT = 10
+
+def get_dhcp_server_info():
+
+    dhcp_server_info = {}
+    mutex = threading.Lock()
+    event = threading.Event()
+    start = time.time()
+    exit_flag = False
+
+    # Callback function waits for a DHCP response packet to arrive and quits 
+    # if it finds a valid one. Runs in its own thread
+    def dhcp_response(pkt):
+        
+        mutex.acquire()
+        for option in pkt[DHCP].options:
+            if option == "end" or  option == "pad" or (option[0] == "message-type" and option[1] == 1):
+                break
+
+            dhcp_server_info[option[0]] = str(option[1])
+        mutex.release()
+
+    def stop_filter(_):
+        mutex.acquire()
+        condition = time.time() - start > TIMEOUT or len(dhcp_server_info.keys()) > 0
+        mutex.release()
+        return condition
+
+
+    def start_sniff_thread(iface):
+        sniff(prn=dhcp_response, filter="udp and (port 67 or 68)", store=1, stop_filter=stop_filter)
+        event.set()
+
+
+    fam, hw = get_if_raw_hwaddr(conf.iface)
+
+    eth = Ether(dst="FF:FF:FF:FF:FF:FF")
+    ip = IP(src="0.0.0.0", dst="255.255.255.255")
+    udp = UDP(sport=68, dport=67)
+    bootp = BOOTP(chaddr=hw)
+    dhcp = DHCP(options=[("message-type", "discover")])
+    request = eth / ip / udp / bootp / dhcp
+
+    sniffer = threading.Thread(target=start_sniff_thread, args=(conf.iface,))
+    sniffer.start()
+
+    # Sends DHCP request packet until it times out or receives a valid response
+    while not event.is_set():
+        sendp(request, iface=conf.iface)
+
+    empty = len(dhcp_server_info.keys()) == 0
+    sniffer.join()
+    if empty:
+        dhcp_server_info = {"error" : "Recieved no response from dhcp server after 10 seconds..."}
+
+    return dhcp_server_info
