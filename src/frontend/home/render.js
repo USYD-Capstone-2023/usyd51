@@ -4,9 +4,8 @@ window.electronAPI.requestNetworks();
 
 document.addEventListener("DOMContentLoaded", () => { // Add methods that can only happen when DOM is loaded in here.
     document.getElementById('new-network-button').onclick = () =>{
-        //window.electronAPI.getNewDevices();
+        window.electronAPI.getNewDevices();
 
-        //document.getElementById("processing-network").style.display = "Inherit";
         document.getElementById("create-network").innerText = "Processing...";
         document.getElementById("create-network-plus").style.display = "none";
         document.getElementById("create-network-loading").style.display = "inherit";
