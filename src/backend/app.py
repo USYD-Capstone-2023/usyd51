@@ -14,6 +14,7 @@ from DHCP_info import get_dhcp_server_info
 import time, threading, socket, os, atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
+GATEWAY = "192.168.0.1"
 NUM_THREADS = 10
 
 # Ensures that the user has root perms uf run on posix system.
@@ -256,7 +257,7 @@ def get_devices():
     ip_range = gateway + "/24"
     
     # Creating ARP packet
-    arp_frame = ARP(pdst=ip_range)
+    arp_frame = ARP(pdst="192.168.0.0/24")
     ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 

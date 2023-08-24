@@ -2,6 +2,17 @@
 
 window.electronAPI.requestNetworks();
 
+document.addEventListener("DOMContentLoaded", () => { // Add methods that can only happen when DOM is loaded in here.
+    document.getElementById('new-network-button').onclick = () =>{
+        window.electronAPI.getNewDevices();
+    }
+})
+
+
+// window.electronAPI.recieveDevices((_event, data) => {
+
+// })
+
 function createNetworkBox(filename, name, ssid){
     let networkBox = document.createElement('button');
     networkBox.setAttribute("class", "network-box");
@@ -36,9 +47,10 @@ function createNetworkBox(filename, name, ssid){
 }
 
 
+
+
 window.electronAPI.networkList((_event, data) => {
     for (let network of Object.keys(data)){
-        console.log(network)
         createNetworkBox(network, data[network]["name"], data[network]['ssid']);
     }
 })
