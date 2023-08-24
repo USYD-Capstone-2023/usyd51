@@ -5,6 +5,8 @@ TIMEOUT = 3
 
 def get_dhcp_server_info():
 
+    own_mac = Ether().src
+
     dhcp_server_info = {}
     event = threading.Event()
     start = time.time()
@@ -18,7 +20,7 @@ def get_dhcp_server_info():
             if option == "end" or  option == "pad" or (option[0] == "message-type" and option[1] == 1):
                 break
 
-            dhcp_server_info[option[0]] = str(option[1])
+            dhcp_server_info[str(option[0])] = str(option[1])
 
     def stop_filter(_):
         return time.time() - start > TIMEOUT or len(dhcp_server_info.keys()) > 0
@@ -31,11 +33,11 @@ def get_dhcp_server_info():
 
     fam, hw = get_if_raw_hwaddr(conf.iface)
 
-    eth = Ether(dst="FF:FF:FF:FF:FF:FF")
-    ip = IP(src="0.0.0.0", dst="255.255.255.255")
-    udp = UDP(sport=68, dport=67)
-    bootp = BOOTP(chaddr=hw)
-    dhcp = DHCP(options=[("message-type", "discover")])
+    eth = Ether(dst='ff:ff:ff:ff:ff:ff', src=own_mac, type=0x0800)
+    ip = IP(src='0.0.0.0', dst='255.255.255.255')
+    udp = UDP(dport=67,sport=68)
+    bootp = BOOTP(op=1, chaddr=hw)
+    dhcp = DHCP(options=[('message-type','discover'), ('end')])
     request = eth / ip / udp / bootp / dhcp
 
     sniffer = threading.Thread(target=start_sniff_thread, args=(conf.iface,))
