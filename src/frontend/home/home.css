@@ -81,7 +81,7 @@ body {
     background-color: rgba(75, 163, 195, 0.8); /* Darken the background color on hover */
 }
 
-.custom-plus-icon {
+.custom-plus-icon, .custom-loading-icon {
     display: inline-block;
     width: 96px; /* Adjust the width and height for the desired icon size */
     height: 96px;
@@ -91,6 +91,11 @@ body {
     line-height: 96px;
     color: white;
     font-size: 48px; /* Set the icon size inside the custom icon */
+}
+
+.custom-loading-icon{
+    padding-left:5%;
+    padding-right:5%;
 }
 
 .subtitle {
