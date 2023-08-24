@@ -31,7 +31,7 @@ devices = {}
 # Default value, gets resolved on initialization by DHCP server
 gateway = "192.168.1.1"
 print("[INFO] Retrieveing DHCP server info...")
-dhcp_server_info = get_dhcp_server_info(own_mac)
+dhcp_server_info = get_dhcp_server_info()
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
     gateway = dhcp_server_info["server_id"]
 
@@ -255,8 +255,7 @@ def get_traceroute(hosts):
 @app.get("/devices")
 def get_devices():
 
-    # ip_range = gateway + "/24"
-    ip_range = "10.0.0.0" + "/20"
+    ip_range = gateway + "/24"
     
     # Creating ARP packet
     arp_frame = ARP(pdst=ip_range)

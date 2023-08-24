@@ -3,7 +3,9 @@ import time, threading
 
 TIMEOUT = 3
 
-def get_dhcp_server_info(own_mac):
+def get_dhcp_server_info():
+
+    own_mac = Ether().src
 
     dhcp_server_info = {}
     event = threading.Event()
