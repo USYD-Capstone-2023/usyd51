@@ -7,15 +7,34 @@ const fs = require('fs')
 function saveDataToFile(event, ping_data, traceroute_data){
   console.log("Traceroute completed. Combining data and saving file.");
 
-
   let all_data = {};
   for (item of Object.keys(ping_data)){
     all_data[item] = {}; // Add by mac address
     all_data[item]["mac"] = ping_data[item];
-    all_data[item]["neighbours"] = traceroute_data[item];
+    all_data[item]["neighbours"] = []//traceroute_data[item];
     all_data[item]['name'] = item
     all_data[item]['layer_level'] = traceroute_data[item].length-1;
     all_data[item]['parent'] = traceroute_data[item][traceroute_data[item].length-1]
+  }
+
+  for (let traceroute of Object.values(traceroute_data)){
+    for (let i = 0; i < traceroute.length-1; i+=1){
+      if (all_data[traceroute[i]] == undefined){
+        all_data[traceroute[i]] = {};
+        all_data[traceroute[i]]['mac'] = 'undefined';
+        all_data[traceroute[i]]["neighbours"] = []
+        all_data[traceroute[i]]['name'] = traceroute[i]
+        all_data[traceroute[i]]['layer_level'] = 0;
+        all_data[traceroute[i]]['parent'] = 'undefined'
+      }
+    }
+  }
+
+  for (let traceroute of Object.values(traceroute_data)){
+    for (let i = 0; i < traceroute.length-1; i+=1){
+        all_data[traceroute[i]]['neighbours'].push(traceroute[i+1]);
+        all_data[traceroute[i+1]]['parent'] = traceroute[i];
+    }
   }
 
   let filename = (Math.random() + 1).toString(36).substring(10) + ".json"; // random filename
@@ -68,6 +87,7 @@ function tracerouteDevices(event, ping_data){
 
     })
   });
+
 }
 
 function getNewDevices(event, data){
