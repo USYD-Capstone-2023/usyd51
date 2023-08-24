@@ -14,7 +14,6 @@ from DHCP_info import get_dhcp_server_info
 import time, threading, socket, os, atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
-GATEWAY = "192.168.0.1"
 NUM_THREADS = 10
 
 # Ensures that the user has root perms uf run on posix system.
