@@ -11,7 +11,7 @@ from threadpool import Threadpool
 from DHCP_info import get_dhcp_server_info
 
 # Stdlib
-import time, threading, socket, os, atexit
+import time, threading, socket, os, signal, sys
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 10
@@ -37,11 +37,13 @@ if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
 
 threadpool = Threadpool(NUM_THREADS)
 
-def cleanup():
+def cleanup(*args,):
     threadpool.end()
     print("Finished cleaning up! Server will now shut down.")
+    sys.exit()
 
-atexit.register(cleanup)
+signal.signal(signal.SIGTERM, cleanup)
+signal.signal(signal.SIGINT, cleanup)
 
 def init():
 
