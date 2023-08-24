@@ -79,3 +79,33 @@ Return format:
     IP_n : [route_ip_0, route_ip_1, ..., route_ip_k],
 }
 ```
+
+## DHCP Server Info ##
+
+Returns the DHCP info from the server
+
+Usage: ```/dhcp_info```
+
+Return format:
+```python
+{
+    "broadcast_address" : broadcast_address, 
+    "lease_time" : lease_time,
+    "message-type" : message_type, 
+    "name_server" : name_server,
+    "rebinding_time" : rebinding_time, 
+    "renewal_time" : renewal_time,
+    "router" : router_ip, 
+    "server_id" : server_ip, 
+    "subnet_mask" : subnet_mask,
+    "vendor_specific" : vendor_specific_info
+}
+```
+
+OR
+
+```python
+{
+    "error" : "Recieved no response from dhcp server after x seconds..."
+}
+```
