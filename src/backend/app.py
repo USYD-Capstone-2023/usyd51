@@ -30,6 +30,7 @@ devices = {}
 
 # Default value, gets resolved on initialization by DHCP server
 gateway = "192.168.1.1"
+print("[INFO] Retrieveing DHCP server info...")
 dhcp_server_info = get_dhcp_server_info()
 print(dhcp_server_info)
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
@@ -194,7 +195,6 @@ def get_traceroute(hosts):
 
     # Thread task to get path to "host"
     def traceroute_helper(host):
-
         # This one seems to have issues, but doesnt give mac res errors
         # answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
 

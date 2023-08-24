@@ -1,7 +1,7 @@
 from scapy.all import *
 import time, threading
 
-TIMEOUT = 10
+TIMEOUT = 3
 
 def get_dhcp_server_info():
 
@@ -43,7 +43,7 @@ def get_dhcp_server_info():
 
     # Sends DHCP request packet until it times out or receives a valid response
     while not event.is_set():
-        sendp(request, iface=conf.iface)
+        sendp(request, iface=conf.iface, verbose=False)
 
     empty = len(dhcp_server_info.keys()) == 0
     sniffer.join()
