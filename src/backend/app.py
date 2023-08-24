@@ -32,7 +32,6 @@ devices = {}
 gateway = "192.168.1.1"
 print("[INFO] Retrieveing DHCP server info...")
 dhcp_server_info = get_dhcp_server_info()
-print(dhcp_server_info)
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
     gateway = dhcp_server_info["server_id"]
 
@@ -77,6 +76,7 @@ init()
 # Runs in single thread as it is O(n)
 @app.get("/mac_vendor/<macs>")
 def get_mac_vendor(macs):
+
     if not mac_table.initialized:
         mac_table.init_mac_table(MAC_TABLE_FP)
 
@@ -256,7 +256,7 @@ def get_devices():
     ip_range = gateway + "/24"
     
     # Creating ARP packet
-    arp_frame = ARP(pdst="192.168.0.0/24")
+    arp_frame = ARP(pdst=ip_range)
     ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 
