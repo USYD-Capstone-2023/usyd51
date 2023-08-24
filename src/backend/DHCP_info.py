@@ -48,6 +48,6 @@ def get_dhcp_server_info():
     empty = len(dhcp_server_info.keys()) == 0
     sniffer.join()
     if empty:
-        dhcp_server_info = {"error" : "Recieved no response from dhcp server after 10 seconds..."}
+        dhcp_server_info = {"error" : "Recieved no response from dhcp server after %d seconds..." % (TIMEOUT)}
 
     return dhcp_server_info

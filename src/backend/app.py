@@ -14,7 +14,7 @@ from DHCP_info import get_dhcp_server_info
 import time, threading, socket, os, atexit
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 100
+NUM_THREADS = 25
 
 # Ensures that the user has root perms uf run on posix system.
 if os.name == "posix" and os.geteuid() != 0: 
