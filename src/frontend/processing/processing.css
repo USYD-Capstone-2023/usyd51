@@ -123,3 +123,14 @@ body {
 .ready{
     background-color: rgb(9, 153, 69);
 }
+
+#loading-bar {
+    margin: auto;
+    width: 80%;
+}
+
+#bar-info {
+    width: 0%;
+    height: 40px;
+    background-color: grey;
+}

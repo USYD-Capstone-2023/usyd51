@@ -4,7 +4,7 @@ from job import Job
 # Handles a pool of threads to run expensive tasks in parallel
 class Threadpool:
 
-    MAX_QUEUE_SIZE = 1000
+    MAX_QUEUE_SIZE = 10000
     running = False
     terminate = False
     queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)

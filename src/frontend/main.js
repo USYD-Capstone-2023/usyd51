@@ -120,6 +120,26 @@ function getNewDevices(event, data){
 }
 
 
+// Gets the progress of the current request from the backend
+function checkRequestProgress(event) {
+
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  let url = "http://127.0.0.1:5000/request_progress"
+  
+  let response = undefined
+  http.get(url, (resp) => {
+    let data = '';
+    resp.on('data', (chunk)=>{
+      data+=chunk;
+    })
+    
+    resp.on('end', ()=>{
+      response = JSON.parse(data);  
+      win.webContents.send("send-request-progress", response);
+    })
+  });
+}
 
 
 function createWindow () {
@@ -185,6 +205,7 @@ app.whenReady().then(() => {
   ipcMain.on('load-home', loadHome);
   ipcMain.on('get-new-devices', getNewDevices);
   ipcMain.on('load-network-from-data', loadNetworkFromData);
+  ipcMain.on('check-request-progress', checkRequestProgress);
   createWindow()
 
   app.on('activate', () => {
