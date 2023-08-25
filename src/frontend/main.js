@@ -48,14 +48,22 @@ function saveDataToFile(event, ping_data, traceroute_data){
   fs.writeFileSync("../cache/index.json", JSON.stringify(file));
 
 
-  console.log("loading network tab");
+  // console.log("loading network tab");
 
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  win.webContents.send('is-ready',all_data);
+
+
+}
+
+function loadNetworkFromData(event, data){
+  console.log("Loading network tab from load netwrok from data");
   const webContents = event.sender;
   const win = BrowserWindow.fromWebContents(webContents);
   win.loadFile('network_view/index.html');
     // Wait until dom has loaded to send data
-  win.webContents.once('dom-ready', () => win.webContents.send('update-data', all_data));
-
+  win.webContents.once('dom-ready', () => win.webContents.send('update-data', data));
 }
 
 function tracerouteDevices(event, ping_data){
@@ -172,10 +180,11 @@ function sendNetworks(event, data){
 }
 
 app.whenReady().then(() => {
-  ipcMain.on('load-network', loadNetwork)
-  ipcMain.on('request-networks', sendNetworks)
-  ipcMain.on('load-home', loadHome)
-  ipcMain.on('get-new-devices', getNewDevices)
+  ipcMain.on('load-network', loadNetwork);
+  ipcMain.on('request-networks', sendNetworks);
+  ipcMain.on('load-home', loadHome);
+  ipcMain.on('get-new-devices', getNewDevices);
+  ipcMain.on('load-network-from-data', loadNetworkFromData);
   createWindow()
 
   app.on('activate', () => {
