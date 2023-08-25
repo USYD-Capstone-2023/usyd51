@@ -4,12 +4,7 @@ window.electronAPI.requestNetworks();
 
 document.addEventListener("DOMContentLoaded", () => { // Add methods that can only happen when DOM is loaded in here.
     document.getElementById('new-network-button').onclick = () =>{
-        window.electronAPI.getNewDevices();
-
-        document.getElementById("create-network").innerText = "Processing...";
-        document.getElementById("create-network-plus").style.display = "none";
-        document.getElementById("create-network-loading").style.display = "inherit";
-
+        window.location.href = "../processing/processing.html";
     }
 
     //Handles the Drag and Drop functionality for the network list
@@ -99,5 +94,4 @@ window.electronAPI.networkList((_event, data) => {
     for (let network of Object.keys(data)){
         createNetworkBox(network, data[network]["name"], data[network]['ssid']);
     }
-})
-
+});
