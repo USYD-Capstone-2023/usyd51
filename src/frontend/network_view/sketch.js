@@ -85,14 +85,17 @@ var cy = cytoscape({
     layout.run();
   }
 
-// cy.on('tap', 'node', function(evt){
-//     var node = evt.target;
-//     if (node.isNode && node.isNode()) {
-//         makeTippy(tgt, data.id + " (" + data.name + ")<br/>" + data.info);
-//     }
+  function updateInfoBox(nodeData) {
+    document.getElementById('node_type').textContent = "Windows PC/Laptop";
+    document.getElementById('node_hostname').textContent = nodeData.id;
+    document.getElementById('node_IP').textContent = nodeData.id;
+    document.getElementById('node_MAC').textContent = nodeData.mac;
+}
 
-
-// });
+cy.on('tap', 'node', function(evt) {
+    var clickedNode = evt.target;
+    updateInfoBox(clickedNode.data());
+});
 
 window.electronAPI.updateData((_event, value) => {
     console.log("Attempting to visualise!");
