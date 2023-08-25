@@ -5,11 +5,12 @@ document.addEventListener("DOMContentLoaded", () => { // Add methods that can on
     console.log("getting Devices");
 
     window.electronAPI.isReady((_event, data) => {
-        console.log("Hit ready");
         let target = document.getElementById('ready-button');
         target.textContent = "Ready";
         target.classList.remove("not-ready");
         target.classList.add("ready");
+        document.getElementById("loading-icon").style.display = "none";
+        document.getElementById("create-network").innerText = "Finished Processing";
         target.onclick = () => {window.electronAPI.loadNetworkFromData(data)}
     });
 

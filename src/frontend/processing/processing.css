@@ -45,6 +45,7 @@ body {
     border-bottom: 2px solid var(--primary-blue, #4BA3C3);
     position: relative;
     z-index: 1;
+    padding-left: 5%;
 }
 
 .button {
@@ -75,6 +76,7 @@ body {
     justify-content: flex-start; /* Align items to the left */
     width: 100%;
     transition: background-color 0.3s;
+
 }
 
 .create-new-network:hover {
@@ -91,8 +93,6 @@ body {
     line-height: 96px;
     color: white;
     font-size: 48px; /* Set the icon size inside the custom icon */
-    padding-left:5%;
-    padding-right:5%;
 }
 
 
