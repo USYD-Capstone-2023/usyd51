@@ -109,17 +109,11 @@ body {
     align-self: flex-start; /* Align the subtitle to the left edge */
 }
 
-.network-container {
-    width: 60%;
-    /* height: 121px; */
-    flex-shrink: 0;
-    /* border-radius: 4px; */
-    /* display: flex; */
-    /* justify-content: center; */
-    /* align-items: center; */
-    color: var(--white, #FFF);
-    position: relative;
+.network-container{
+    width:80%;
+    
 }
+
 
 .network-box {
     width: 100%;
