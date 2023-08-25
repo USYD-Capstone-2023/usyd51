@@ -4,20 +4,25 @@ var cy = cytoscape({
     elements: [
     ],
   
-    style: [ // the stylesheet for the graph
+    style: [
     {
       selector: 'node',
       style: {
         'background-color': '#666',
       }
     },
-
+    {
+      selector: 'node:selected',
+      style: {
+        'background-color': 'blue'
+      }
+    },
     {
       selector: 'edge',
       style: {
         'width': 3,
-        'line-color': '#000000',
-        'curve-style': 'bezier'
+        'line-color': 'rgb(94, 254, 238)',
+        'curve-style': 'unbundled-bezier'
       }
     }
     ],
@@ -27,8 +32,6 @@ var cy = cytoscape({
     },
 
     wheelSensitivity : 0.3,
-    autoungrabify: true,
-    autounselectify: true
     
   });
 
@@ -51,7 +54,6 @@ var cy = cytoscape({
         });
     }
     let nodes = cy.nodes();
-    let edge_count = 0;
     for (node of nodes){
         let parent = cy.getElementById(node.data('parentIP'));
         if (parent.data("id")){
@@ -63,13 +65,23 @@ var cy = cytoscape({
                 }
             }
             )
+            parent.style('background-color', 'orange');
+            parent.data('isParent', true );
         }
-        edge_count++;
-
-
     }
 
-    var layout = cy.layout({ name: 'breadthfirst' });
+    var layout = cy.layout({
+      name: 'cose',
+      
+      fit: true,
+      padding: 20,
+      componentSpacing: 60,
+      nodeOverlap: 60,
+      nodeRepulsion: function( node ) {
+        return node.data('isParent') ? 80000 : 100000;
+    },
+      animate: false
+    });
     layout.run();
   }
 
