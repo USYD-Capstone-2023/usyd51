@@ -120,8 +120,25 @@ header {
     height: 100%;
     border: 0.175rem solid var(--dark-blue);
     border-radius: 4px;
+    display: flex;
+    flex-direction: column;
 }
 
+.info-panel-box-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.25rem;
+    margin-left: 0.375rem;
+    margin-right: 0.375rem;
+    font-family: Inter, sans-serif;
+    font-size: 1rem;
+    color: var(--dark-blue);
+}
+
+.info-panel-box-item-title {
+    font-weight: bold;
+}
 
 .infoBox {
 
