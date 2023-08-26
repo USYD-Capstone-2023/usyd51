@@ -4,6 +4,10 @@
     --white: #FFF;
 }
 
+html {
+    overflow-x: hidden;
+}
+
 header {
     display: flex;
     align-items: center;
@@ -11,6 +15,7 @@ header {
     justify-content: flex-start; /* Align header content to the left */
     width: 100%; /* Set header to full width */
     margin-left: 30px;
+
 }
 
 .current-network-box {
