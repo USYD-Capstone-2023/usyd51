@@ -82,4 +82,8 @@ class Threadpool:
             job.cond.notify()
             job.cond.release()
 
+            # Garbage collector cannot remove objects passed between threads. Should fix our memory leak issue
+            job = None
+
+
     

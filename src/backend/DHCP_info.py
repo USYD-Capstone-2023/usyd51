@@ -1,7 +1,7 @@
 from scapy.all import *
 import time, threading
 
-TIMEOUT = 3
+TIMEOUT = 10
 
 def get_dhcp_server_info():
 
