@@ -264,10 +264,32 @@ def get_traceroute(hosts):
 @app.get("/devices")
 def get_devices():
 
-    ip_range = gateway + "/24"
+    # Default
+    subnet_mask = "255.255.255.0"
+    if "subnet_mask" in dhcp_server_info.keys():
+        subnet_mask = dhcp_server_info["subnet_mask"]
     
+    sm_split = subnet_mask.split(".")
+    gateway_split = gateway.split(".")
+    first_ip = ""
+    last_ip = ""
+
+    for i in range(4):
+        sm_chunk = int(sm_split[i])
+        gateway_chunk = int(gateway_split[i])
+
+        first_ip += "%d" % (sm_chunk & gateway_chunk)
+        sm_inv = (1 << 8) - 1 - sm_chunk
+        last_ip += "%d" % (sm_inv | (sm_chunk & gateway_chunk))
+
+        if i == 3:
+            break
+
+        first_ip += "."
+        last_ip += "."
+        
     # Creating ARP packet
-    arp_frame = ARP(pdst=ip_range)
+    arp_frame = ARP(pdst=ip)
     ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
     request = ethernet_frame / arp_frame
 

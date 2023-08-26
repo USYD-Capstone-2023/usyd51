@@ -1,6 +1,6 @@
 import wget, os, csv, datetime, multiprocessing
 
-TIMEOUT = 10
+# TIMEOUT = 10
 
 class MAC_table:
 
