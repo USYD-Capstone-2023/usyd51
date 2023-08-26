@@ -1,3 +1,5 @@
+let currentLayout = 'breadthfirst';
+
 var cy = cytoscape({
     container: document.getElementById('cy'),
   
@@ -10,7 +12,7 @@ var cy = cytoscape({
       style: {
         'background-color': '#666',
       }
-    },
+    },    
     {
       selector: 'node:selected',
       style: {
@@ -22,7 +24,15 @@ var cy = cytoscape({
       style: {
         'width': 3,
         'line-color': 'rgb(94, 254, 238)',
-        'curve-style': 'unbundled-bezier'
+        'curve-style': 'taxi',
+        'taxi-direction': 'vertical',
+      }
+    },
+    {
+      selector: 'edge:selected',
+      style: {
+        'line-color': 'blue',
+        'z-index': 9999
       }
     }
     ],
@@ -69,7 +79,23 @@ var cy = cytoscape({
             parent.data('isParent', true );
         }
     }
+    breadthLayout();
+  }
 
+  function breadthLayout(){
+    var layout = cy.layout({
+      name: 'breadthfirst',
+      
+      fit: true,
+      padding: 20,
+      componentSpacing: 60,
+      nodeOverlap: 60,
+    });
+    cy.edges().style('curve-style', 'taxi');
+    layout.run();
+    currentLayout = 'breadthfirst'
+  }
+  function coseLayout(){
     var layout = cy.layout({
       name: 'cose',
       
@@ -80,12 +106,16 @@ var cy = cytoscape({
       nodeRepulsion: function( node ) {
         return node.data('isParent') ? 80000 : 100000;
     },
-      animate: false
+      animate: false,
     });
+    cy.edges().style('curve-style', 'bezier');
     layout.run();
+    currentLayout = 'cose'
+    
   }
 
   function updateInfoBox(nodeData) {
+    //THIS NEEDS TO BE UPDATE WHEN WE HAVE THE PROPER JSONS
     document.getElementById('node_type').textContent = "Windows PC/Laptop";
     document.getElementById('node_hostname').textContent = nodeData.id;
     document.getElementById('node_IP').textContent = nodeData.id;
@@ -95,6 +125,15 @@ var cy = cytoscape({
 cy.on('tap', 'node', function(evt) {
     var clickedNode = evt.target;
     updateInfoBox(clickedNode.data());
+});
+
+document.getElementById('toggleStyle').addEventListener('click', function() {
+  if (currentLayout == 'cose'){
+    breadthLayout();
+  }
+  else{
+    coseLayout();
+  }
 });
 
 window.electronAPI.updateData((_event, value) => {
