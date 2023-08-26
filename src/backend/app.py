@@ -238,6 +238,7 @@ def get_traceroute(hosts):
         if not threadpool.add_job(Job(fptr=traceroute_helper, args=hosts[i], ret_ls=returns,\
                                ret_id=i, counter_ptr=counter_ptr, cond=cond)):
 
+            returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
     threadpool.start()
@@ -256,6 +257,7 @@ def get_traceroute(hosts):
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
+    returns = None
     lb.set_params("", 0, 0)
     return ret
 
@@ -264,6 +266,26 @@ def get_traceroute(hosts):
 @app.get("/devices")
 def get_devices():
 
+    # Sends an ARP ping to the given IP address
+    def arp_helper(ip):
+        # Creating ARP packet
+        arp_frame = ARP(pdst=ip)
+        ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
+        request = ethernet_frame / arp_frame
+
+        # Send/recieve packet
+        responded = srp(request, timeout=0.3, retry=2, verbose=False)[0]
+
+        ret = {}
+        for response in responded:
+        
+            ip = response[1].psrc
+            mac = response[1].hwsrc
+            ret[ip] = mac
+
+        return ret
+
+
     # Default
     subnet_mask = "255.255.255.0"
     if "subnet_mask" in dhcp_server_info.keys():
@@ -271,43 +293,67 @@ def get_devices():
     
     sm_split = subnet_mask.split(".")
     gateway_split = gateway.split(".")
-    first_ip = ""
-    last_ip = ""
+    first_ip = [0] * 4
+    last_ip = [0] * 4
 
     for i in range(4):
         sm_chunk = int(sm_split[i])
         gateway_chunk = int(gateway_split[i])
 
-        first_ip += "%d" % (sm_chunk & gateway_chunk)
+        first_ip[i] = sm_chunk & gateway_chunk
         sm_inv = (1 << 8) - 1 - sm_chunk
-        last_ip += "%d" % (sm_inv | (sm_chunk & gateway_chunk))
+        last_ip[i] = sm_inv | (sm_chunk & gateway_chunk)
 
-        if i == 3:
-            break
-
-        first_ip += "."
-        last_ip += "."
-        
-    # Creating ARP packet
-    arp_frame = ARP(pdst=ip)
-    ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
-    request = ethernet_frame / arp_frame
 
     print("[INFO] Getting all active devices on network.")
-    # Run ARP scan to retrieve active IPs
-    responded = srp(request, timeout=2, retry=3, verbose=False)[0]
-    print("[INFO] Found %d devices!\n" % (len(responded)))
+
+    num_addrs = 1
+    for i in range(4):
+        num_addrs *= max(last_ip[i] - first_ip[i] + 1, 1) 
+
+    returns = [-1] * num_addrs
+    
+    lb.set_params("Scanning for active devices", 40, num_addrs)
+    lb.show()
+
+    mutex = threading.Lock()
+    cond = threading.Condition(lock=mutex)
+    counter_ptr = [0]
+
+    id = 0
+    for p1 in range(first_ip[0], last_ip[0] + 1):
+        for p2 in range(first_ip[1], last_ip[1] + 1):
+            for p3 in range(first_ip[2], last_ip[2] + 1):
+                for p4 in range(first_ip[3], last_ip[3] + 1):
+
+                    ip = "%d.%d.%d.%d" % (p1, p2, p3, p4)
+                    if not threadpool.add_job(Job(fptr=arp_helper, args=ip, ret_ls=returns,\
+                                            ret_id=id, counter_ptr=counter_ptr, cond=cond)):
+
+                        returns = None
+                        return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
+                    
+                    id += 1
+
+    threadpool.start()
+
+    mutex.acquire()
+    while counter_ptr[0] < num_addrs:
+        cond.wait()
+        lb.set_progress(counter_ptr[0])
+        lb.show()
+
+    mutex.release()
+    threadpool.stop()
 
     ret = {}
-    for response in responded:
-        
-        ip = response[1].psrc
-        mac = response[1].hwsrc
-        ret[ip] = mac
+    for i in range(num_addrs):
+        for key in returns[i].keys():
+            ret[key] = returns[i][key]
 
-    if own_ip not in ret.keys():
-        ret[own_ip] = own_mac
-
+    print("\n[INFO] Found %d devices!\n" % (len(ret.keys())))
+    returns = None
+    lb.set_params("", 0, 0)
     return ret
 
 
@@ -356,6 +402,7 @@ def os_scan(hosts):
         if not threadpool.add_job(Job(fptr=os_helper, args=hosts[i], ret_ls=returns,\
                                ret_id=i, counter_ptr=counter_ptr, cond=cond)):
 
+            returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
     threadpool.start()
@@ -374,6 +421,7 @@ def os_scan(hosts):
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
+    returns = None
     lb.set_params("", 0, 0)
     return ret
 
