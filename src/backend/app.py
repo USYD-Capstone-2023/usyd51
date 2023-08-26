@@ -21,7 +21,7 @@ if os.name == "posix" and os.geteuid() != 0:
     print("Root permissions are required for this program to run.")
     quit()
 
-mac_table = MAC_table()
+mac_table = MAC_table(MAC_TABLE_FP)
 own_ip = get_if_addr(conf.iface)
 own_mac = Ether().src
 own_name = platform.node()
@@ -80,9 +80,6 @@ init()
 # Runs in single thread as it is O(n)
 @app.get("/mac_vendor/<macs>")
 def get_mac_vendor(macs):
-
-    if not mac_table.initialized:
-        mac_table.init_mac_table(MAC_TABLE_FP)
 
     ret = {}
     macs = macs.split(",")
