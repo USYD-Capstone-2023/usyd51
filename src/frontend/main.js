@@ -111,8 +111,6 @@ function getNewDevices(event, data) {
   });
 }
 
-<<<<<<< HEAD
-
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
 
@@ -136,9 +134,6 @@ function checkRequestProgress(event) {
 
 
 function createWindow () {
-=======
-function createWindow() {
->>>>>>> main
   const win = new BrowserWindow({
     width: 1000,
     height: 800,
@@ -196,7 +191,6 @@ function sendNetworks(event, data) {
 }
 
 app.whenReady().then(() => {
-<<<<<<< HEAD
   ipcMain.on('load-network', loadNetwork);
   ipcMain.on('request-networks', sendNetworks);
   ipcMain.on('load-home', loadHome);
@@ -204,13 +198,6 @@ app.whenReady().then(() => {
   ipcMain.on('load-network-from-data', loadNetworkFromData);
   ipcMain.on('check-request-progress', checkRequestProgress);
   createWindow()
-=======
-  ipcMain.on("load-network", loadNetwork);
-  ipcMain.on("request-networks", sendNetworks);
-  ipcMain.on("load-home", loadHome);
-  ipcMain.on("get-new-devices", getNewDevices);
-  createWindow();
->>>>>>> main
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
