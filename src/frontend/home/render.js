@@ -84,7 +84,8 @@ function createNetworkBox(filename, name, ssid){
     networkBox.appendChild(arrowButton);
 
 
-    document.querySelector(".network-container").appendChild(networkBox);
+  networkBox.appendChild(arrowButton);
+  document.body.appendChild(networkBox);
 }
 
 

@@ -1,7 +1,7 @@
 from scapy.all import *
 import time, threading
 
-TIMEOUT = 3
+TIMEOUT = 10
 
 def get_dhcp_server_info():
 
@@ -51,5 +51,6 @@ def get_dhcp_server_info():
     sniffer.join()
     if empty:
         dhcp_server_info = {"error" : "Recieved no response from dhcp server after %d seconds..." % (TIMEOUT)}
+        print("[ERR ] Recieved no response from DHCP server after %d seconds..." % (TIMEOUT))
 
     return dhcp_server_info

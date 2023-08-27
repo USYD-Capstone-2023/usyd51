@@ -56,9 +56,6 @@ function saveDataToFile(event, ping_data, traceroute_data) {
   file[filename] = { name: "New Network", ssid: "TestNetwork" };
   fs.writeFileSync("../cache/index.json", JSON.stringify(file));
 
-
-  // console.log("loading network tab");
-
   const webContents = event.sender;
   const win = BrowserWindow.fromWebContents(webContents);
   win.webContents.send('is-ready',all_data);
