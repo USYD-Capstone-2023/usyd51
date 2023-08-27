@@ -54,7 +54,7 @@ function saveDataToFile(event, ping_data, traceroute_data) {
 }
 
 function loadNetworkFromData(event, data){
-  console.log("Loading network tab from load netwrok from data");
+  console.log("Loading network tab from load network from data");
   const webContents = event.sender;
   const win = BrowserWindow.fromWebContents(webContents);
   win.loadFile('network_view/index.html');
@@ -111,6 +111,10 @@ function getNewDevices(event, data) {
   });
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
 
