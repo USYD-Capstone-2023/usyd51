@@ -28,6 +28,8 @@ own_name = platform.node()
 app = Flask(__name__)
 devices = {}
 
+lb = Loading_bar()
+
 # Default value, gets resolved on initialization by DHCP server
 gateway = "192.168.1.1"
 print("[INFO] Retrieveing DHCP server info...")
@@ -84,12 +86,15 @@ def get_mac_vendor(macs):
 
     ret = {}
     macs = macs.split(",")
-    lb = Loading_bar("Resolving Hostnames", 40, len(macs))
+    lb.set_params("Resolving Hostnames", 40, len(macs))
+    lb.show()
 
     for mac in macs:
         ret[mac] = mac_table.find_vendor(mac)
         lb.increment()
+        lb.show()
 
+    lb.set_params("", 0, 0)
     return ret
 
 
@@ -108,7 +113,9 @@ def get_hostnames(hosts):
     hosts = hosts.split(",")
     returns = [-1] * len(hosts)
     
-    lb = Loading_bar("Resolving Hostnames", 40, len(hosts))
+    lb.set_params("Resolving Hostnames", 40, len(hosts))
+    lb.show()
+
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
@@ -134,6 +141,7 @@ def get_hostnames(hosts):
     while counter_ptr[0] < dispatched:
         cond.wait()
         lb.set_progress(counter_ptr[0] + (len(hosts) - dispatched))
+        lb.show()
     mutex.release()
 
     ret = {}
@@ -189,7 +197,7 @@ def get_hostnames(hosts):
         # except:
         #     ret[host] = "unknown"
 # ---------------------------------------- WIP -----------------------------------------
-
+    lb.set_params("", 0, 0)
     return ret
 
 @app.get("/traceroute/<hosts>")
@@ -223,7 +231,8 @@ def get_traceroute(hosts):
     hosts = hosts.split(",")
     returns = [-1] * len(hosts)
     
-    lb = Loading_bar("Traced", 40, len(hosts))
+    lb.set_params("Tracing routes to devices", 40, len(hosts))
+    lb.show()
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
@@ -240,6 +249,8 @@ def get_traceroute(hosts):
     while counter_ptr[0] < len(hosts):
         cond.wait()
         lb.set_progress(counter_ptr[0])
+        lb.show()
+
     mutex.release()
     threadpool.stop()
     print("\n[INFO] Traceroute complete!\n")
@@ -248,6 +259,7 @@ def get_traceroute(hosts):
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
+    lb.set_params("", 0, 0)
     return ret
 
 
@@ -314,7 +326,9 @@ def os_scan(hosts):
     hosts = hosts.split(",")
     returns = [-1] * len(hosts)
     
-    lb = Loading_bar("Scanned", 40, len(hosts))
+    lb.set_params("Scanned", 40, len(hosts))
+    lb.show()
+
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
@@ -331,6 +345,8 @@ def os_scan(hosts):
     while counter_ptr[0] < len(hosts):
         cond.wait()
         lb.set_progress(counter_ptr[0])
+        lb.show()
+
     mutex.release()
     threadpool.stop()
     print("\n[INFO] OS scan complete!\n")
@@ -339,6 +355,7 @@ def os_scan(hosts):
     for i in range(len(hosts)):
         ret[hosts[i]] = returns[i]
     
+    lb.set_params("", 0, 0)
     return ret
 
 
@@ -350,7 +367,10 @@ def serve_dhcp_server_info():
 
     return dhcp_server_info
 
+@app.get("/request_progress")
+def get_current_progress():
 
+    if lb.total_value == 0:
+        return {"flag" : False}
 
-
-    
+    return {"flag" : True, "progress" : lb.counter, "total" : lb.total_value, "label" : lb.label}

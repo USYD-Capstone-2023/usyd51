@@ -41,9 +41,7 @@ function createNetworkBox(filename, name, ssid) {
     window.electronAPI.loadNetwork(filename);
   };
 
-  networkBox.appendChild(arrowButton);
-
-  document.body.appendChild(networkBox);
+    document.querySelector(".network-container").appendChild(networkBox);
 }
 
 window.electronAPI.networkList((_event, data) => {
