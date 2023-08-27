@@ -1,7 +1,17 @@
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
+const { spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
+
+let flaskProcess;
+
+app.on("ready", () => {
+  flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
+  flaskProcess.stdout.on("data", (data) => {
+    console.log(`Flask data: ${data}`);
+  });
+});
 
 function saveDataToFile(event, ping_data, traceroute_data) {
   console.log("Traceroute completed. Combining data and saving file.");
@@ -212,6 +222,8 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   // if (process.platform !== 'darwin') {
+  flaskProcess.kill();
+
   app.quit();
   // }
 });
