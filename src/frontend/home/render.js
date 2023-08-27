@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => { // Add methods that can on
                 return e.clientY <= sibling.offsetTop + sibling.offsetHeight/2;
             })
             
-            //adds the box in that spot
+            //adds the box in that spotxm
             networkContainer.insertBefore(draggingBox, nextSibling);
         }   
     
