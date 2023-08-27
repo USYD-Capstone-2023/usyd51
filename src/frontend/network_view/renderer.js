@@ -1,4 +1,4 @@
-let back_button = document.getElementById('back_button');
+let back_button = document.getElementById("back_button");
 back_button.onclick = () => {
-    window.electronAPI.loadHome();
-}
+  window.electronAPI.loadHome();
+};
