@@ -56,15 +56,23 @@ function saveDataToFile(event, ping_data, traceroute_data) {
   file[filename] = { name: "New Network", ssid: "TestNetwork" };
   fs.writeFileSync("../cache/index.json", JSON.stringify(file));
 
-  console.log("loading network tab");
+
+  // console.log("loading network tab");
 
   const webContents = event.sender;
   const win = BrowserWindow.fromWebContents(webContents);
-  win.loadFile("network_view/index.html");
-  // Wait until dom has loaded to send data
-  win.webContents.once("dom-ready", () =>
-    win.webContents.send("update-data", all_data)
-  );
+  win.webContents.send('is-ready',all_data);
+
+
+}
+
+function loadNetworkFromData(event, data){
+  console.log("Loading network tab from load network from data");
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  win.loadFile('network_view/index.html');
+    // Wait until dom has loaded to send data
+  win.webContents.once('dom-ready', () => win.webContents.send('update-data', data));
 }
 
 function tracerouteDevices(event, ping_data) {
@@ -116,7 +124,30 @@ function getNewDevices(event, data) {
   });
 }
 
-function createWindow() {
+
+// Gets the progress of the current request from the backend
+function checkRequestProgress(event) {
+
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+  let url = "http://127.0.0.1:5000/request_progress"
+  
+  let response = undefined
+  http.get(url, (resp) => {
+    let data = '';
+    resp.on('data', (chunk)=>{
+      data+=chunk;
+    })
+    
+    resp.on('end', ()=>{
+      response = JSON.parse(data);  
+      win.webContents.send("send-request-progress", response);
+    })
+  });
+}
+
+
+function createWindow () {
   const win = new BrowserWindow({
     width: 1000,
     height: 800,
@@ -174,11 +205,13 @@ function sendNetworks(event, data) {
 }
 
 app.whenReady().then(() => {
-  ipcMain.on("load-network", loadNetwork);
-  ipcMain.on("request-networks", sendNetworks);
-  ipcMain.on("load-home", loadHome);
-  ipcMain.on("get-new-devices", getNewDevices);
-  createWindow();
+  ipcMain.on('load-network', loadNetwork);
+  ipcMain.on('request-networks', sendNetworks);
+  ipcMain.on('load-home', loadHome);
+  ipcMain.on('get-new-devices', getNewDevices);
+  ipcMain.on('load-network-from-data', loadNetworkFromData);
+  ipcMain.on('check-request-progress', checkRequestProgress);
+  createWindow()
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
