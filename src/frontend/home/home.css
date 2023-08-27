@@ -1,11 +1,7 @@
 :root {
-  --primary-blue: #4ba3c3;
-  --pale-blue: #eafcff;
-  --white: #fff;
-}
-
-html {
-  overflow-x: hidden;
+  --primary-blue: #4BA3C3;
+  --pale-blue: #EAFCFF;
+  --white: #FFF;
 }
 
 header {
@@ -44,9 +40,9 @@ body {
   width: 100%;
   height: 250px;
   flex-shrink: 0;
-  background-color: var(--pale-blue, #eafcff);
-  border-top: 2px solid var(--primary-blue, #4ba3c3);
-  border-bottom: 2px solid var(--primary-blue, #4ba3c3);
+  background-color: var(--pale-blue, #EAFCFF);
+  border-top: 2px solid var(--primary-blue, #4BA3C3);
+  border-bottom: 2px solid var(--primary-blue, #4BA3C3);
   position: relative;
   z-index: 1;
 }
@@ -57,11 +53,11 @@ body {
   height: 121px;
   flex-shrink: 0;
   border-radius: 4px;
-  background: var(--primary-blue, #4ba3c3);
+  background: var(--primary-blue, #4BA3C3);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--white, #fff);
+  color: var(--white, #FFF);
   font-family: Inter, sans-serif;
   font-size: 24px;
   font-style: normal;
@@ -82,34 +78,28 @@ body {
 }
 
 .create-new-network:hover {
-  background-color: rgba(
-    75,
-    163,
-    195,
-    0.8
-  ); /* Darken the background color on hover */
+  background-color: rgba(75, 163, 195, 0.8); /* Darken the background color on hover */
 }
 
-.custom-plus-icon,
-.custom-loading-icon {
+.custom-plus-icon, .custom-loading-icon {
   display: inline-block;
   width: 96px; /* Adjust the width and height for the desired icon size */
   height: 96px;
   border-radius: 50%;
-  background-color: var(--primary-blue, #4ba3c3);
+  background-color: var(--primary-blue, #4BA3C3);
   text-align: center;
   line-height: 96px;
   color: white;
   font-size: 48px; /* Set the icon size inside the custom icon */
 }
 
-.custom-loading-icon {
-  padding-left: 5%;
-  padding-right: 5%;
+.custom-loading-icon{
+  padding-left:5%;
+  padding-right:5%;
 }
 
 .subtitle {
-  color: #123c6e;
+  color: #123C6E;
   font-family: Inter, sans-serif;
   font-size: 24px;
   font-style: normal;
@@ -119,16 +109,9 @@ body {
   align-self: flex-start; /* Align the subtitle to the left edge */
 }
 
-.network-container {
-  width: 60%;
-  /* height: 121px; */
-  flex-shrink: 0;
-  /* border-radius: 4px; */
-  /* display: flex; */
-  /* justify-content: center; */
-  /* align-items: center; */
-  color: var(--white, #fff);
-  position: relative;
+.network-container{
+  width:80%;
+  
 }
 
 
@@ -137,8 +120,8 @@ body {
   max-width: 800px;
   height: 68px;
   flex-shrink: 0;
-  border: 1px solid var(--primary-blue, #4ba3c3);
-  background: #fff;
+  border: 1px solid var(--primary-blue, #4BA3C3);
+  background: #FFF;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -160,7 +143,7 @@ body {
 }
 
 .network-name {
-  color: var(--dark-blue, #123c6e);
+  color: var(--dark-blue, #123C6E);
   font-size: 20px;
   font-style: normal;
   font-weight: 600;
@@ -168,12 +151,12 @@ body {
 }
 
 .network-type {
-  color: var(--primary-blue, #4ba3c3);
+  color: var(--primary-blue, #4BA3C3);
 }
 
 .arrow-button {
-  background-color: var(--primary-blue, #4ba3c3);
-  color: var(--white, #fff);
+  background-color: var(--primary-blue, #4BA3C3);
+  color: var(--white, #FFF);
   width: 32px;
   height: 32px;
   display: flex;
