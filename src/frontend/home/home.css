@@ -1,184 +1,176 @@
 :root {
-  --primary-blue: #4BA3C3;
-  --pale-blue: #EAFCFF;
-  --white: #FFF;
+    --primary-blue: #4BA3C3;
+    --pale-blue: #EAFCFF;
+    --white: #FFF;
 }
 
 header {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-  justify-content: flex-start;
-  width: 100%;
-  margin-left: 30px;
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    justify-content: flex-start;
+    width: 100%;
+    margin-left: 30px;
 }
 
 .current-network-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .current-network {
-  color: var(--black, #000);
-  font-family: Inter, sans-serif;
-  font-size: 20px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: normal;
+    color: var(--black, #000);
+    font-family: Inter, sans-serif;
+    font-size: 20px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: normal;
 }
-
+ 
 body {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
 }
 
 .rectangle-box {
-  width: 100%;
-  height: 250px;
-  flex-shrink: 0;
-  background-color: var(--pale-blue, #EAFCFF);
-  border-top: 2px solid var(--primary-blue, #4BA3C3);
-  border-bottom: 2px solid var(--primary-blue, #4BA3C3);
-  position: relative;
-  z-index: 1;
+    width: 100%;
+    height: 250px;
+    flex-shrink: 0;
+    background-color: var(--pale-blue, #EAFCFF);
+    border-top: 2px solid var(--primary-blue, #4BA3C3);
+    border-bottom: 2px solid var(--primary-blue, #4BA3C3);
+    position: relative;
+    z-index: 1;
 }
 
 .button {
-  width: 60%;
-  max-width: 800px;
-  height: 120px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  background: var(--primary-blue, #4BA3C3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--white, #FFF);
-  font-family: Inter, sans-serif;
-  font-size: 30px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: normal;
-  cursor: pointer;
-  margin-top: -190px;
-  position: relative;
-  z-index: 2;
-  transition: background-color 0.3s;
+    width: 60%;
+    max-width: 800px;
+    height: 120px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    background: var(--primary-blue, #4BA3C3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--white, #FFF);
+    font-family: Inter, sans-serif;
+    font-size: 30px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    cursor: pointer;
+    margin-top: -190px;
+    position: relative;
+    z-index: 2;
+    transition: background-color 0.3s;
 }
 
 .button:hover {
-  background-color: rgba(75, 163, 195, 0.8);
+    background-color: rgba(75, 163, 195, 0.7);
 }
 
 .create-new-network {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    height: 100%;
 }
 
-.create-new-network:hover {
-  background-color: rgba(75, 163, 195, 0.8);
+.icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
 }
 
-.custom-plus-icon, .custom-loading-icon {
-  display: inline-block;
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background-color: var(--primary-blue, #4BA3C3);
-  text-align: center;
-  line-height: 96px;
-  color: white;
-  font-size: 48px;
-}
-
-.custom-loading-icon{
-  padding-left:5%;
-  padding-right:5%;
-}
-
-.subtitle {
-  color: #123C6E;
-  font-family: Inter, sans-serif;
-  font-size: 24px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: normal;
-  margin-top: 15vh;
-  align-self: flex-start;
+.custom-plus-icon {
+    font-size: 48px;
+    margin-bottom: -55px;
+    z-index: 2;
 }
 
 .custom-circle-icon {
-  border-radius: 20%;
-  background-color: #86CBE9;
-  width: 60px;
-  height: 60px;
-  z-index: 1;
+    border-radius: 20%;
+    background-color: #86CBE9;
+    width: 60px;
+    height: 60px;
+    z-index: 1;
 }
 
-.network-container{
-  width: 60%;
-  max-width: 800px;
+.network-container {
+    width: 60%;
+    max-width: 800px;
+}
+
+.subtitle {
+    color: #123C6E;
+    font-family: Inter, sans-serif;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    margin-top: 15vh;
+    align-self: flex-start;
 }
 
 .network-box {
-  width: 60%;
-  max-width: 800px;
-  height: 68px;
-  flex-shrink: 0;
-  border: 1px solid var(--primary-blue, #4BA3C3);
-  background: #FFF;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 20px;
-  padding: 0 10px;
-  font-family: Inter, sans-serif;
-  font-size: 16px;
-  position: relative;
-  z-index: 1;
-  cursor: pointer;
-  transition: background-color 0.3s;
+    width: 100%;
+    max-width: 800px;
+    height: 68px;
+    flex-shrink: 0;
+    border: 1px solid var(--primary-blue, #4BA3C3);
+    background: #FFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding: 0 10px;
+    font-family: Inter, sans-serif;
+    font-size: 16px;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    transition: background-color 0.3s;
 }
 
 .network-box:hover {
-  background-color: rgba(134, 203, 233, 0.8);
+    background-color: rgba(134, 203, 233, 0.8);
 }
 
 .network-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  margin-right: auto;
-  padding-left: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-right: auto;
+    padding-left: 10px;
 }
 
 .network-name {
-  color: var(--dark-blue, #123C6E);
-  font-size: 20px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: normal;
+    color: var(--dark-blue, #123C6E);
+    font-size: 20px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: normal;
 }
 
 .network-type {
-  color: var(--primary-blue, #4BA3C3);
+    color: var(--primary-blue, #4BA3C3);
 }
 
 .arrow-button {
-  background-color: var(--primary-blue, #4BA3C3);
-  color: var(--white, #FFF);
-  width: 32px;
-  height: 32px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  cursor: pointer;
+    background-color: var(--primary-blue, #4BA3C3);
+    color: var(--white, #FFF);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    cursor: pointer;
 }
