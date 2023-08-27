@@ -5,10 +5,7 @@
     <link rel="stylesheet" href="home.css">
     <link rel="stylesheet" href="../font-awesome-4.7.0/css/font-awesome.min.css">
     <script language="javascript" type="text/javascript" src="render.js"></script>
-
-    
 </head>
-
 <body>
     <header>
         <div class="current-network-box">
@@ -16,33 +13,18 @@
             <div class="current-network">Home Network (SSID)</div>
         </div>
     </header>
-    
     <div class="rectangle-box"></div>
-    <div class="button" id="new-network-button">
-        <div class="create-new-network" onlick="redirectToProcessingPage()">
-            <div class="custom-plus-icon" id="create-network-plus">+ </div>
-            <img src="../Assets/loading-gif.gif" class="custom-loading-icon" id="create-network-loading" style="display:none;"></img>
-            <div class="creating-network" id="create-network"> Create a new network</div>
-        </div>
+    <div class="button">
+        <div class="create-new-network">
+            <div class="icon">
+                <div class="custom-plus-icon">+</div>
+                <div class="custom-circle-icon"></div>
+            </div>
+            <div>Create a new network</div>
         </div> 
     </div>
-    
     <div class="network-container">
-
         <div class="subtitle">Your Networks</div>
-
-        <!-- This has been left in here as an example for further css improvements.
-        If you wish to change the structure of this html element see file://frontend/home/render.js 
-        <div class="network-box">
-            <div class="network-info">
-                <div class="network-name">Home Network</div>
-                <div class="network-type">SSID</div>
-            </div>
-            <div class="arrow-button">→</div>
-        </div>-->
     </div>
-
-
-
 </body>
 </html>
