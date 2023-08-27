@@ -1,44 +1,53 @@
-
-
 window.electronAPI.requestNetworks();
 
-function createNetworkBox(filename, name, ssid){
-    let networkBox = document.createElement('button');
-    networkBox.setAttribute("class", "network-box");
-    
-    let networkInfo = document.createElement('div');
-    networkInfo.setAttribute('class', 'network-info');
-    networkBox.appendChild(networkInfo);
+document.addEventListener("DOMContentLoaded", () => {
+  // Add methods that can only happen when DOM is loaded in here.
+  document.getElementById("new-network-button").onclick = () => {
+    window.electronAPI.getNewDevices();
 
-    let networkName = document.createElement('div');
-    networkName.setAttribute('class', 'network-name');
-    networkName.innerText = name;
-    networkInfo.appendChild(networkName);
+    document.getElementById("create-network").innerText = "Processing...";
+    document.getElementById("create-network-plus").style.display = "none";
+    document.getElementById("create-network-loading").style.display = "inherit";
+  };
+});
 
-    let networkType = document.createElement('div');
-    networkType.setAttribute('class', 'network-type');
-    networkType.innerText = "SSID: "+ssid;
-    networkInfo.appendChild(networkType);
+// window.electronAPI.recieveDevices((_event, data) => {
 
-    let arrowButton = document.createElement('div');
-    arrowButton.setAttribute('class', 'arrow-button');
-    arrowButton.innerText = '→';
-    arrowButton.onclick = () => {
-        // We want to request data from the backend and load the corresponding page.
-        window.electronAPI.loadNetwork(filename);
-    }
-            
-            
-    networkBox.appendChild(arrowButton);
+// })
 
+function createNetworkBox(filename, name, ssid) {
+  let networkBox = document.createElement("button");
+  networkBox.setAttribute("class", "network-box");
 
-    document.body.appendChild(networkBox);
+  let networkInfo = document.createElement("div");
+  networkInfo.setAttribute("class", "network-info");
+  networkBox.appendChild(networkInfo);
+
+  let networkName = document.createElement("div");
+  networkName.setAttribute("class", "network-name");
+  networkName.innerText = name;
+  networkInfo.appendChild(networkName);
+
+  let networkType = document.createElement("div");
+  networkType.setAttribute("class", "network-type");
+  networkType.innerText = "SSID: " + ssid;
+  networkInfo.appendChild(networkType);
+
+  let arrowButton = document.createElement("div");
+  arrowButton.setAttribute("class", "arrow-button");
+  arrowButton.innerText = "→";
+  arrowButton.onclick = () => {
+    // We want to request data from the backend and load the corresponding page.
+    window.electronAPI.loadNetwork(filename);
+  };
+
+  networkBox.appendChild(arrowButton);
+
+  document.body.appendChild(networkBox);
 }
 
-
 window.electronAPI.networkList((_event, data) => {
-    for (let network of Object.keys(data)){
-        console.log(network)
-        createNetworkBox(network, data[network]["name"], data[network]['ssid']);
-    }
-})
+  for (let network of Object.keys(data)) {
+    createNetworkBox(network, data[network]["name"], data[network]["ssid"]);
+  }
+});

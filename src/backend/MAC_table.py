@@ -3,14 +3,15 @@ import wget, os, csv, datetime
 class MAC_table:
 
     mac_table = {}
-
-    def __init__(self, filepath):
-        self.init_mac_table(filepath)
+    initialized = False
 
     # Retrieves the MAC -> Vendor lookup table
     def init_mac_table(self, filepath):
 
         dir = "".join([x + "/" for x in filepath.split("/")[:-1]])
+        if os.name == "nt":
+            dir = dir.replace("/", "\\")
+
         if not os.path.exists(dir):
             os.makedirs(dir)
             
@@ -36,7 +37,7 @@ class MAC_table:
         except Exception as e:
             print("[WARNING] Could not read or locate MAC table cache file.")
             print(e)
-        
+    
         # Downloads the updated OUI table from IEEE, saves to cache file
         if refresh:
 
@@ -45,15 +46,17 @@ class MAC_table:
                 tmp_fp = filepath + ".tmp"
                 wget.download("https://standards-oui.ieee.org/oui/oui.csv", out=tmp_fp)
 
+                # This posts charmap decode error on windows TODO
                 with open(tmp_fp, 'r+') as f:
                     content = f.read()
                     f.seek(0, 0)
                     f.write(today.strftime(date_format) + "\n")
 
                 os.rename(tmp_fp, filepath)
+                self.initialized = True
 
             except Exception as e:
-                print("[ERROR] A network error occurred.")
+                print("\n[ERROR] A network error occurred.")
                 print(e)
                 # TODO - Add cleanup for unconfirmed (downloading) tempfiles 
 
