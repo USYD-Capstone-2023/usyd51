@@ -91,7 +91,7 @@ def get_mac_vendor(macs):
         lb.increment()
         lb.show()
 
-    lb.set_params("", 0, 0)
+    lb.reset()
     return ret
 
 
@@ -194,7 +194,7 @@ def get_hostnames(hosts):
         # except:
         #     ret[host] = "unknown"
 # ---------------------------------------- WIP -----------------------------------------
-    lb.set_params("", 0, 0)
+    lb.reset()
     return ret
 
 @app.get("/traceroute/<hosts>")
@@ -258,7 +258,7 @@ def get_traceroute(hosts):
         ret[hosts[i]] = returns[i]
     
     returns = None
-    lb.set_params("", 0, 0)
+    lb.reset()
     return ret
 
 
@@ -353,7 +353,7 @@ def get_devices():
 
     print("\n[INFO] Found %d devices!\n" % (len(ret.keys())))
     returns = None
-    lb.set_params("", 0, 0)
+    lb.reset()
     return ret
 
 
@@ -422,7 +422,7 @@ def os_scan(hosts):
         ret[hosts[i]] = returns[i]
     
     returns = None
-    lb.set_params("", 0, 0)
+    lb.reset()
     return ret
 
 

@@ -16,6 +16,11 @@ class Loading_bar:
         self.label = label
         self.counter = 0
 
+    def reset(self):
+        self.total_value = 0
+        self.label = ""
+        self.counter = 0
+
     # Updates progress bar
     def show(self):
         percent = 100.0 * self.counter / self.total_value
