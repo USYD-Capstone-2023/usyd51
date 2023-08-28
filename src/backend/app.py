@@ -127,12 +127,11 @@ def get_hostnames(hosts):
             returns[i] = devices[hosts[i]]
             continue
 
-        if not threadpool.add_job(Job(fptr=hostname_helper, args=hosts[i], ret_ls=returns,\
-                                ret_id=i, counter_ptr=counter_ptr, cond=cond)):
+        job = Job(fptr=hostname_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        if not threadpool.add_job(job):
                                 
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
-    threadpool.start()
 
     mutex.acquire()
     while counter_ptr[0] < dispatched:
@@ -148,7 +147,6 @@ def get_hostnames(hosts):
 
         ret[hosts[i]] = returns[i]
     
-    threadpool.stop()
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
 # ---------------------------------------- WIP -----------------------------------------
@@ -235,13 +233,13 @@ def get_traceroute(hosts):
     counter_ptr = [0]
 
     for i in range(len(hosts)):
-        if not threadpool.add_job(Job(fptr=traceroute_helper, args=hosts[i], ret_ls=returns,\
-                               ret_id=i, counter_ptr=counter_ptr, cond=cond)):
+
+        job = Job(fptr=traceroute_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        if not threadpool.add_job(job):
 
             returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
-    threadpool.start()
 
     mutex.acquire()
     while counter_ptr[0] < len(hosts):
@@ -250,7 +248,6 @@ def get_traceroute(hosts):
         lb.show()
 
     mutex.release()
-    threadpool.stop()
     print("\n[INFO] Traceroute complete!\n")
 
     ret = {}
@@ -327,15 +324,13 @@ def get_devices():
                 for p4 in range(first_ip[3], last_ip[3] + 1):
 
                     ip = "%d.%d.%d.%d" % (p1, p2, p3, p4)
-                    if not threadpool.add_job(Job(fptr=arp_helper, args=ip, ret_ls=returns,\
-                                            ret_id=id, counter_ptr=counter_ptr, cond=cond)):
+                    job = Job(fptr=arp_helper, args=ip, ret_ls=returns, ret_id=id, counter_ptr=counter_ptr, cond=cond)
+                    if not threadpool.add_job(job):
 
                         returns = None
                         return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
                     
                     id += 1
-
-    threadpool.start()
 
     mutex.acquire()
     while counter_ptr[0] < num_addrs:
@@ -344,7 +339,6 @@ def get_devices():
         lb.show()
 
     mutex.release()
-    threadpool.stop()
 
     ret = {}
     for i in range(num_addrs):
@@ -399,13 +393,12 @@ def os_scan(hosts):
     counter_ptr = [0]
 
     for i in range(len(hosts)):
-        if not threadpool.add_job(Job(fptr=os_helper, args=hosts[i], ret_ls=returns,\
-                               ret_id=i, counter_ptr=counter_ptr, cond=cond)):
+
+        job = Job(fptr=os_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        if not threadpool.add_job(job):
 
             returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
-
-    threadpool.start()
 
     mutex.acquire()
     while counter_ptr[0] < len(hosts):
@@ -414,7 +407,6 @@ def os_scan(hosts):
         lb.show()
 
     mutex.release()
-    threadpool.stop()
     print("\n[INFO] OS scan complete!\n")
 
     ret = {}

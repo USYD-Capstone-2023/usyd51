@@ -18,19 +18,6 @@ class Threadpool:
             self.threads.append(threading.Thread(target=self.threadpool_worker))
             self.threads[i].start()
 
-    # Signals all threads in the threadpool to start working
-    def start(self):
-        self.stopping_condition.acquire()
-        self.running = True
-        self.stopping_condition.notify_all()
-        self.stopping_condition.release()
-
-    # Signals all threads in the pool to stop working
-    def stop(self):
-        self.pool_mutex.acquire()
-        self.running = False
-        self.pool_mutex.release()
-
     # Terminates the threadpool and ends all threads
     def end(self):
         self.stopping_condition.acquire()
@@ -61,7 +48,7 @@ class Threadpool:
         while True:
             # Waits if theres no jobs or the thread pool is halted and the threadpool isnt terminating
             self.stopping_condition.acquire()
-            while (self.queue.empty() or not self.running) and not self.terminate:
+            while self.queue.empty() and not self.terminate:
                 self.stopping_condition.wait()
                 if self.terminate:
                     break
@@ -72,6 +59,7 @@ class Threadpool:
                 return
 
             self.stopping_condition.release()
+
             # Retrieves and completed job.
             # Python Queue is threadsafe, so no mutex is required
             job = self.queue.get(block=True, timeout=0)
