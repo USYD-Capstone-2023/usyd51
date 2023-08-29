@@ -20,44 +20,53 @@ import time, threading, socket, os, signal, sys
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
 
+
 # Ensures that the user has root perms uf run on posix system.
 if os.name == "posix" and os.geteuid() != 0: 
     print("Root permissions are required for this program to run.")
     quit()
 
-mac_table = MAC_table(MAC_TABLE_FP)
+app = Flask(__name__)
+
+# Retrieve basic network information about the client machine
 own_ip = get_if_addr(conf.iface)
 own_mac = Ether().src
 own_name = sys.platform
-app = Flask(__name__)
+
+# Init db, temporary fake db for development
 db = db_dummy("networks", "temp_username", "temp_password")
 # db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
 
-
+mac_table = MAC_table(MAC_TABLE_FP)
 lb = Loading_bar()
 threadpool = Threadpool(NUM_THREADS)
 
 # Default value, gets resolved on initialization by DHCP server
 gateway = "192.168.1.1"
+gateway_hostname = "unknown"
 print("[INFO] Retrieveing DHCP server info...")
+
+# Retrieves network information (subnet mask, router ip, dns ip, timeserver ip, etc)
 dhcp_server_info = get_dhcp_server_info()
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
     gateway = dhcp_server_info["router"]
+    gateway_hostname = dhcp_server_info["domain"]
 
+# Creates a new table in the database for the current network
 gateway_mac = arp_helper(gateway)[1]
-
 db.register_network(gateway_mac)
 
+# Creates a device object for the client device
 client_device = Device(get_if_addr(conf.iface), Ether().src)
 client_device.hostname = sys.platform
 client_device.mac_vendor = mac_table.find_vendor(client_device.mac)
-
-gateway_ip = dhcp_server_info["router"]
-gateway_device = Device(gateway_ip, gateway_mac)
-gateway_device.hostname = dhcp_server_info["domain"]
-
-db.add_device(gateway_device, gateway_mac)
 db.add_device(client_device, gateway_mac)
+
+# Creates device object to represent the gateway
+gateway_device = Device(gateway, gateway_mac)
+gateway_device.hostname = gateway_hostname
+db.add_device(gateway_device, gateway_mac)
+
 
 # Seems to only work on some networks, potentially a proxy or firewall issue.
 # ---------------------------------------- WIP -----------------------------------------
@@ -86,6 +95,9 @@ DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
 DNS_sniffer.daemon = True
 DNS_sniffer.start()
 
+# ---------------------------------------- END WIP --------------------------------------
+
+
 # Signal handler to gracefully end the threadpool on shutdown
 def cleanup(*args,):
     threadpool.end()
@@ -97,13 +109,11 @@ signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
 
 
-# Returns the vendor associated with each ip provided in "macs"
-# Runs in single thread as it is O(n)
+# Updates the mac vendor field of all devices in the current network's table of the database 
 def get_mac_vendors():
 
     devices = db.get_all_devices(gateway_mac)
 
-    ret = {}
     lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
     lb.show()
 
@@ -116,14 +126,14 @@ def get_mac_vendors():
     lb.reset()
 
 
-# Performs a reverse DNS lookup on all hosts entered in "hosts"
-@app.get("/hostname/<hosts>")
-def get_hostnames(hosts):
+# Performs a reverse DNS lookup on all devices in the current network's table of the database 
+@app.get("/hostname")
+def get_hostnames():
 
     devices = db.get_all_devices(gateway_mac)
     returns = [-1] * len(devices.keys())
     
-    lb.set_params("Resolving Hostnames", 40, len())
+    lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
     lb.show()
 
     mutex = threading.Lock()
@@ -137,7 +147,8 @@ def get_hostnames(hosts):
         if device.hostname != "unknown":
             lb.increment()
             dispatched -= 1
-            returns[i] = device.hostname
+            returns[job_counter] = device.hostname
+            job_counter += 1
             continue
 
         job = Job(fptr=hostname_helper, args=device.ip, ret_ls=returns, ret_id=job_counter, counter_ptr=counter_ptr, cond=cond)
@@ -146,20 +157,19 @@ def get_hostnames(hosts):
                                 
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
-
     mutex.acquire()
     while counter_ptr[0] < dispatched:
         cond.wait()
-        lb.set_progress(counter_ptr[0] + (len(hosts) - dispatched))
+        lb.set_progress(counter_ptr[0] + (len(devices.keys()) - dispatched))
         lb.show()
     mutex.release()
 
     ret = {}
     job_counter = 0
-    for device in devices:
+    for device in devices.values():
         device.hostname = returns[job_counter]
+        db.save_device(device, gateway_mac)
         job_counter += 1
-        db.save_device(device)
 
     lb.reset()
 
@@ -330,6 +340,7 @@ def map_network():
     get_devices()
     traceroute_all()
     get_mac_vendors()
+    get_hostnames()
 
     devices = db.get_all_devices(gateway_mac)
 
