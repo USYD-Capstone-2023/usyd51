@@ -42,7 +42,7 @@ gateway = "192.168.1.1"
 print("[INFO] Retrieveing DHCP server info...")
 dhcp_server_info = get_dhcp_server_info()
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
-    gateway = dhcp_server_info["server_id"]
+    gateway = dhcp_server_info["router"]
 
 gateway_mac = arp_helper(gateway)[1]
 
@@ -73,19 +73,10 @@ def wlan_sniffer_callback(pkt):
 
                 ip = pkt[IP].src
                 mac = arp_helper(ip)[1]
-                if db.contains_mac(mac, gateway_mac):
-                    db.add_attribute("mac", mac, gateway_mac, device.mac)
-                    return
-
-                device = None
-
-                try:
+                if not db.contains_mac(mac, gateway_mac):
                     device = Device(ip, mac)
-                except TypeError as e:
-                    print(e)
+                    db.add_device(device, gateway_mac)
                     return
-                
-                db.add_device(device, gateway_mac)
 
 
 def run_wlan_sniffer(iface):
@@ -108,8 +99,7 @@ signal.signal(signal.SIGINT, cleanup)
 
 # Returns the vendor associated with each ip provided in "macs"
 # Runs in single thread as it is O(n)
-@app.get("/resolve_mac_vendors")
-def get_mac_vendor():
+def get_mac_vendors():
 
     devices = db.get_all_devices(gateway_mac)
 
@@ -118,7 +108,8 @@ def get_mac_vendor():
     lb.show()
 
     for device in devices.values():
-        db.add_attribute("mac", mac_table.find_vendor(device.mac), gateway_mac, device.mac)
+        device.mac_vendor = mac_table.find_vendor(device.mac)
+        db.save_device(device, gateway_mac)
         lb.increment()
         lb.show()
 
@@ -166,7 +157,9 @@ def get_hostnames(hosts):
     ret = {}
     job_counter = 0
     for device in devices:
-        db.add_attribute(device,"hostname", returns[i], gateway_mac, device.mac)
+        device.hostname = returns[job_counter]
+        job_counter += 1
+        db.save_device(device)
 
     lb.reset()
 
@@ -216,8 +209,7 @@ def get_hostnames(hosts):
 # ---------------------------------------- WIP -----------------------------------------
     
 
-@app.get("/traceroute_all")
-def get_traceroute():
+def traceroute_all():
         
     print("[INFO] Tracing Routes...")
 
@@ -261,9 +253,7 @@ def get_traceroute():
     lb.reset()
 
 
-# Gets the IP and MAC of all devices currently active on the network 
-@app.get("/scan_devices")
-def scan_devices():
+def get_devices():
 
       # Default
     subnet_mask = "255.255.255.0"
@@ -282,7 +272,6 @@ def scan_devices():
         first_ip[i] = sm_chunk & gateway_chunk
         sm_inv = (1 << 8) - 1 - sm_chunk
         last_ip[i] = sm_inv | (sm_chunk & gateway_chunk)
-
 
     print("[INFO] Getting all active devices on network.")
 
@@ -306,6 +295,7 @@ def scan_devices():
                 for p4 in range(first_ip[3], last_ip[3] + 1):
 
                     ip = "%d.%d.%d.%d" % (p1, p2, p3, p4)
+
                     job = Job(fptr=arp_helper, args=ip, ret_ls=returns, ret_id=id, counter_ptr=counter_ptr, cond=cond)
                     id += 1
                     if not threadpool.add_job(job):
@@ -325,24 +315,26 @@ def scan_devices():
     for i in range(num_addrs):
         ip = returns[i][0]
         mac = returns[i][1]
-        if ip and mac:
-            print("%s %s" % (ip, mac))
         if mac and ip and not db.contains_mac(mac, gateway_mac):
             db.add_device(Device(ip, mac), gateway_mac)
 
     print("\n[INFO] Found %d devices!\n" % (len(db.get_all_devices(gateway_mac).keys())))
     returns = None
     lb.reset()
-    
 
-@app.get("/devices")
-def get_devices():
+
+# Gets the IP and MAC of all devices currently active on the network 
+@app.get("/map_network")
+def map_network():
+
+    get_devices()
+    traceroute_all()
+    get_mac_vendors()
 
     devices = db.get_all_devices(gateway_mac)
 
     ret = {}
     for device in devices.values():
-        print(device)
         ret[device.mac] = device.to_json(); 
     return ret
 

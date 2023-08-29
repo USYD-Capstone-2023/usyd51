@@ -20,10 +20,14 @@ class db_dummy:
 
         return false
 
-    def add_attribute(self, attr, val, network_id, mac):
-        print(self.devices)
-        self.devices[network_id][mac][attr] = val
-        print(self.devices)
+    def save_device(self, device, network_id):
+        if device.mac in self.devices[network_id].keys():
+            self.devices[network_id][device.mac] = device
+            
+        self.devices[network_id][device.mac] = device
+
+    def get_device(self, network_id, mac):
+        return devices[network_id][mac]
 
     def register_network(self, network_id):
         if network_id not in self.devices.keys():

@@ -11,9 +11,6 @@ class Device:
 
     # Required not null fields
     def __init__(self, ip, mac):
-        if ip == None or mac == None:
-            raise TypeError("ip and mac fields cannot be NULL.")
-
         self.ip = ip
         self.mac = mac
 
