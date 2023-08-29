@@ -31,7 +31,7 @@ def get_dhcp_server_info():
         event.set()
 
 
-    fam, hw = get_if_raw_hwaddr(conf.iface)
+    hw = get_if_raw_hwaddr(conf.iface)[1]
 
     eth = Ether(dst='ff:ff:ff:ff:ff:ff', src=own_mac, type=0x0800)
     ip = IP(src='0.0.0.0', dst='255.255.255.255')

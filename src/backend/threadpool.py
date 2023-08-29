@@ -5,11 +5,10 @@ from job import Job
 class Threadpool:
 
     MAX_QUEUE_SIZE = 10000
-    running = False
-    terminate = False
     queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
     pool_mutex = threading.Lock()
     stopping_condition = threading.Condition(pool_mutex)
+    terminate = False
 
     def __init__(self, num_threads):
         self.threads = []
