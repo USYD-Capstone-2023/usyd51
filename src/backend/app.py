@@ -1,7 +1,7 @@
 # External
 from flask import Flask
 from scapy.all import *
-import nmap, socket, platform
+import nmap, socket, sys
 
 # Local
 from MAC_table import MAC_table
@@ -9,6 +9,10 @@ from loading_bar import Loading_bar
 from job import Job
 from threadpool import Threadpool
 from DHCP_info import get_dhcp_server_info
+from device import Device
+from net_tools import *
+# from database import PostgreSQLDatabase
+from db_dummy import db_dummy
 
 # Stdlib
 import time, threading, socket, os, signal, sys
@@ -24,11 +28,14 @@ if os.name == "posix" and os.geteuid() != 0:
 mac_table = MAC_table(MAC_TABLE_FP)
 own_ip = get_if_addr(conf.iface)
 own_mac = Ether().src
-own_name = platform.node()
+own_name = sys.platform
 app = Flask(__name__)
-devices = {}
+db = db_dummy("networks", "temp_username", "temp_password")
+# db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
+
 
 lb = Loading_bar()
+threadpool = Threadpool(NUM_THREADS)
 
 # Default value, gets resolved on initialization by DHCP server
 gateway = "192.168.1.1"
@@ -37,97 +44,113 @@ dhcp_server_info = get_dhcp_server_info()
 if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
     gateway = dhcp_server_info["server_id"]
 
-threadpool = Threadpool(NUM_THREADS)
+gateway_mac = arp_helper(gateway)[1]
 
+db.register_network(gateway_mac)
+
+client_device = Device(get_if_addr(conf.iface), Ether().src)
+client_device.hostname = sys.platform
+client_device.mac_vendor = mac_table.find_vendor(client_device.mac)
+
+gateway_ip = dhcp_server_info["router"]
+gateway_device = Device(gateway_ip, gateway_mac)
+gateway_device.hostname = dhcp_server_info["domain"]
+
+db.add_device(gateway_device, gateway_mac)
+db.add_device(client_device, gateway_mac)
+
+# Seems to only work on some networks, potentially a proxy or firewall issue.
+# ---------------------------------------- WIP -----------------------------------------
+# packet sniffing daemon to get hostnames
+def wlan_sniffer_callback(pkt):
+
+    # Sniffs mDNS responses for new hostnames
+    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+
+        if DNSRR in pkt:
+            name = pkt[DNSRR].rrname.decode("utf-8")
+            if name.split(".")[-2] != "arpa" and name[0] != "_":
+
+                ip = pkt[IP].src
+                mac = arp_helper(ip)[1]
+                if db.contains_mac(mac, gateway_mac):
+                    db.add_attribute("mac", mac, gateway_mac, device.mac)
+                    return
+
+                device = None
+
+                try:
+                    device = Device(ip, mac)
+                except TypeError as e:
+                    print(e)
+                    return
+                
+                db.add_device(device, gateway_mac)
+
+
+def run_wlan_sniffer(iface):
+    sniff(prn=wlan_sniffer_callback, iface=iface)
+
+DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
+DNS_sniffer.daemon = True
+DNS_sniffer.start()
+
+# Signal handler to gracefully end the threadpool on shutdown
 def cleanup(*args,):
     threadpool.end()
+    DNS_sniffer
     print("Finished cleaning up! Server will now shut down.")
     sys.exit()
 
 signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
 
-def init():
-
-    # Seems to only work on some networks, potentially a proxy or firewall issue.
-    # ---------------------------------------- WIP -----------------------------------------
-    # packet sniffing daemon to get hostnames
-    def wlan_sniffer_callback(pkt):
-
-        # Sniffs mDNS responses for new hostnames
-        if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-            if pkt[IP].src in devices.keys():
-                return
-
-            if DNSRR in pkt:
-                name = pkt[DNSRR].rrname.decode("utf-8")
-                if name.split(".")[-2] != "arpa" and name[0] != "_":
-                    devices[pkt[IP].src] = name.split(".")[0]
-
-
-    def start_sniff_thread(iface):
-        sniff(prn=wlan_sniffer_callback, iface=iface)
-
-    # ---------------------------------------- WIP -----------------------------------------
-    channel_switch = threading.Thread(target=start_sniff_thread, args=(conf.iface,))
-    channel_switch.daemon = True
-    channel_switch.start()
-
-init()
-
 
 # Returns the vendor associated with each ip provided in "macs"
 # Runs in single thread as it is O(n)
-@app.get("/mac_vendor/<macs>")
-def get_mac_vendor(macs):
+@app.get("/resolve_mac_vendors")
+def get_mac_vendor():
+
+    devices = db.get_all_devices(gateway_mac)
 
     ret = {}
-    macs = macs.split(",")
-    lb.set_params("Resolving Hostnames", 40, len(macs))
+    lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
     lb.show()
 
-    for mac in macs:
-        ret[mac] = mac_table.find_vendor(mac)
+    for device in devices.values():
+        db.add_attribute("mac", mac_table.find_vendor(device.mac), gateway_mac, device.mac)
         lb.increment()
         lb.show()
 
     lb.reset()
-    return ret
 
 
 # Performs a reverse DNS lookup on all hosts entered in "hosts"
 @app.get("/hostname/<hosts>")
 def get_hostnames(hosts):
 
-    # Thread task for reverse DNS lookup
-    def hostname_helper(host):
-        try:
-            return socket.gethostbyaddr(host)[0]
-        except:
-            return "unknown"
-
-
-    hosts = hosts.split(",")
-    returns = [-1] * len(hosts)
+    devices = db.get_all_devices(gateway_mac)
+    returns = [-1] * len(devices.keys())
     
-    lb.set_params("Resolving Hostnames", 40, len(hosts))
+    lb.set_params("Resolving Hostnames", 40, len())
     lb.show()
 
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    dispatched = len(hosts)
-
-    for i in range(len(hosts)):
+    dispatched = len(devices.keys())
+    job_counter = 0
+    for device in devices.values():
 
         # If hostname has been found in wlan DNSRR sniffer use it instead
-        if hosts[i] in devices.keys():
+        if device.hostname != "unknown":
             lb.increment()
             dispatched -= 1
-            returns[i] = devices[hosts[i]]
+            returns[i] = device.hostname
             continue
 
-        job = Job(fptr=hostname_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        job = Job(fptr=hostname_helper, args=device.ip, ret_ls=returns, ret_id=job_counter, counter_ptr=counter_ptr, cond=cond)
+        job_counter += 1
         if not threadpool.add_job(job):
                                 
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
@@ -141,12 +164,11 @@ def get_hostnames(hosts):
     mutex.release()
 
     ret = {}
-    for i in range(len(hosts)):
-        if returns[i] != "unknown" and hosts[i] not in devices.keys():
-            devices[hosts[i]] = returns[i]
+    job_counter = 0
+    for device in devices:
+        db.add_attribute(device,"hostname", returns[i], gateway_mac, device.mac)
 
-        ret[hosts[i]] = returns[i]
-    
+    lb.reset()
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
 # ---------------------------------------- WIP -----------------------------------------
@@ -192,49 +214,28 @@ def get_hostnames(hosts):
         # except:
         #     ret[host] = "unknown"
 # ---------------------------------------- WIP -----------------------------------------
-    lb.reset()
-    return ret
+    
 
-@app.get("/traceroute/<hosts>")
-def get_traceroute(hosts):
-
-    # Thread task to get path to "host"
-    def traceroute_helper(host):
-        # This one seems to have issues, but doesnt give mac res errors
-        # answers = srp(IP(dst=host, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
-
-        # Emits TCP packets with incrementing ttl until the target is reached
-        answers = traceroute(host, verbose=False)[0]
-        addrs = [gateway]
-
-        for response_idx in range(1, len(answers)):
-            # Dont register if the packet hit the same router again
-            if answers[response_idx].answer.src == addrs[-1]:
-                break
-
-            addrs.append(answers[response_idx].answer.src)
-
-        # Occurs in cases where there is no found connection and traceroute fails
-        if host not in addrs:
-            addrs.append(host)
-
-        return addrs
+@app.get("/traceroute_all")
+def get_traceroute():
         
-
     print("[INFO] Tracing Routes...")
 
-    hosts = hosts.split(",")
-    returns = [-1] * len(hosts)
+    devices = db.get_all_devices(gateway_mac)
+
+    returns = [-1] * len(devices.keys())
     
-    lb.set_params("Tracing routes to devices", 40, len(hosts))
+    lb.set_params("Tracing routes to devices", 40, len(devices.keys()))
     lb.show()
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
 
-    for i in range(len(hosts)):
+    job_counter = 0
+    for device in devices.values():
 
-        job = Job(fptr=traceroute_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        job = Job(fptr=traceroute_helper, args=(device.ip, gateway), ret_ls=returns, ret_id=job_counter, counter_ptr=counter_ptr, cond=cond)
+        job_counter += 1
         if not threadpool.add_job(job):
 
             returns = None
@@ -242,7 +243,7 @@ def get_traceroute(hosts):
 
 
     mutex.acquire()
-    while counter_ptr[0] < len(hosts):
+    while counter_ptr[0] < len(devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -251,39 +252,20 @@ def get_traceroute(hosts):
     print("\n[INFO] Traceroute complete!\n")
 
     ret = {}
-    for i in range(len(hosts)):
-        ret[hosts[i]] = returns[i]
+    job_counter = 0
+    for device in devices.values():
+        db.add_device_route(device, gateway_mac, returns[job_counter])
+        job_counter += 1
     
     returns = None
     lb.reset()
-    return ret
 
 
 # Gets the IP and MAC of all devices currently active on the network 
-@app.get("/devices")
-def get_devices():
+@app.get("/scan_devices")
+def scan_devices():
 
-    # Sends an ARP ping to the given IP address
-    def arp_helper(ip):
-        # Creating ARP packet
-        arp_frame = ARP(pdst=ip)
-        ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
-        request = ethernet_frame / arp_frame
-
-        # Send/recieve packet
-        responded = srp(request, timeout=0.3, retry=2, verbose=False)[0]
-
-        ret = {}
-        for response in responded:
-        
-            ip = response[1].psrc
-            mac = response[1].hwsrc
-            ret[ip] = mac
-
-        return ret
-
-
-    # Default
+      # Default
     subnet_mask = "255.255.255.0"
     if "subnet_mask" in dhcp_server_info.keys():
         subnet_mask = dhcp_server_info["subnet_mask"]
@@ -325,12 +307,12 @@ def get_devices():
 
                     ip = "%d.%d.%d.%d" % (p1, p2, p3, p4)
                     job = Job(fptr=arp_helper, args=ip, ret_ls=returns, ret_id=id, counter_ptr=counter_ptr, cond=cond)
+                    id += 1
                     if not threadpool.add_job(job):
 
                         returns = None
                         return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
                     
-                    id += 1
 
     mutex.acquire()
     while counter_ptr[0] < num_addrs:
@@ -340,68 +322,59 @@ def get_devices():
 
     mutex.release()
 
-    ret = {}
     for i in range(num_addrs):
-        for key in returns[i].keys():
-            ret[key] = returns[i][key]
+        ip = returns[i][0]
+        mac = returns[i][1]
+        if ip and mac:
+            print("%s %s" % (ip, mac))
+        if mac and ip and not db.contains_mac(mac, gateway_mac):
+            db.add_device(Device(ip, mac), gateway_mac)
 
-    print("\n[INFO] Found %d devices!\n" % (len(ret.keys())))
+    print("\n[INFO] Found %d devices!\n" % (len(db.get_all_devices(gateway_mac).keys())))
     returns = None
     lb.reset()
+    
+
+@app.get("/devices")
+def get_devices():
+
+    devices = db.get_all_devices(gateway_mac)
+
+    ret = {}
+    for device in devices.values():
+        print(device)
+        ret[device.mac] = device.to_json(); 
     return ret
 
-
+  
 # Gets the OS information of the given ip address through TCP fingerprinting
-@app.get("/os_info/<hosts>")
-def os_scan(hosts):
-
-    nm = nmap.PortScanner()
-
-    # Thread worker to get os info from the provided ip address
-    def os_helper(addr):
-
-        # Performs scan
-        data = nm.scan(addr, arguments="-O")
-        data = data["scan"]
-
-        os_info = {"os_type" : "unknown", "os_vendor" : "unknown", "os_family" : "unknown"}
-
-        # Parses output for os info
-        if addr in data.keys():
-            if "osmatch" in data[addr] and len(data[addr]["osmatch"]) > 0:
-                osmatch = data[addr]["osmatch"][0]
-                if 'osclass' in osmatch and len(osmatch["osclass"]) > 0:
-                    osclass = osmatch["osclass"][0]
-
-                    os_info["os_type"] = osclass["type"]
-                    os_info["os_vendor"] = osclass["vendor"]
-                    os_info["os_family"] = osclass["osfamily"]
-
-        return os_info
-
+@app.get("/os_info/<macs>")
+def os_scan(macs):
 
     print("[INFO] Getting OS info...")
 
-    hosts = hosts.split(",")
-    returns = [-1] * len(hosts)
+    macs = macs.split(",")
+    returns = [-1] * len(macs)
     
-    lb.set_params("Scanned", 40, len(hosts))
+    lb.set_params("Scanned", 40, len(macs))
     lb.show()
 
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
 
-    for i in range(len(hosts)):
+    job_id = 0
+    for mac in macs:
 
-        job = Job(fptr=os_helper, args=hosts[i], ret_ls=returns, ret_id=i, counter_ptr=counter_ptr, cond=cond)
+        job = Job(fptr=os_helper, args=devices[mac].ip, ret_ls=returns, ret_id=job_id, counter_ptr=counter_ptr, cond=cond)
+        job_id += 1
         if not threadpool.add_job(job):
 
             returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
     mutex.acquire()
-    while counter_ptr[0] < len(hosts):
+    while counter_ptr[0] < len(macs):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -409,13 +382,14 @@ def os_scan(hosts):
     mutex.release()
     print("\n[INFO] OS scan complete!\n")
 
-    ret = {}
-    for i in range(len(hosts)):
-        ret[hosts[i]] = returns[i]
+    job_id = 0
+    for mac in macs:
+        devices[mac].os_type = returns[job_id]["os_type"]
+        devices[mac].os_family = returns[job_id]["os_family"]
+        devices[mac].os_vendor = returns[job_id]["os_vendor"]
+        job_id += 1
     
     returns = None
-    lb.reset()
-    return ret
 
 
 @app.get("/dhcp_info")

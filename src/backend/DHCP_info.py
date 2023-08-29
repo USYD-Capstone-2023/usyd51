@@ -22,6 +22,7 @@ def get_dhcp_server_info():
 
             dhcp_server_info[str(option[0])] = str(option[1])
 
+
     def stop_filter(_):
         return time.time() - start > TIMEOUT or len(dhcp_server_info.keys()) > 0
 
