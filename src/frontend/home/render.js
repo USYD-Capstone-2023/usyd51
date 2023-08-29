@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => { // Add methods that can on
                 return e.clientY <= sibling.offsetTop + sibling.offsetHeight/2;
             })
             
-            //adds the box in that spot
+            //adds the box in that spotxm
             networkContainer.insertBefore(draggingBox, nextSibling);
         }   
     
@@ -74,7 +74,7 @@ function createNetworkBox(filename, name, ssid){
 
     let arrowButton = document.createElement('div');
     arrowButton.setAttribute('class', 'arrow-button');
-    arrowButton.innerText = '→';
+    arrowButton.innerHTML = '<i class="fa fa-arrow-right"></i>';
     arrowButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
         window.electronAPI.loadNetwork(filename);
@@ -84,8 +84,7 @@ function createNetworkBox(filename, name, ssid){
     networkBox.appendChild(arrowButton);
 
 
-  networkBox.appendChild(arrowButton);
-  document.body.appendChild(networkBox);
+    document.querySelector(".network-container").appendChild(networkBox);
 }
 
 
