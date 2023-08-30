@@ -1,7 +1,6 @@
 # External
 from flask import Flask
 from scapy.all import *
-import nmap, socket, sys
 
 # Local
 from MAC_table import MAC_table
@@ -28,11 +27,6 @@ if os.name == "posix" and os.geteuid() != 0:
 
 app = Flask(__name__)
 
-# Retrieve basic network information about the client machine
-own_ip = get_if_addr(conf.iface)
-own_mac = Ether().src
-own_name = sys.platform
-
 # Init db, temporary fake db for development
 db = db_dummy("networks", "temp_username", "temp_password")
 # db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
@@ -58,7 +52,7 @@ db.register_network(gateway_mac)
 
 # Creates a device object for the client device
 client_device = Device(get_if_addr(conf.iface), Ether().src)
-client_device.hostname = sys.platform
+client_device.hostname = socket.gethostname()
 client_device.mac_vendor = mac_table.find_vendor(client_device.mac)
 db.add_device(client_device, gateway_mac)
 
@@ -71,29 +65,35 @@ db.add_device(gateway_device, gateway_mac)
 # Seems to only work on some networks, potentially a proxy or firewall issue.
 # ---------------------------------------- WIP -----------------------------------------
 # packet sniffing daemon to get hostnames
-def wlan_sniffer_callback(pkt):
+# def wlan_sniffer_callback(pkt):
 
-    # Sniffs mDNS responses for new hostnames
-    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+#     # Sniffs mDNS responses for new hostnames
+#     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
 
-        if DNSRR in pkt:
-            name = pkt[DNSRR].rrname.decode("utf-8")
-            if name.split(".")[-2] != "arpa" and name[0] != "_":
+#         if DNSRR in pkt:
+#             name = pkt[DNSRR].rrname.decode("utf-8")
+#             print(name)
+#             if name.split(".")[-2] != "arpa" and name[0] != "_":
 
-                ip = pkt[IP].src
-                mac = arp_helper(ip)[1]
-                if not db.contains_mac(mac, gateway_mac):
-                    device = Device(ip, mac)
-                    db.add_device(device, gateway_mac)
-                    return
+#                 ip = pkt[IP].src
+#                 mac = arp_helper(ip)[1]
+
+#                 if not db.contains_mac(mac, gateway_mac):
+#                     device = Device(ip, mac)
+#                     device.hostname = name
+#                     db.add_device(device, gateway_mac)
+#                 else:
+#                     device = db.get_device(gateway_mac, mac)
+#                     device.hostname = name
+#                     db.save_device(device, gateway_mac)
 
 
-def run_wlan_sniffer(iface):
-    sniff(prn=wlan_sniffer_callback, iface=iface)
+# def run_wlan_sniffer(iface):
+#     sniff(prn=wlan_sniffer_callback, iface=iface)
 
-DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
-DNS_sniffer.daemon = True
-DNS_sniffer.start()
+# DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
+# DNS_sniffer.daemon = True
+# DNS_sniffer.start()
 
 # ---------------------------------------- END WIP --------------------------------------
 
@@ -101,20 +101,18 @@ DNS_sniffer.start()
 # Signal handler to gracefully end the threadpool on shutdown
 def cleanup(*args,):
     threadpool.end()
-    DNS_sniffer
     print("Finished cleaning up! Server will now shut down.")
     sys.exit()
 
 signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
 
-
 # Updates the mac vendor field of all devices in the current network's table of the database 
 def get_mac_vendors():
 
     devices = db.get_all_devices(gateway_mac)
 
-    lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
+    lb.set_params("Resolving MAC Vendors", 40, len(devices.keys()))
     lb.show()
 
     for device in devices.values():
@@ -167,8 +165,10 @@ def get_hostnames():
     ret = {}
     job_counter = 0
     for device in devices.values():
-        device.hostname = returns[job_counter]
-        db.save_device(device, gateway_mac)
+
+        if device.hostname != "unkown":
+            device.hostname = returns[job_counter]
+            db.save_device(device, gateway_mac)
         job_counter += 1
 
     lb.reset()
@@ -253,7 +253,6 @@ def traceroute_all():
     mutex.release()
     print("\n[INFO] Traceroute complete!\n")
 
-    ret = {}
     job_counter = 0
     for device in devices.values():
         db.add_device_route(device, gateway_mac, returns[job_counter])

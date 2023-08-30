@@ -5,12 +5,9 @@ TIMEOUT = 10
 
 def get_dhcp_server_info():
 
-    own_mac = Ether().src
-
     dhcp_server_info = {}
     event = threading.Event()
     start = time.time()
-    exit_flag = False
 
     # Callback function waits for a DHCP response packet to arrive and quits 
     # if it finds a valid one. Runs in its own thread
@@ -19,6 +16,11 @@ def get_dhcp_server_info():
         for option in pkt[DHCP].options:
             if option == "end" or  option == "pad" or (option[0] == "message-type" and option[1] == 1):
                 break
+
+            
+            if type(option[1]) == bytes:
+                dhcp_server_info[str(option[0])] = option[1].decode("utf-8")
+                continue
 
             dhcp_server_info[str(option[0])] = str(option[1])
 
@@ -32,15 +34,18 @@ def get_dhcp_server_info():
         event.set()
 
 
-    hw = get_if_raw_hwaddr(conf.iface)[1]
+    # Getting mac address
+    mac = get_if_raw_hwaddr(conf.iface)[1]
 
-    eth = Ether(dst='ff:ff:ff:ff:ff:ff', src=own_mac, type=0x0800)
+    # Creating DHCP discovery packet
+    eth = Ether(dst='ff:ff:ff:ff:ff:ff', src=mac, type=0x0800)
     ip = IP(src='0.0.0.0', dst='255.255.255.255')
     udp = UDP(dport=67,sport=68)
-    bootp = BOOTP(op=1, chaddr=hw)
+    bootp = BOOTP(op=1, chaddr=mac)
     dhcp = DHCP(options=[('message-type','discover'), ('end')])
     request = eth / ip / udp / bootp / dhcp
 
+    # Starts a listener thread that waits until it receives a response
     sniffer = threading.Thread(target=start_sniff_thread, args=(conf.iface,))
     sniffer.start()
 
@@ -48,9 +53,9 @@ def get_dhcp_server_info():
     while not event.is_set():
         sendp(request, iface=conf.iface, verbose=False)
 
-    empty = len(dhcp_server_info.keys()) == 0
     sniffer.join()
-    if empty:
+    # Gives error if no response arrives
+    if len(dhcp_server_info.keys()) == 0:
         dhcp_server_info = {"error" : "Recieved no response from dhcp server after %d seconds..." % (TIMEOUT)}
         print("[ERR ] Recieved no response from DHCP server after %d seconds..." % (TIMEOUT))
 

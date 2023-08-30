@@ -1,14 +1,16 @@
-import wget, os, csv, datetime, multiprocessing
-
-# TIMEOUT = 10
+import csv, os
 
 class MAC_table:
 
     mac_table = {}
 
     def __init__(self, filepath):
+
+        if os.name == "nt":
+            filepath = filepath.replace("/", "\\")
+
         try:
-            with open(filepath, "r") as f:
+            with open(filepath, encoding = "utf-8") as f:
 
                 reader = csv.reader(f)
                 for line in reader:
@@ -17,7 +19,7 @@ class MAC_table:
 
                     self.mac_table[line[1]] = line[2]
 
-        except Exception as e:
+        except FileNotFoundError as e:
             print("[ERROR] Failed to read MAC table from file... Continuing without MAC lookup.")
             print(e)
 
@@ -35,6 +37,7 @@ class MAC_table:
 # wget library, requests and urllib struggle to consistently download the oui table and so Im 
 # disabling this feature for now.
 # 
+# TIMEOUT = 10
 # initialized = False
 # 
 # # Retrieves the MAC -> Vendor lookup table

@@ -1,6 +1,8 @@
 from scapy.all import *
 import nmap, socket
 
+# Collection of thread workers that run a singular scan (one address) of a given type
+
 # Sends an ARP ping to the given ip address
 def arp_helper(ip):
     # Creating ARP packet
@@ -30,7 +32,7 @@ def traceroute_helper(args):
     # answers = srp(IP(dst=ip, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
 
     # Emits TCP packets with incrementing ttl until the target is reached
-    answers = traceroute(ip, verbose=False)[0]
+    answers = traceroute(ip, verbose=False, maxttl=10, iface=conf.iface, dport=[80, 443])[0]
     addrs = [gateway]
 
     for response_idx in range(1, len(answers)):

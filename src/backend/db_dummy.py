@@ -18,7 +18,7 @@ class db_dummy:
         if network_id in self.devices.keys():
             return mac in self.devices[network_id].keys()
 
-        return false
+        return False
 
     def save_device(self, device, network_id):
         if device.mac in self.devices[network_id].keys():
@@ -27,7 +27,7 @@ class db_dummy:
         self.devices[network_id][device.mac] = device
 
     def get_device(self, network_id, mac):
-        return devices[network_id][mac]
+        return self.devices[network_id][mac]
 
     def register_network(self, network_id):
         if network_id not in self.devices.keys():
