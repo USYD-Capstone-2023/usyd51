@@ -1,4 +1,4 @@
-from scapy.all import *
+from scapy.all import traceroute, conf, ARP, Ether, srp
 import nmap, socket
 
 # Collection of thread workers that run a singular scan (one address) of a given type

@@ -1,4 +1,4 @@
-from scapy.all import *
+from scapy.all import DHCP, Ether, IP, UDP, BOOTP, sniff, get_if_raw_hwaddr, sendp, conf
 import time, threading
 
 TIMEOUT = 10
@@ -16,11 +16,6 @@ def get_dhcp_server_info():
         for option in pkt[DHCP].options:
             if option == "end" or  option == "pad" or (option[0] == "message-type" and option[1] == 1):
                 break
-
-            
-            if type(option[1]) == bytes:
-                dhcp_server_info[str(option[0])] = option[1].decode("utf-8")
-                continue
 
             dhcp_server_info[str(option[0])] = str(option[1])
 
@@ -58,5 +53,8 @@ def get_dhcp_server_info():
     if len(dhcp_server_info.keys()) == 0:
         dhcp_server_info = {"error" : "Recieved no response from dhcp server after %d seconds..." % (TIMEOUT)}
         print("[ERR ] Recieved no response from DHCP server after %d seconds..." % (TIMEOUT))
+        
+    if "domain" not in dhcp_server_info.keys():
+        dhcp_server_info["domain"] = "unknown"
 
     return dhcp_server_info

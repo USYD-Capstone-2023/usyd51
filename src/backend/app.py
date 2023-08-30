@@ -1,6 +1,6 @@
 # External
 from flask import Flask
-from scapy.all import *
+from scapy.all import Ether, conf, get_if_addr
 
 # Local
 from MAC_table import MAC_table
@@ -331,6 +331,15 @@ def get_devices():
     returns = None
     lb.reset()
 
+@app.get("/get_devices_no_update")
+def current_devices():
+    devices = db.get_all_devices(gateway_mac)
+
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json(); 
+    return ret
+
 
 # Gets the IP and MAC of all devices currently active on the network 
 @app.get("/map_network")
@@ -341,24 +350,19 @@ def map_network():
     get_mac_vendors()
     get_hostnames()
 
-    devices = db.get_all_devices(gateway_mac)
-
-    ret = {}
-    for device in devices.values():
-        ret[device.mac] = device.to_json(); 
-    return ret
+    return current_devices()
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
-@app.get("/os_info/<macs>")
-def os_scan(macs):
+@app.get("/os_info")
+def os_scan():
 
     print("[INFO] Getting OS info...")
 
-    macs = macs.split(",")
-    returns = [-1] * len(macs)
+    devices = db.get_all_devices(gateway_mac)
+    returns = [-1] * len(devices.keys())
     
-    lb.set_params("Scanned", 40, len(macs))
+    lb.set_params("Scanned", 40, len(devices.keys()))
     lb.show()
 
     mutex = threading.Lock()
@@ -366,9 +370,9 @@ def os_scan(macs):
     counter_ptr = [0]
 
     job_id = 0
-    for mac in macs:
+    for device in devices.values():
 
-        job = Job(fptr=os_helper, args=devices[mac].ip, ret_ls=returns, ret_id=job_id, counter_ptr=counter_ptr, cond=cond)
+        job = Job(fptr=os_helper, args=device.ip, ret_ls=returns, ret_id=job_id, counter_ptr=counter_ptr, cond=cond)
         job_id += 1
         if not threadpool.add_job(job):
 
@@ -376,7 +380,7 @@ def os_scan(macs):
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
     mutex.acquire()
-    while counter_ptr[0] < len(macs):
+    while counter_ptr[0] < len(devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -385,10 +389,10 @@ def os_scan(macs):
     print("\n[INFO] OS scan complete!\n")
 
     job_id = 0
-    for mac in macs:
-        devices[mac].os_type = returns[job_id]["os_type"]
-        devices[mac].os_family = returns[job_id]["os_family"]
-        devices[mac].os_vendor = returns[job_id]["os_vendor"]
+    for device in devices.values():
+        device.os_type = returns[job_id]["os_type"]
+        device.os_family = returns[job_id]["os_family"]
+        device.os_vendor = returns[job_id]["os_vendor"]
         job_id += 1
     
     returns = None
