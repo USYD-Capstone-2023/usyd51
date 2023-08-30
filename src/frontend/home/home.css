@@ -6,17 +6,19 @@
 
 header {
     display: flex;
+    height: 63px;
     align-items: center;
-    padding: 20px;
-    justify-content: flex-start;
+    justify-content: space-between;
     width: 100%;
-    margin-left: 30px;
+    overflow: hidden;
 }
 
 .current-network-box {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-right: 30px;
+    margin-left: auto;
 }
 
 .current-network {
