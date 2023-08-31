@@ -269,7 +269,9 @@ def traceroute_all():
 
             parent = addr
 
-        db.add_device_parent(device, gateway_mac, returns[job_counter][-2])
+        if len(returns[job_counter]) >= 2:
+            db.add_device_parent(device, gateway_mac, returns[job_counter][-2])
+            
         job_counter += 1
     
     returns = None
