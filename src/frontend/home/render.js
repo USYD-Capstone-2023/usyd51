@@ -95,3 +95,7 @@ window.electronAPI.networkList((_event, data) => {
         createNetworkBox(network, data[network]["name"], data[network]['ssid']);
     }
 });
+
+window.electronAPI.onSSIDUpdate((event, value) => {
+    document.getElementById('con_name').innerText = value[0].ssid;
+})
