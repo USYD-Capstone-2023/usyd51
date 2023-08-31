@@ -1,10 +1,10 @@
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
-const { spawn } = require("child_process");
+const { fork, spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
 
-let flaskProcess;
+let flaskProcess, connectionProcess;
 
 app.on("ready", () => {
   flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
@@ -173,6 +173,11 @@ function createWindow () {
   ]);
   Menu.setApplicationMenu(menu);
 
+  connectionProcess = fork('getconnections.js');
+  connectionProcess.on('message', (msg) => {
+    win.webContents.send('connection-update', msg);
+  });
+
   win.loadFile("home/home.html");
   // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
 }
@@ -215,11 +220,13 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+
 });
 
 app.on("window-all-closed", () => {
   // if (process.platform !== 'darwin') {
   flaskProcess.kill();
+  connectionProcess.kill();
 
   app.quit();
   // }

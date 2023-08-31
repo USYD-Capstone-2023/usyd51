@@ -98,6 +98,7 @@
     "serialize-error": "^7.0.1",
     "sprintf-js": "^1.1.2",
     "sumchecker": "^3.0.1",
+    "systeminformation": "^5.21.2",
     "type-fest": "^0.13.1",
     "universalify": "^0.1.2",
     "wrappy": "^1.0.2",

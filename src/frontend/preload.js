@@ -7,7 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkRequestProgress: () => ipcRenderer.send('check-request-progress'),
   isReady: (data) => ipcRenderer.on('is-ready',data),
   loadNetworkFromData: (data) => ipcRenderer.send('load-network-from-data', data),
-  
+  onSSIDUpdate: (callback) => ipcRenderer.on('connection-update', callback),
+
   processDataUpdate: (callback) => ipcRenderer.on('device-data', callback),
   requestNetworks: () => ipcRenderer.send('request-networks'),
   networkList: (data) => ipcRenderer.on("network-list", data),

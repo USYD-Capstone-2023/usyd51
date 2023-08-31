@@ -13,4 +13,10 @@ close_button.onclick = () => {
 let settings_button = document.getElementById('settings_symbol');
 settings_button.onclick = () => {
     info_panel.style.display = 'flex';
+    updateSSID();
 }
+
+let con_name = document.getElementById('con_name');
+window.electronAPI.onSSIDUpdate((event, value) => {
+    con_name.innerText = value[0].ssid;
+})
