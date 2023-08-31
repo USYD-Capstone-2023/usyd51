@@ -39,5 +39,5 @@ class db_dummy:
     def add_device(self, device, network_id):
         self.devices[network_id][device.mac] = device
 
-    def add_device_route(self, device, network_id, route):
-        self.devices[network_id][device.mac].route = route
+    def add_device_parent(self, device, network_id, parent):
+        self.devices[network_id][device.mac].parent = parent

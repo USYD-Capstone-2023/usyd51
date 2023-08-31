@@ -224,6 +224,7 @@ def traceroute_all():
     print("[INFO] Tracing Routes...")
 
     devices = db.get_all_devices(gateway_mac)
+    device_addrs = set()
 
     returns = [-1] * len(devices.keys())
     
@@ -235,6 +236,8 @@ def traceroute_all():
 
     job_counter = 0
     for device in devices.values():
+
+        device_addrs.add(device.ip)
 
         job = Job(fptr=traceroute_helper, args=(device.ip, gateway), ret_ls=returns, ret_id=job_counter, counter_ptr=counter_ptr, cond=cond)
         job_counter += 1
@@ -255,7 +258,18 @@ def traceroute_all():
 
     job_counter = 0
     for device in devices.values():
-        db.add_device_route(device, gateway_mac, returns[job_counter])
+        parent = ""
+        for addr in returns[job_counter]:
+            if addr not in device_addrs:
+                device_addrs.add(addr)
+                new_device = Device(addr, arp_helper(addr)[1])
+                new_device.parent = parent
+                db.add_device(new_device)
+                devices = db.get_all_devices(gateway_mac)
+
+            parent = addr
+
+        db.add_device_parent(device, gateway_mac, returns[job_counter][-1])
         job_counter += 1
     
     returns = None
