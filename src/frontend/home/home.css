@@ -8,15 +8,15 @@ header {
     display: flex;
     align-items: center;
     padding: 20px;
-    justify-content: flex-start; /* Align header content to the left */
-    width: 100%; /* Set header to full width */
+    justify-content: flex-start;
+    width: 100%;
     margin-left: 30px;
 }
 
 .current-network-box {
-    display: flex; /* Use flexbox to create a horizontal layout */
-    align-items: center; /* Align items vertically in the middle */
-    gap: 10px; /* Add a bit of spacing between the icon and text */
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .current-network {
@@ -27,7 +27,7 @@ header {
     font-weight: 600;
     line-height: normal;
 }
-
+ 
 body {
     display: flex;
     flex-direction: column;
@@ -50,7 +50,7 @@ body {
 .button {
     width: 60%;
     max-width: 800px;
-    height: 121px;
+    height: 120px;
     flex-shrink: 0;
     border-radius: 4px;
     background: var(--primary-blue, #4BA3C3);
@@ -59,38 +59,53 @@ body {
     align-items: center;
     color: var(--white, #FFF);
     font-family: Inter, sans-serif;
-    font-size: 24px;
+    font-size: 30px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
     cursor: pointer;
-    margin-top: -180px; /* Adjust this value to fine-tune the positioning */
+    margin-top: -190px;
     position: relative;
     z-index: 2;
+    transition: background-color 0.3s;
+}
+
+.button:hover {
+    background-color: rgba(75, 163, 195, 0.7);
 }
 
 .create-new-network {
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* Align items to the left */
+    justify-content: flex-start;
     width: 100%;
-    transition: background-color 0.3s;
+    height: 100%;
 }
 
-.create-new-network:hover {
-    background-color: rgba(75, 163, 195, 0.8); /* Darken the background color on hover */
+.icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
 }
 
 .custom-plus-icon {
-    display: inline-block;
-    width: 96px; /* Adjust the width and height for the desired icon size */
-    height: 96px;
-    border-radius: 50%;
-    background-color: var(--primary-blue, #4BA3C3);
-    text-align: center;
-    line-height: 96px;
-    color: white;
-    font-size: 48px; /* Set the icon size inside the custom icon */
+    font-size: 48px;
+    margin-bottom: -55px;
+    z-index: 2;
+}
+
+.custom-circle-icon {
+    border-radius: 20%;
+    background-color: #86CBE9;
+    width: 60px;
+    height: 60px;
+    z-index: 1;
+}
+
+.network-container {
+    width: 60%;
+    max-width: 800px;
 }
 
 .subtitle {
@@ -100,20 +115,8 @@ body {
     font-style: normal;
     font-weight: 700;
     line-height: normal;
-    margin-top: 15vh; /* Adjust this value to position the subtitle */
-    align-self: flex-start; /* Align the subtitle to the left edge */
-}
-
-.network-container {
-    width: 60%;
-    /* height: 121px; */
-    flex-shrink: 0;
-    /* border-radius: 4px; */
-    /* display: flex; */
-    /* justify-content: center; */
-    /* align-items: center; */
-    color: var(--white, #FFF);
-    position: relative;
+    margin-top: 15vh;
+    align-self: flex-start;
 }
 
 .network-box {
@@ -133,6 +136,11 @@ body {
     position: relative;
     z-index: 1;
     cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.network-box:hover {
+    background-color: rgba(134, 203, 233, 0.8);
 }
 
 .network-info {
