@@ -11,6 +11,7 @@ class Threadpool:
     terminate = False
 
     def __init__(self, num_threads):
+        
         self.threads = []
         
         for i in range(num_threads):
@@ -19,6 +20,7 @@ class Threadpool:
 
     # Terminates the threadpool and ends all threads
     def end(self):
+
         self.stopping_condition.acquire()
         self.terminate = True
         self.stopping_condition.notify_all()
@@ -31,7 +33,9 @@ class Threadpool:
         print("Successfully terminated threadpool!")
 
 
+    # Adds a job to the threadpool queue 
     def add_job(self, job):
+
         if self.queue.full():
             return False
 
@@ -40,6 +44,7 @@ class Threadpool:
         self.stopping_condition.notify()
         self.stopping_condition.release()
         return True
+
 
     # Runs jobs entered into the job queue
     def threadpool_worker(self):
@@ -65,6 +70,8 @@ class Threadpool:
 
             job.ret_ls[job.ret_id] = job.fptr(job.args)
             job.cond.acquire()
+
+            # Adds to completed job counter, allowing calling thread to know when all jobs are complete
             job.counter_ptr[0] += 1
             job.cond.notify()
             job.cond.release()

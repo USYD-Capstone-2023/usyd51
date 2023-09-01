@@ -18,7 +18,6 @@ import time, threading, socket, os, signal, sys
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
 
-
 # Ensures that the user has root perms uf run on posix system.
 if os.name == "posix" and os.geteuid() != 0: 
     print("Root permissions are required for this program to run.")
@@ -27,6 +26,7 @@ if os.name == "posix" and os.geteuid() != 0:
 app = Flask(__name__)
 
 # Retrieves dhcp server information (router ip, subnet mask, domain name)
+print("[INFO] Retrieveing DHCP server info...")
 dhcp_server_info = get_dhcp_server_info()
 
 if dhcp_server_info["router"] == None:
@@ -36,19 +36,14 @@ if dhcp_server_info["router"] == None:
 gateway = dhcp_server_info["router"]
 gateway_hostname = dhcp_server_info["domain"]
 
-# Init db, temporary fake db for development
-db = db_dummy("networks", "temp_username", "temp_password")
-# db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
-
+# Initialise mac lookup table, loading bar and threadpool
 mac_table = MAC_table(MAC_TABLE_FP)
 lb = Loading_bar()
 threadpool = Threadpool(NUM_THREADS)
 
-# Default value, gets resolved on initialization by DHCP server
-gateway = "192.168.1.1"
-gateway_hostname = "unknown"
-print("[INFO] Retrieveing DHCP server info...")
-
+# Init db, temporary fake db for development
+db = db_dummy("networks", "temp_username", "temp_password")
+# db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
 
 # Creates a new table in the database for the current network
 gateway_mac = arp_helper(gateway)[1]
@@ -66,42 +61,6 @@ gateway_device.hostname = gateway_hostname
 db.add_device(gateway_device, gateway_mac)
 
 
-# Seems to only work on some networks, potentially a proxy or firewall issue.
-# ---------------------------------------- WIP -----------------------------------------
-# packet sniffing daemon to get hostnames
-# def wlan_sniffer_callback(pkt):
-
-#     # Sniffs mDNS responses for new hostnames
-#     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-
-#         if DNSRR in pkt:
-#             name = pkt[DNSRR].rrname.decode("utf-8")
-#             print(name)
-#             if name.split(".")[-2] != "arpa" and name[0] != "_":
-
-#                 ip = pkt[IP].src
-#                 mac = arp_helper(ip)[1]
-
-#                 if not db.contains_mac(mac, gateway_mac):
-#                     device = Device(ip, mac)
-#                     device.hostname = name
-#                     db.add_device(device, gateway_mac)
-#                 else:
-#                     device = db.get_device(gateway_mac, mac)
-#                     device.hostname = name
-#                     db.save_device(device, gateway_mac)
-
-
-# def run_wlan_sniffer(iface):
-#     sniff(prn=wlan_sniffer_callback, iface=iface)
-
-# DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
-# DNS_sniffer.daemon = True
-# DNS_sniffer.start()
-
-# ---------------------------------------- END WIP --------------------------------------
-
-
 # Signal handler to gracefully end the threadpool on shutdown
 def cleanup(*args,):
     threadpool.end()
@@ -110,6 +69,7 @@ def cleanup(*args,):
 
 signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
+
 
 # Updates the mac vendor field of all devices in the current network's table of the database 
 def get_mac_vendors():
@@ -176,68 +136,25 @@ def get_hostnames():
         job_counter += 1
 
     lb.reset()
-
-# Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
-# ---------------------------------------- WIP -----------------------------------------
-
-        # iface = conf.iface
-
-        # host_rev = "".join(["%s." % x for x in host.split(".")[::-1]]) + "in-addr.arpa"
-
-        # query = Ether(src=own_mac, dst="FF:FF:FF:FF:FF:FF") / \
-        #         IP(src=own_ip, dst="224.0.0.252") / \
-        #         UDP(sport=60403, dport=5355)/ \
-        #         LLMNRQuery(id=1, qd=DNSQR(qname=host_rev, qtype="PTR", qclass="IN"))
-
-        # response = srp1(query)
-
-        # if response and LLMNRResponse in response:
-        #     name = response[LLMNRResponse].qd.qname.decode()
-        #     print("resolved hostname: %s" % (name))
-        #     print("ip: %d" % (response[LLMNRResponse].an.rdata))
-        #     ret[host] = name
-
-        # print(ret[host])
-
-        # mdns_ip = "224.0.0.251"
-        # mdns_mac = "01:00:5e:00:00:fb"
-
-        # mdns_query = Ether(src=own_mac, dst=mdns_mac) / \
-        #              IP(src=own_ip, dst=mdns_ip) / \
-        #              UDP(sport=5353, dport=5353) / \
-        #              DNS(rd=1, qd=DNSQR(qname=host_rev, qtype="PTR"))
-
-        # responses, _ = srp(mdns_query, verbose=0, timeout=2)
-
-        # for response in responses:
-        #     if DNSRR in response[1] and response[1][DNSRR].type == 12:
-        #         name = response[1][DNSRR].rdata.decode()
-        #         print("resolved hostname: %s" % (name))
-        #         ret[host] = name
-
-        # print(ret[host])
-        # try:
-        #     ret[host] = socket.gethostbyaddr(host)
-        # except:
-        #     ret[host] = "unknown"
-# ---------------------------------------- WIP -----------------------------------------
     
 
+# Runs a traceroute on all devices in the database to get their neighbours in the routing path
 def traceroute_all():
         
-    print("[INFO] Tracing Routes...")
 
     devices = db.get_all_devices(gateway_mac)
     device_addrs = set()
 
-    returns = [-1] * len(devices.keys())
-    
+    print("[INFO] Tracing Routes...")
     lb.set_params("Tracing routes to devices", 40, len(devices.keys()))
     lb.show()
+    
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
+    returns = [-1] * len(devices.keys())
 
+    # Creates a thread job to do traceroute on all devices, adds them to threadpool queue
     job_counter = 0
     for device in devices.values():
 
@@ -250,7 +167,7 @@ def traceroute_all():
             returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
-
+    # Waits for all jobs to be completed by the threadpool
     mutex.acquire()
     while counter_ptr[0] < len(devices.keys()):
         cond.wait()
@@ -260,10 +177,13 @@ def traceroute_all():
     mutex.release()
     print("\n[INFO] Traceroute complete!\n")
 
+    # Parses output
     job_counter = 0
     for device in devices.values():
+
         parent = ""
         for addr in returns[job_counter]:
+            # Adds devices to database if they don't already exist
             if addr not in device_addrs:
                 device_addrs.add(addr)
                 new_device = Device(addr, arp_helper(addr)[1])
@@ -273,6 +193,7 @@ def traceroute_all():
 
             parent = addr
 
+        # Updates the devices parent node
         if len(returns[job_counter]) >= 2:
             db.add_device_parent(device, gateway_mac, returns[job_counter][-2])
             
@@ -282,18 +203,18 @@ def traceroute_all():
     lb.reset()
 
 
+# Gets all devices on the network
 def get_devices():
 
-      # Default
-    subnet_mask = "255.255.255.0"
-    if "subnet_mask" in dhcp_server_info.keys():
-        subnet_mask = dhcp_server_info["subnet_mask"]
+    subnet_mask = dhcp_server_info["subnet_mask"]
     
+    # Breaks subnet and gateway ip into bytes
     sm_split = subnet_mask.split(".")
     gateway_split = gateway.split(".")
     first_ip = [0] * 4
     last_ip = [0] * 4
 
+    # Calculates first and last IPs byte by byte, based off subnet mask and router IP
     for i in range(4):
         sm_chunk = int(sm_split[i])
         gateway_chunk = int(gateway_split[i])
@@ -304,6 +225,7 @@ def get_devices():
 
     print("[INFO] Getting all active devices on network.")
 
+    # Generates return array of size equal to the number of IPs in the range
     num_addrs = 1
     for i in range(4):
         num_addrs *= max(last_ip[i] - first_ip[i] + 1, 1) 
@@ -317,6 +239,7 @@ def get_devices():
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
 
+    # Runs an arp scan on all IPs in the networks ip range
     id = 0
     for p1 in range(first_ip[0], last_ip[0] + 1):
         for p2 in range(first_ip[1], last_ip[1] + 1):
@@ -332,7 +255,7 @@ def get_devices():
                         returns = None
                         return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
                     
-
+    # Waits for all tasks to be completed by the threadpool
     mutex.acquire()
     while counter_ptr[0] < num_addrs:
         cond.wait()
@@ -341,6 +264,7 @@ def get_devices():
 
     mutex.release()
 
+    # Creates a device object for each ip and mac, saves to database
     for i in range(num_addrs):
         ip = returns[i][0]
         mac = returns[i][1]
@@ -351,8 +275,11 @@ def get_devices():
     returns = None
     lb.reset()
 
+
+# Gives all the information about the current network that is stored in the database, does not re-run scans
 @app.get("/get_devices_no_update")
 def current_devices():
+
     devices = db.get_all_devices(gateway_mac)
 
     ret = {}
@@ -361,7 +288,8 @@ def current_devices():
     return ret
 
 
-# Gets the IP and MAC of all devices currently active on the network 
+# Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
+# Serves the main mapping data for the program
 @app.get("/map_network")
 def map_network():
 
@@ -389,6 +317,7 @@ def os_scan():
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
 
+    # Creates a thread task to scan each devices OS, adds to threadpool queue
     job_id = 0
     for device in devices.values():
 
@@ -399,6 +328,7 @@ def os_scan():
             returns = None
             return "Request size over maximum allowed size %d" % (threadpool.MAX_QUEUE_SIZE)
 
+    # Waits for all jobs to be completed
     mutex.acquire()
     while counter_ptr[0] < len(devices.keys()):
         cond.wait()
@@ -408,6 +338,7 @@ def os_scan():
     mutex.release()
     print("\n[INFO] OS scan complete!\n")
 
+    # Sets all devices OS information
     job_id = 0
     for device in devices.values():
         device.os_type = returns[job_id]["os_type"]
@@ -418,14 +349,15 @@ def os_scan():
     returns = None
 
 
+# Serves the information of the dhcp server
 @app.get("/dhcp_info")
 def serve_dhcp_server_info():
-    global dhcp_server_info
-    if not dhcp_server_info or "error" in dhcp_server_info.keys():
-        dhcp_server_info = get_dhcp_server_info()
 
     return dhcp_server_info
 
+
+# Returns the progress and data of the current loading bar.
+# Polled by frontend to update ui loading bars in electron  
 @app.get("/request_progress")
 def get_current_progress():
 

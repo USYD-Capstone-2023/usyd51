@@ -89,14 +89,95 @@ def get_dhcp_server_info():
     # Failsafe defaults in the event that there is no network connection
     default_gateway = None
     default_iface = "unknown"
-    subnet_mask = "unknown"
+    subnet_mask = "255.255.255.0"
     domain = "unknown"
 
     if "default" in gws.keys() and netifaces.AF_INET in gws["default"].keys():
-        
+
         default_gateway = netifaces.gateways()["default"][netifaces.AF_INET][0]
         default_iface = netifaces.gateways()["default"][netifaces.AF_INET][1]
         subnet_mask = netifaces.ifaddresses(default_iface)[netifaces.AF_INET][0]["netmask"]
         domain = hostname_helper(default_gateway)
 
     return {"router" : default_gateway, "iface" : default_iface, "subnet_mask" : subnet_mask, "domain" : domain}
+
+
+# Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
+# ---------------------------------------- WIP -----------------------------------------
+
+        # iface = conf.iface
+
+        # host_rev = "".join(["%s." % x for x in host.split(".")[::-1]]) + "in-addr.arpa"
+
+        # query = Ether(src=own_mac, dst="FF:FF:FF:FF:FF:FF") / \
+        #         IP(src=own_ip, dst="224.0.0.252") / \
+        #         UDP(sport=60403, dport=5355)/ \
+        #         LLMNRQuery(id=1, qd=DNSQR(qname=host_rev, qtype="PTR", qclass="IN"))
+
+        # response = srp1(query)
+
+        # if response and LLMNRResponse in response:
+        #     name = response[LLMNRResponse].qd.qname.decode()
+        #     print("resolved hostname: %s" % (name))
+        #     print("ip: %d" % (response[LLMNRResponse].an.rdata))
+        #     ret[host] = name
+
+        # print(ret[host])
+
+        # mdns_ip = "224.0.0.251"
+        # mdns_mac = "01:00:5e:00:00:fb"
+
+        # mdns_query = Ether(src=own_mac, dst=mdns_mac) / \
+        #              IP(src=own_ip, dst=mdns_ip) / \
+        #              UDP(sport=5353, dport=5353) / \
+        #              DNS(rd=1, qd=DNSQR(qname=host_rev, qtype="PTR"))
+
+        # responses, _ = srp(mdns_query, verbose=0, timeout=2)
+
+        # for response in responses:
+        #     if DNSRR in response[1] and response[1][DNSRR].type == 12:
+        #         name = response[1][DNSRR].rdata.decode()
+        #         print("resolved hostname: %s" % (name))
+        #         ret[host] = name
+
+        # print(ret[host])
+        # try:
+        #     ret[host] = socket.gethostbyaddr(host)
+        # except:
+        #     ret[host] = "unknown"
+# ---------------------------------------- WIP -----------------------------------------
+
+# Seems to only work on some networks, potentially a proxy or firewall issue.
+# ---------------------------------------- WIP -----------------------------------------
+# packet sniffing daemon to get hostnames
+# def wlan_sniffer_callback(pkt):
+
+#     # Sniffs mDNS responses for new hostnames
+#     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+
+#         if DNSRR in pkt:
+#             name = pkt[DNSRR].rrname.decode("utf-8")
+#             print(name)
+#             if name.split(".")[-2] != "arpa" and name[0] != "_":
+
+#                 ip = pkt[IP].src
+#                 mac = arp_helper(ip)[1]
+
+#                 if not db.contains_mac(mac, gateway_mac):
+#                     device = Device(ip, mac)
+#                     device.hostname = name
+#                     db.add_device(device, gateway_mac)
+#                 else:
+#                     device = db.get_device(gateway_mac, mac)
+#                     device.hostname = name
+#                     db.save_device(device, gateway_mac)
+
+
+# def run_wlan_sniffer(iface):
+#     sniff(prn=wlan_sniffer_callback, iface=iface)
+
+# DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
+# DNS_sniffer.daemon = True
+# DNS_sniffer.start()
+
+# ---------------------------------------- END WIP --------------------------------------

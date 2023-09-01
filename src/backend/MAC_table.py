@@ -6,6 +6,7 @@ class MAC_table:
 
     def __init__(self, filepath):
 
+        # For windows support change direction of slashes
         if os.name == "nt":
             filepath = filepath.replace("/", "\\")
 
