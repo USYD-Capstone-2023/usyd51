@@ -7,7 +7,6 @@ from MAC_table import MAC_table
 from loading_bar import Loading_bar
 from job import Job
 from threadpool import Threadpool
-from DHCP_info import get_dhcp_server_info
 from device import Device
 from net_tools import *
 # from database import PostgreSQLDatabase
@@ -27,6 +26,16 @@ if os.name == "posix" and os.geteuid() != 0:
 
 app = Flask(__name__)
 
+# Retrieves dhcp server information (router ip, subnet mask, domain name)
+dhcp_server_info = get_dhcp_server_info()
+
+if dhcp_server_info["router"] == None:
+    print("[ERR ] Unable to determine default gateway, are you connected to the internet?\nExitting...")
+    sys.exit()
+
+gateway = dhcp_server_info["router"]
+gateway_hostname = dhcp_server_info["domain"]
+
 # Init db, temporary fake db for development
 db = db_dummy("networks", "temp_username", "temp_password")
 # db = PostgreSQLDatabase("networks", "temp_username", "temp_password")
@@ -40,11 +49,6 @@ gateway = "192.168.1.1"
 gateway_hostname = "unknown"
 print("[INFO] Retrieveing DHCP server info...")
 
-# Retrieves network information (subnet mask, router ip, dns ip, timeserver ip, etc)
-dhcp_server_info = get_dhcp_server_info()
-if "error" not in dhcp_server_info.keys() and len(dhcp_server_info.keys()) > 1:
-    gateway = dhcp_server_info["router"]
-    gateway_hostname = dhcp_server_info["domain"]
 
 # Creates a new table in the database for the current network
 gateway_mac = arp_helper(gateway)[1]

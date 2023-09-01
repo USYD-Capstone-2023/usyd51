@@ -1,7 +1,7 @@
 from scapy.all import traceroute, conf, ARP, Ether, srp
-import nmap, socket
+import nmap, socket, netifaces
 
-# Collection of thread workers that run a singular scan (one address) of a given type
+# Collection of tools used to get information from the network and its devices
 
 # Sends an ARP ping to the given ip address
 def arp_helper(ip):
@@ -79,3 +79,24 @@ def hostname_helper(host):
         return socket.gethostbyaddr(host)[0]
     except:
         return "unknown"
+
+
+# Gets the gateway, interface, subnet mask and domain name of the current network
+def get_dhcp_server_info():
+
+    gws = netifaces.gateways()
+
+    # Failsafe defaults in the event that there is no network connection
+    default_gateway = None
+    default_iface = "unknown"
+    subnet_mask = "unknown"
+    domain = "unknown"
+
+    if "default" in gws.keys() and netifaces.AF_INET in gws["default"].keys():
+        
+        default_gateway = netifaces.gateways()["default"][netifaces.AF_INET][0]
+        default_iface = netifaces.gateways()["default"][netifaces.AF_INET][1]
+        subnet_mask = netifaces.ifaddresses(default_iface)[netifaces.AF_INET][0]["netmask"]
+        domain = hostname_helper(default_gateway)
+
+    return {"router" : default_gateway, "iface" : default_iface, "subnet_mask" : subnet_mask, "domain" : domain}
