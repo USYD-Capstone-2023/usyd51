@@ -1,7 +1,7 @@
 :root {
-    --primary-blue: #4BA3C3;
-    --pale-blue: #EAFCFF;
-    --white: #FFF;
+    --primary-blue: #4ba3c3;
+    --pale-blue: #eafcff;
+    --white: #fff;
 }
 
 header {
@@ -40,9 +40,9 @@ body {
     width: 100%;
     height: 250px;
     flex-shrink: 0;
-    background-color: var(--pale-blue, #EAFCFF);
-    border-top: 2px solid var(--primary-blue, #4BA3C3);
-    border-bottom: 2px solid var(--primary-blue, #4BA3C3);
+    background-color: var(--pale-blue, #eafcff);
+    border-top: 2px solid var(--primary-blue, #4ba3c3);
+    border-bottom: 2px solid var(--primary-blue, #4ba3c3);
     position: relative;
     z-index: 1;
     padding-left: 5%;
@@ -54,11 +54,11 @@ body {
     height: 121px;
     flex-shrink: 0;
     border-radius: 4px;
-    background: var(--primary-blue, #4BA3C3);
+    background: var(--primary-blue, #4ba3c3);
     display: flex;
     justify-content: center;
     align-items: center;
-    color: var(--white, #FFF);
+    color: var(--white, #fff);
     font-family: Inter, sans-serif;
     font-size: 24px;
     font-style: normal;
@@ -76,11 +76,15 @@ body {
     justify-content: flex-start; /* Align items to the left */
     width: 100%;
     transition: background-color 0.3s;
-
 }
 
 .create-new-network:hover {
-    background-color: rgba(75, 163, 195, 0.8); /* Darken the background color on hover */
+    background-color: rgba(
+        75,
+        163,
+        195,
+        0.8
+    ); /* Darken the background color on hover */
 }
 
 .custom-loading-icon {
@@ -88,23 +92,23 @@ body {
     width: 96px; /* Adjust the width and height for the desired icon size */
     height: 96px;
     border-radius: 50%;
-    background-color: var(--primary-blue, #4BA3C3);
+    background-color: var(--primary-blue, #4ba3c3);
     text-align: center;
     line-height: 96px;
     color: white;
     font-size: 48px; /* Set the icon size inside the custom icon */
 }
 
-
-.settings-container{
-    width:80%;
+.settings-container {
+    width: 80%;
     background-color: #c5cfd3;
     position: relative;
     margin-top: 80px;
-    height:60vh;
+    height: 60vh;
 }
 
-.not-ready, .ready {
+.not-ready,
+.ready {
     background-color: rgb(109, 109, 109);
     cursor: pointer;
     position: absolute;
@@ -115,12 +119,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin:30px;
+    margin: 30px;
     border-radius: 5%;
-
 }
 
-.ready{
+.ready {
     background-color: rgb(9, 153, 69);
 }
 
