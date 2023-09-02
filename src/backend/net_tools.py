@@ -146,38 +146,3 @@ def get_dhcp_server_info():
         # except:
         #     ret[host] = "unknown"
 # ---------------------------------------- WIP -----------------------------------------
-
-# Seems to only work on some networks, potentially a proxy or firewall issue.
-# ---------------------------------------- WIP -----------------------------------------
-# packet sniffing daemon to get hostnames
-# def wlan_sniffer_callback(pkt):
-
-#     # Sniffs mDNS responses for new hostnames
-#     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-
-#         if DNSRR in pkt:
-#             name = pkt[DNSRR].rrname.decode("utf-8")
-#             print(name)
-#             if name.split(".")[-2] != "arpa" and name[0] != "_":
-
-#                 ip = pkt[IP].src
-#                 mac = arp_helper(ip)[1]
-
-#                 if not db.contains_mac(mac, gateway_mac):
-#                     device = Device(ip, mac)
-#                     device.hostname = name
-#                     db.add_device(device, gateway_mac)
-#                 else:
-#                     device = db.get_device(gateway_mac, mac)
-#                     device.hostname = name
-#                     db.save_device(device, gateway_mac)
-
-
-# def run_wlan_sniffer(iface):
-#     sniff(prn=wlan_sniffer_callback, iface=iface)
-
-# DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
-# DNS_sniffer.daemon = True
-# DNS_sniffer.start()
-
-# ---------------------------------------- END WIP --------------------------------------
