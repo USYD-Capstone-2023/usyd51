@@ -1,7 +1,10 @@
 import unittest
+import uuid
+
 from MAC_table import MAC_table
 from db_dummy import db_dummy
 from device import Device
+from net_tools import get_dhcp_server_info, arp_helper, traceroute_helper
 
 def gen_valid_device():
     IP = "192.168.0.1"
@@ -138,6 +141,20 @@ class test_device(unittest.TestCase):
     def test_device_json(self):
         device = gen_valid_device()
         self.assertEqual(device.to_json(), {"mac" : device.mac, "ip" : device.ip, "mac_vendor" : device.mac_vendor, "os_family" : device.os_family, "os_vendor" : device.os_vendor, "os_type" : device.os_type, "hostname" : device.hostname, "parent" : device.parent})
+
+class test_net_tools(unittest.TestCase):
+
+    def test_ARP_scan_known(self):
+        DHCP_info = get_dhcp_server_info()
+        ip, mac = arp_helper(DHCP_info["router"])
+        self.assertEqual(ip, DHCP_info["router"])
+        self.assertIsNotNone(mac)
+    
+    def test_ARP_scan_unknown(self):
+        external_ip = "8.8.8.8"
+        ip, mac = arp_helper(external_ip)
+        self.assertIsNone(ip)
+        self.assertIsNone(mac)
 
 
 if __name__ == '__main__':
