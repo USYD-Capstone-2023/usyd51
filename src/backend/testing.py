@@ -155,6 +155,21 @@ class test_net_tools(unittest.TestCase):
         ip, mac = arp_helper(external_ip)
         self.assertIsNone(ip)
         self.assertIsNone(mac)
+    
+    def test_traceroute_helper_known(self):
+        def get_ip_address():
+            import socket
+            try:
+                # Create a socket object to get the local hostname
+                hostname = socket.gethostname()
+                # Get the IP address associated with the local hostname
+                ip_address = socket.gethostbyname(hostname)
+                return ip_address
+            except Exception as e:
+                return str(e)
+
+        gateway = get_dhcp_server_info()["router"]
+        self.assertIsNotNone(traceroute_helper([get_ip_address(),gateway]))
 
 
 if __name__ == '__main__':
