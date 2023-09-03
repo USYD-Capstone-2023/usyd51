@@ -13,13 +13,15 @@ class test_MAC_table(unittest.TestCase):
     def test_find_vendor_known(self):
         # Test a known MAC address
         vendor = self.mac_table.find_vendor("E8:0A:B9:9D:68:16")
-        print(vendor)
         self.assertEqual(vendor, "Cisco Systems, Inc")
 
     def test_find_vendor_unknown(self):
         # Test an unknown MAC address
         vendor = self.mac_table.find_vendor("00:00:00:00:00:00")
         self.assertEqual(vendor, "unknown")
+
+
+
 
 
 

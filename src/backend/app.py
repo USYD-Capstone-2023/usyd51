@@ -441,3 +441,18 @@ def get_current_progress():
         return {"flag" : False}
 
     return {"flag" : True, "progress" : lb.counter, "total" : lb.total_value, "label" : lb.label}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
