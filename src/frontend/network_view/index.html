@@ -31,6 +31,7 @@
         ></i>
       </div>
     </header>
+    <div id="cy"></div>
 
     <div class="info-panel-container" id="info_panel_container">
       <div class="info-panel-header">
@@ -38,29 +39,40 @@
           <h1 class="info-panel-title">Selected Node Info</h1>
         </div>
         <div class="info-panel-close-container">
-          <i class="fa fa-window-close icon-clickable info-panel-close" id="close_symbol"></i>
+          <i
+            class="fa fa-window-close icon-clickable info-panel-close"
+            id="close_symbol"
+          ></i>
         </div>
       </div>
       <div class="info-panel-box">
         <div class="info-panel-box-item">
           <span class="info-panel-box-item-title">Type</span>
-          <span class="info-panel-box-item-value" id="node_type">Windows PC/Laptop</span>
+          <span class="info-panel-box-item-value" id="node_type"
+            >Windows PC/Laptop</span
+          >
         </div>
         <div class="info-panel-box-item">
           <span class="info-panel-box-item-title">Hostname</span>
-          <span class="info-panel-box-item-value" id="node_hostname">My Computer 1</span>
+          <span class="info-panel-box-item-value" id="node_hostname"
+            >My Computer 1</span
+          >
         </div>
         <div class="info-panel-box-item">
           <span class="info-panel-box-item-title">IP</span>
-          <span class="info-panel-box-item-value" id="node_IP">192.168.1.143</span>
+          <span class="info-panel-box-item-value" id="node_IP"
+            >192.168.1.143</span
+          >
         </div>
         <div class="info-panel-box-item">
           <span class="info-panel-box-item-title">MAC</span>
-          <span class="info-panel-box-item-value" id="node_MAC">XX-XX-XX-XX-XX-XX</span>
+          <span class="info-panel-box-item-value" id="node_MAC"
+            >XX-XX-XX-XX-XX-XX</span
+          >
         </div>
       </div>
+      <button id="toggleStyle">Toggle Style</button>
     </div>
-
   </body>
   <link href="style.css" rel="stylesheet" />
   <script
@@ -68,7 +80,11 @@
     type="text/javascript"
     src="renderer.js"
   ></script>
+  <script
+    language="javascript"
+    type="text/javascript"
+    src="cytoscape.js"
+  ></script>
 
-  <script language="javascript" type="text/javascript" src="p5.js"></script>
   <script language="javascript" type="text/javascript" src="sketch.js"></script>
 </html>
