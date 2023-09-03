@@ -1,7 +1,6 @@
 import sys
 
 # Functions as a loading bar
-# Prints empty on init, prints updated on increment
 class Loading_bar:
 
     counter = 0
@@ -16,7 +15,14 @@ class Loading_bar:
         self.label = label
         self.counter = 0
 
-    # Updates progress bar
+    # Resets the loading bar to default values.
+    # This state is used to tell the frontend to stop requesting progress updates
+    def reset(self):
+        self.total_value = 0
+        self.label = ""
+        self.counter = 0
+
+    # Draws progress bar
     def show(self):
         percent = 100.0 * self.counter / self.total_value
         sys.stdout.write('\r')
@@ -29,9 +35,11 @@ class Loading_bar:
 
         sys.stdout.flush()
 
+    # Sets the progress of the loading bar, used in threaded situations where it is difficult to increment
     def set_progress(self, val):
         self.counter = val
 
+    # Increases the loading bar's progress by one
     def increment(self):
         self.counter += 1
         

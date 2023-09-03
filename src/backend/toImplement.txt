@@ -1,5 +1,0 @@
-Methods of getting hostnames:
-    LLMNR
-    mDNS
-    NetBIOS
-    LLDP

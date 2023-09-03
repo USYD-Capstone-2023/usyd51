@@ -1,3 +1,8 @@
+
+# Represents a unit of work for the threadpool to execute
+# Consists of a function pointer, arguments to pass to the function, a return location, counter (ptr)
+# to increment on completion and a condition variable
+
 class Job:
     def __init__(self, fptr, args, ret_ls, ret_id, counter_ptr, cond):
         self.fptr = fptr
