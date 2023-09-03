@@ -1,10 +1,10 @@
 import unittest
-import uuid
+import socket
 
 from MAC_table import MAC_table
 from db_dummy import db_dummy
 from device import Device
-from net_tools import get_dhcp_server_info, arp_helper, traceroute_helper
+from net_tools import get_dhcp_server_info, arp_helper, traceroute_helper, hostname_helper
 
 def gen_valid_device():
     IP = "192.168.0.1"
@@ -19,6 +19,16 @@ def gen_valid_device():
     #os_type = "unknown"
     #hostname = "unknown"
     #parent = "unknown"
+
+def get_ip_address():
+        try:
+            # Create a socket object to get the local hostname
+            hostname = socket.gethostname()
+            # Get the IP address associated with the local hostname
+            ip_address = socket.gethostbyname(hostname)
+            return ip_address
+        except Exception as e:
+            return str(e)
 
 class test_MAC_table(unittest.TestCase):
 
@@ -157,19 +167,18 @@ class test_net_tools(unittest.TestCase):
         self.assertIsNone(mac)
     
     def test_traceroute_helper_known(self):
-        def get_ip_address():
-            import socket
-            try:
-                # Create a socket object to get the local hostname
-                hostname = socket.gethostname()
-                # Get the IP address associated with the local hostname
-                ip_address = socket.gethostbyname(hostname)
-                return ip_address
-            except Exception as e:
-                return str(e)
-
         gateway = get_dhcp_server_info()["router"]
         self.assertIsNotNone(traceroute_helper([get_ip_address(),gateway]))
+    
+    def test_hostname_helper_known(self):
+        hostname = socket.gethostname()
+        self.assertEqual(hostname, hostname_helper(get_ip_address())[:len(hostname)])
+    
+    def test_hostname_helper_unknown(self):
+        self.assertEqual("unknown", hostname_helper("8.8.8.8.8"))
+
+    def test_DHCP_server_info(self):
+        self.assertIsNotNone(get_dhcp_server_info())
 
 
 if __name__ == '__main__':
