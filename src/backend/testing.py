@@ -133,7 +133,11 @@ class TestDbDummy(unittest.TestCase):
         self.db.add_device_parent(device, network_id, parent)
         self.assertEqual(self.db.devices[network_id][device.mac].parent, parent)
 
+class test_device(unittest.TestCase):
 
+    def test_device_json(self):
+        device = gen_valid_device()
+        self.assertEqual(device.to_json(), {"mac" : device.mac, "ip" : device.ip, "mac_vendor" : device.mac_vendor, "os_family" : device.os_family, "os_vendor" : device.os_vendor, "os_type" : device.os_type, "hostname" : device.hostname, "parent" : device.parent})
 
 
 if __name__ == '__main__':
