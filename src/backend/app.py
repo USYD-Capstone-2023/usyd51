@@ -26,7 +26,7 @@ nt = Net_tools(db, lb)
 
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
-@app.get("/get_devices_no_update")
+@app.get("/get_network_no_update")
 def current_devices():
 
     if not db.contains_network(nt.gateway_mac):
