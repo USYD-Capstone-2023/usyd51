@@ -10,19 +10,7 @@ NUM_THREADS = 25
 
 class Net_tools:
 
-    db = None
-    threadpool = None
-    lb = None
-    gateway = None
-    subnet_mask = None
-    domain = None
-    iface = None
-    gateway_mac = None
-    mac_table = None
-    get_dhcp_server_info = None
-
     def __init__(self, db, lb):
-
 
         if NUM_THREADS < 1:
             print("[ERR ] Thread count cannot be less than 1. Exitting...")
@@ -472,7 +460,7 @@ class Net_tools:
 
     # ---------------------------------------------- DNS SNIFFER ---------------------------------------------- #
 
-    # packet sniffing daemon to get hostnames
+    # Packet sniffing daemon to get hostnames
     def wlan_sniffer_callback(self, pkt):
 
         # Sniffs mDNS responses for new hostnames and devices
@@ -501,8 +489,6 @@ class Net_tools:
                     device = self.db.get_device(self.gateway_mac, mac)
                     device.hostname = name
                     self.db.save_device(self.gateway_mac, device)
-
-
 
 
     def run_wlan_sniffer(self, iface):

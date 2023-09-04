@@ -9,33 +9,75 @@ Usage: ```/map_network```
 Return format:
 ```python
 {
-    router_mac : {
-        device_mac : {
+    device_mac : {
 
-            "hostname" : device_hostname,
-            "ip" : device_ip,
-            "mac" : device_mac_address,
-            "mac_vendor" : device_mac_vendor,
-            "os_family" : os_family,
-            "os_type" : os_type,
-            "os_vendor" : os_vendor,
-            "parent" : parent_nodes_ip
-        }
-
+        "hostname" : device_hostname,
+        "ip" : device_ip,
+        "mac" : device_mac_address,
+        "mac_vendor" : device_mac_vendor,
+        "os_family" : os_family,
+        "os_type" : os_type,
+        "os_vendor" : os_vendor,
+        "parent" : parent_nodes_ip
     }
 }
 ```
-
 All values default to "unknown" if they haven't been found.
+
+## Get Network No Update ##
+
+Returns all network information requirred to map the network from the database, does not run new scans but can contain new information from passive scanning.
+
+Usage: ```/get_network_no_update```
+
+Return format:
+```python
+{
+    device_mac : {
+
+        "hostname" : device_hostname,
+        "ip" : device_ip,
+        "mac" : device_mac_address,
+        "mac_vendor" : device_mac_vendor,
+        "os_family" : os_family,
+        "os_type" : os_type,
+        "os_vendor" : os_vendor,
+        "parent" : parent_nodes_ip
+    }
+
+}
+
+or
+
+{
+    "error" : "Current network is not registered in the database, run /map_network to add this network to the database."
+}
+```
 
 ## OS Scan ##
 
 Uses TCP fingerprinting to determine the most likely operating system for each device on the network.
+Data is saved to database, then all device info is returned.
 
 Usage: ```/os_info```
 
-Currently returns nothing, just updates devices in the database.
+Return format:
+```python
+{
+    device_mac : {
 
+        "hostname" : device_hostname,
+        "ip" : device_ip,
+        "mac" : device_mac_address,
+        "mac_vendor" : device_mac_vendor,
+        "os_family" : os_family,
+        "os_type" : os_type,
+        "os_vendor" : os_vendor,
+        "parent" : parent_nodes_ip
+    }
+
+}
+```
 
 ## DHCP Server Info ##
 
@@ -51,4 +93,33 @@ Return format:
     "router" : router_ip,
     "subnet_mask" : subnet_mask
 }
+```
+
+## Request Progress ##
+
+Gets the current progress information of the backend loading bar, used to synchronise with a frontend loading bar.
+
+Usage: ```/request_progress```
+
+Return format:
+```python
+{
+    "flag" : is the loading bar in use?,
+    "progress" : number of units completed,
+    "total" : total number of units,
+   "label" : loading bar text
+}
+```
+
+## Delete Network ##
+
+Deletes a network from the database based on the network's gateway's MAC address
+
+Usage: ```/delete_network/<gateway_mac>```
+
+Return format:
+```python
+    "Successfully deleted network"
+    or
+    "Could not find entered network..."
 ```

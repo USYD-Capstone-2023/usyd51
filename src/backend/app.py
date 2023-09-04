@@ -46,11 +46,15 @@ def current_devices():
 @app.get("/map_network")
 def map_network():
 
+    # Checks network is registered in database
     if not db.contains_network(nt.gateway_mac):
         db.register_network(nt.gateway_mac, nt.domain)
 
+    # Adds all active devices on the network to the database
     nt.get_devices()
+    # Adds routing information for all devicesin the database
     nt.add_routes()
+    # Looks up mac vendor for all devices in the database
     nt.add_mac_vendors()
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
@@ -88,4 +92,7 @@ def get_current_progress():
 @app.get("/delete_network/<gateway_id>")
 def delete_network(gateway_id):
 
-    db.delete_network(gateway_id)
+    if db.delete_network(gateway_id):
+        return "Successfully deleted network"
+
+    return "Could not find entered network..."

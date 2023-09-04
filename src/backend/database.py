@@ -110,6 +110,9 @@ class PostgreSQLDatabase:
     # Deletes a network from the database
     def delete_network(self, gateway_mac):
 
+        if not self.contains_network(gateway_mac):
+            return False
+
         q = """DELETE FROM networks
                WHERE gateway_mac = '%s';
 
@@ -118,6 +121,7 @@ class PostgreSQLDatabase:
             """ % (gateway_mac, gateway_mac)
 
         self.query(q) 
+        return True
 
 
     # Checks if the current network exists in the database
