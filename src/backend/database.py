@@ -78,7 +78,6 @@ class PostgreSQLDatabase:
             # Check Response
             if res:
                 response = cur.fetchall()
-                # print(response)
             else:
                 # Commit Query
                 conn.commit()
@@ -91,61 +90,85 @@ class PostgreSQLDatabase:
             if conn:
                 cur.close()
                 conn.close()
-                # print("PostgreSQL connection is closed")
 
         return response
+    
+    # Adds a network to the database if it doesnt already exist.
+    def register_network(self, gateway_mac, network_name):
 
-    def add_device(self, device, network_id):
+        if not self.contains_network(gateway_mac):
 
-        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, network_id)
+            print("[INFO] Registering new network...")
+
+            q = """INSERT INTO networks (gateway_mac, name)
+                VALUES ('%s', '%s');
+                """ % (gateway_mac, network_name)
+            
+            self.query(q)
+
+    
+    # Deletes a network from the database
+    def delete_network(self, gateway_mac):
+
+        q = """DELETE FROM networks
+               WHERE gateway_mac = '%s';
+
+               DELETE FROM devices
+               WHERE gateway_mac = '%s';
+            """ % (gateway_mac, gateway_mac)
+
+        self.query(q) 
+
+
+    # Checks if the current network exists in the database
+    def contains_network(self, gateway_mac):
+
+        q = """SELECT 1
+        FROM networks
+        WHERE gateway_mac = '%s';
+        """ % (gateway_mac)
+        
+        response = self.query(q, res=True)
+
+        return response != None and len(response) > 0
+
+
+    # Adds a device into the database
+    def add_device(self, device, gateway_mac):
+
+        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, gateway_mac)
                VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
-            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, network_id)
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, gateway_mac)
         
         self.query(q)
 
 
-    def contains_mac(self, mac, network_id):
+    # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
+    def contains_mac(self, mac, gateway_mac):
 
         q = """SELECT 1
                FROM devices 
-               WHERE mac='%s' AND network_id='%s';
-            """ % (mac, network_id)
+               WHERE mac='%s' AND gateway_mac='%s';
+            """ % (mac, gateway_mac)
         
-        result = self.query(q, res=True)
-        return len(result) > 0
-    
-
-    def register_network(self, network_id, network_name):
-
-        q = """SELECT 1
-               FROM networks
-               WHERE router_mac='%s';
-            """ % (network_id)
-        
-        result = self.query(q, res=True)
-
-        if len(result) == 0:
-
-            print("[INFO] Registering new network...")
-
-            q = """INSERT INTO networks (router_mac, name)
-                VALUES ('%s', '%s');
-                """ % (network_id, network_name)
-            
-            self.query(q)
+        response = self.query(q, res=True)
+        return len(response) > 0
         
 
+    # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, gateway_mac):
 
         q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family
                FROM devices
-               WHERE network_id='%s';
+               WHERE gateway_mac='%s';
             """ % (gateway_mac)
         
         responses = self.query(q, res=True)
 
         # { mac : Device }
         devices = {}
+
+        # Converts all responses into Device objects
         for response in responses:
             
             new_device = Device(response[0], response[1])
@@ -160,15 +183,17 @@ class PostgreSQLDatabase:
         return devices
 
 
-    def get_device(self, network_id, mac):
+    # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
+    def get_device(self, gateway_mac, mac):
 
-        q = """SELECT mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family
+        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family
                FROM devices
-               WHERE network_id='%s' AND mac='%s';
-            """ % (network_id, mac)
+               WHERE gateway_mac='%s' AND mac='%s';
+            """ % (gateway_mac, mac)
         
         response = self.query(q, res=True)
 
+        # Creates Device object from response
         new_device = Device(response[0], response[1])
         new_device.mac_vendor = response[2]
         new_device.hostname = response[3]
@@ -179,7 +204,8 @@ class PostgreSQLDatabase:
         return new_device
 
 
-    def save_device(self, device, network_id):
+    # Saves an existing device back to the database after it has been changed.
+    def save_device(self, device, gateway_mac):
 
         q = """UPDATE devices
                SET mac = '%s',
@@ -189,10 +215,20 @@ class PostgreSQLDatabase:
                    os_type = '%s',
                    os_vendor = '%s',
                    os_family = '%s'
-               WHERE network_id='%s' AND mac='%s';
-            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, network_id, device.mac)
+               WHERE gateway_mac='%s' AND mac='%s';
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, gateway_mac, device.mac)
         
         self.query(q)
+
+    
+    def clear(self):
+
+        q = """DROP DATABASE %s""" % (self.db)
+
+        self.query(q)
+
+        self.init_db()
+
 
 
     # Setup tables if it doesn't exist
@@ -207,7 +243,7 @@ class PostgreSQLDatabase:
         #                 """
         
         query_networks = """CREATE TABLE IF NOT EXISTS networks
-                        (router_mac TEXT PRIMARY KEY NOT NULL,
+                        (gateway_mac TEXT PRIMARY KEY NOT NULL,
                         name TEXT);
                         """
         
@@ -219,7 +255,7 @@ class PostgreSQLDatabase:
                         os_type TEXT,
                         os_vendor TEXT,
                         os_family TEXT,
-                        network_id TEXT REFERENCES networks (router_mac));
+                        gateway_mac TEXT REFERENCES networks (gateway_mac) ON DELETE CASCADE);
                         """
         
         # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s

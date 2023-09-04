@@ -10,7 +10,6 @@ from threadpool import Threadpool
 from device import Device
 from net_tools import *
 from database import PostgreSQLDatabase
-from db_dummy import db_dummy
 
 # Stdlib
 import threading, socket, os, signal, sys
@@ -33,26 +32,27 @@ if dhcp_server_info["router"] == None:
     print("[ERR ] Unable to determine default gateway, are you connected to the internet?\nExitting...")
     sys.exit()
 
-gateway = dhcp_server_info["router"]
-gateway_hostname = dhcp_server_info["domain"]
 
 # Initialise mac lookup table, loading bar and threadpool
 mac_table = MAC_table(MAC_TABLE_FP)
 lb = Loading_bar()
 threadpool = Threadpool(NUM_THREADS)
 
-# Init db, temporary fake db for development
-# db = db_dummy("networks", "temp_username", "temp_password")
+# Gateway information
+gateway = dhcp_server_info["router"]
+gateway_hostname = dhcp_server_info["domain"]
+gateway_mac = arp_helper(gateway)[1]
 
 # Temp login information
-db = PostgreSQLDatabase("networks", "postgres", "root")
+db = PostgreSQLDatabase("net_tool_db", "postgres", "root")
 
-# Creates a new table in the database for the current network
-gateway_mac = arp_helper(gateway)[1]
+# Creates a new table in the database for the current network if it doesnt already exist
 db.register_network(gateway_mac, gateway_hostname)
+network_registered = True
+
+client_mac = Ether().src
 
 # Creates a device object for the client device if one doesnt already exist
-client_mac = Ether().src
 if not db.contains_mac(client_mac, gateway_mac):
     client_device = Device(get_if_addr(conf.iface), client_mac)
     client_device.hostname = socket.gethostname()
@@ -64,51 +64,6 @@ if not db.contains_mac(gateway_mac, gateway_mac):
     gateway_device = Device(gateway, gateway_mac)
     gateway_device.hostname = gateway_hostname
     db.add_device(gateway_device, gateway_mac)
-
-# Seems to only work on some networks, potentially a proxy or firewall issue.
-# ---------------------------------------- WIP -----------------------------------------
-# packet sniffing daemon to get hostnames
-def wlan_sniffer_callback(pkt):
-
-    # Sniffs mDNS responses for new hostnames
-    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-
-        if DNSRR in pkt:
-            name = pkt[DNSRR].rrname.decode("utf-8")
-            if name.split(".")[-2] != "arpa" and name[0] != "_":
-
-                ip = pkt[IP].src
-                mac = arp_helper(ip)[1]
-
-                if not db.contains_mac(mac, gateway_mac):
-                    device = Device(ip, mac)
-                    device.hostname = name
-                    db.add_device(device, gateway_mac)
-                else:
-                    device = db.get_device(gateway_mac, mac)
-                    device.hostname = name
-                    db.save_device(device, gateway_mac)
-
-
-def run_wlan_sniffer(iface):
-    sniff(prn=wlan_sniffer_callback, iface=iface)
-
-DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
-DNS_sniffer.daemon = True
-DNS_sniffer.start()
-
-# ---------------------------------------- END WIP --------------------------------------
-
-
-# Signal handler to gracefully end the threadpool on shutdown
-def cleanup(*args,):
-    threadpool.end()
-    print("Finished cleaning up! Server will now shut down.")
-    sys.exit()
-
-signal.signal(signal.SIGTERM, cleanup)
-signal.signal(signal.SIGINT, cleanup)
-
 
 # Updates the mac vendor field of all devices in the current network's table of the database 
 def get_mac_vendors():
@@ -241,7 +196,7 @@ def traceroute_all():
     lb.reset()
 
 
-# Gets all devices on the network
+# Gets all active devices on the network
 def get_devices():
 
     subnet_mask = dhcp_server_info["subnet_mask"]
@@ -308,10 +263,9 @@ def get_devices():
         ip = returns[i][0]
         mac = returns[i][1]
         if mac and ip and not db.contains_mac(mac, gateway_mac):
-            total += 1
             db.add_device(Device(ip, mac), gateway_mac)
 
-    print("\n[INFO] Found %d devices!\n" % (total))
+    print("\n[INFO] Found %d devices!\n" % (len(db.get_all_devices(gateway_mac))))
     returns = None
     lb.reset()
 
@@ -320,6 +274,10 @@ def get_devices():
 @app.get("/get_devices_no_update")
 def current_devices():
 
+    if not db.contains_network(gateway_mac):
+
+        return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
+    
     devices = db.get_all_devices(gateway_mac)
 
     ret = {}
@@ -332,6 +290,9 @@ def current_devices():
 # Serves the main mapping data for the program
 @app.get("/map_network")
 def map_network():
+
+    if not db.contains_network(gateway_mac):
+        db.register_network(gateway_mac, gateway_hostname)
 
     get_devices()
     traceroute_all()
@@ -346,6 +307,10 @@ def map_network():
 def os_scan():
 
     print("[INFO] Getting OS info...")
+
+    if not db.contains_network(gateway_mac):
+
+        return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
 
     devices = db.get_all_devices(gateway_mac)
     returns = [-1] * len(devices.keys())
@@ -405,3 +370,58 @@ def get_current_progress():
         return {"flag" : False}
 
     return {"flag" : True, "progress" : lb.counter, "total" : lb.total_value, "label" : lb.label}
+
+
+# Clears the entire contents of the database, including tables and the db itself
+@app.get("/delete_network/<gateway_id>")
+def delete_network(gateway_id):
+
+    if gateway_id == gateway_mac:
+        network_registered = False
+
+    db.delete_network(gateway_id)
+
+
+# packet sniffing daemon to get hostnames
+def wlan_sniffer_callback(pkt):
+
+    # Can only be saved to database if the network is registered
+    if not network_registered:
+        return
+    
+    # Sniffs mDNS responses for new hostnames
+    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+
+        if DNSRR in pkt:
+            name = pkt[DNSRR].rrname.decode("utf-8")
+            if name.split(".")[-2] != "arpa" and name[0] != "_":
+
+                ip = pkt[IP].src
+                mac = arp_helper(ip)[1]
+
+                if not db.contains_mac(mac, gateway_mac):
+                    device = Device(ip, mac)
+                    device.hostname = name
+                    db.add_device(device, gateway_mac)
+                else:
+                    device = db.get_device(gateway_mac, mac)
+                    device.hostname = name
+                    db.save_device(device, gateway_mac)
+
+
+def run_wlan_sniffer(iface):
+    sniff(prn=wlan_sniffer_callback, iface=iface)
+
+DNS_sniffer = threading.Thread(target=run_wlan_sniffer, args=(conf.iface,))
+DNS_sniffer.daemon = True
+DNS_sniffer.start()
+
+
+# Signal handler to gracefully end the threadpool on shutdown
+def cleanup(*args,):
+    threadpool.end()
+    print("Finished cleaning up! Server will now shut down.")
+    sys.exit()
+
+signal.signal(signal.SIGTERM, cleanup)
+signal.signal(signal.SIGINT, cleanup)
