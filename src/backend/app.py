@@ -13,7 +13,7 @@ from database import PostgreSQLDatabase
 from db_dummy import db_dummy
 
 # Stdlib
-import time, threading, socket, os, signal, sys
+import threading, socket, os, signal, sys
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
@@ -165,7 +165,6 @@ def get_hostnames():
         lb.show()
     mutex.release()
 
-    ret = {}
     job_counter = 0
     for device in devices.values():
 
@@ -180,7 +179,6 @@ def get_hostnames():
 # Runs a traceroute on all devices in the database to get their neighbours in the routing path
 def traceroute_all():
         
-
     devices = db.get_all_devices(gateway_mac)
     device_addrs = set()
 
@@ -234,7 +232,8 @@ def traceroute_all():
 
         # Updates the devices parent node
         if len(returns[job_counter]) >= 2:
-            db.add_device_parent(device, gateway_mac, returns[job_counter][-2])
+            device.parent = returns[job_counter][-2]
+            db.save_device(device, gateway_mac)
             
         job_counter += 1
     
@@ -303,14 +302,16 @@ def get_devices():
 
     mutex.release()
 
+    total = 0
     # Creates a device object for each ip and mac, saves to database
     for i in range(num_addrs):
         ip = returns[i][0]
         mac = returns[i][1]
         if mac and ip and not db.contains_mac(mac, gateway_mac):
+            total += 1
             db.add_device(Device(ip, mac), gateway_mac)
 
-    print("\n[INFO] Found %d devices!\n" % (len(db.get_all_devices(gateway_mac).keys())))
+    print("\n[INFO] Found %d devices!\n" % (total))
     returns = None
     lb.reset()
 

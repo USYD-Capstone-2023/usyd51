@@ -41,7 +41,6 @@ class PostgreSQLDatabase:
             # Checks if the database exists, creates a new one if not
             cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = '%s';" % (self.db))
             db_exists = cur.fetchone()
-            print(db_exists)
             if not db_exists:
 
                 print("[INFO] Creating database...")
@@ -80,9 +79,9 @@ class PostgreSQLDatabase:
             if res:
                 response = cur.fetchall()
                 # print(response)
-
-            # Commit Query
-            conn.commit()
+            else:
+                # Commit Query
+                conn.commit()
 
         except (Exception, psycopg2.DatabaseError) as error:
             print(error)
@@ -98,9 +97,9 @@ class PostgreSQLDatabase:
 
     def add_device(self, device, network_id):
 
-        q = """INSERT INTO devices (id, ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, network_id)
-               VALUES('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
-            """ % (device.id, device.ip, device.mac, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_familty, network_id)
+        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, network_id)
+               VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, network_id)
         
         self.query(q)
 
@@ -113,7 +112,6 @@ class PostgreSQLDatabase:
             """ % (mac, network_id)
         
         result = self.query(q, res=True)
-        print(result)
         return len(result) > 0
     
 
@@ -139,15 +137,27 @@ class PostgreSQLDatabase:
 
     def get_all_devices(self, gateway_mac):
 
-        q = """SELECT mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family
+        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family
                FROM devices
                WHERE network_id='%s';
             """ % (gateway_mac)
         
-        response = self.query(q, res=True)
+        responses = self.query(q, res=True)
 
-        for device in response.keys():
-            print(device)
+        # { mac : Device }
+        devices = {}
+        for response in responses:
+            
+            new_device = Device(response[0], response[1])
+            new_device.mac_vendor = response[2]
+            new_device.hostname = response[3]
+            new_device.os_type = response[4]
+            new_device.os_vendor = response[5]
+            new_device.os_family = response[6]
+
+            devices[response[0]] = new_device
+
+        return devices
 
 
     def get_device(self, network_id, mac):
@@ -159,68 +169,32 @@ class PostgreSQLDatabase:
         
         response = self.query(q, res=True)
 
-        print(response)
+        new_device = Device(response[0], response[1])
+        new_device.mac_vendor = response[2]
+        new_device.hostname = response[3]
+        new_device.os_type = response[4]
+        new_device.os_vendor = response[5]
+        new_device.os_family = response[6]
 
+        return new_device
 
-
-        
-    # def get_all_endpoints(self, network_id):
-    #     q = ("SELECT * FROM devices WHERE network_id=%s" % (network_id))
-    #     result = self.query(q)
-    #     return result
-
-    # ## Get an endpoint by ID
-    # def get_endpoint(self, id):
-    #     q = ("SELECT * FROM endpoints WHERE id='{0}'".format(id))
-    #     result = self.query(q)
-    #     return result[0][0]
-    
-    # ## Get a layer 3 device by id
-    # def get_layer3(self, id):
-    #     q = ("SELECT * FROM endpoints WHERE id='{0}'".format(id))
-    #     result = self.query(q)
-    #     return result[0][0]
-    
-    # ## Extract data for building a full diagram for the switch/router.
-    # def get_layer3_ports(self, id):
-    #     # Get the information about the layer3 switch/router
-    #     q = ("SELECT * FROM layer3s WHERE id='{0}".format(id))
-
-    #     # Get the device or port connection information
-    #     q2 = ("SELECT * FROM layer3_ports WHERE layer3='{0}'".format(id))
-
-    #     # With this information you can now build a full diagram of a switch and what is connected on it.
-
-    #     result_layer3 = self.query(q)
-    #     result_join = self.query(q2)
-
-    #     # You can combine the data here later or just return them in a tuple.
-    #     return (result_layer3, result_join)
-    
-    #     def contains_mac(self, mac, network_id):
-    #     if network_id in self.devices.keys():
-    #         return mac in self.devices[network_id].keys()
-
-    #     return False
 
     def save_device(self, device, network_id):
-        pass
+
+        q = """UPDATE devices
+               SET mac = '%s',
+                   ip = '%s',
+                   mac_vendor = '%s',
+                   hostname = '%s',
+                   os_type = '%s',
+                   os_vendor = '%s',
+                   os_family = '%s'
+               WHERE network_id='%s' AND mac='%s';
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, network_id, device.mac)
+        
+        self.query(q)
 
 
-
-
-
-    def get_all_devices(self, network_id):
-        pass
-
-    def add_device(self, device, network_id):
-        pass
-
-    def add_device_parent(self, device, network_id, parent):
-        pass
-
-
-    
     # Setup tables if it doesn't exist
     # Currently using router MAC as PK for networks, need to find something much better
     def init_tables(self):
