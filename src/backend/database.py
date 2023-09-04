@@ -134,17 +134,17 @@ class PostgreSQLDatabase:
 
 
     # Adds a device into the database
-    def add_device(self, device, gateway_mac):
+    def add_device(self, gateway_mac, device):
 
-        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, gateway_mac)
-               VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
-            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, gateway_mac)
+        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, gateway_mac)
+               VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, device.parent, gateway_mac)
         
         self.query(q)
 
 
     # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
-    def contains_mac(self, mac, gateway_mac):
+    def contains_mac(self, gateway_mac, mac):
 
         q = """SELECT 1
                FROM devices 
@@ -158,7 +158,7 @@ class PostgreSQLDatabase:
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, gateway_mac):
 
-        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family
+        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
                FROM devices
                WHERE gateway_mac='%s';
             """ % (gateway_mac)
@@ -177,6 +177,7 @@ class PostgreSQLDatabase:
             new_device.os_type = response[4]
             new_device.os_vendor = response[5]
             new_device.os_family = response[6]
+            new_device.parent = response[7]
 
             devices[response[0]] = new_device
 
@@ -186,13 +187,13 @@ class PostgreSQLDatabase:
     # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
     def get_device(self, gateway_mac, mac):
 
-        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family
+        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
                FROM devices
                WHERE gateway_mac='%s' AND mac='%s';
             """ % (gateway_mac, mac)
         
-        response = self.query(q, res=True)
-
+        response = self.query(q, res=True)[0]
+        
         # Creates Device object from response
         new_device = Device(response[0], response[1])
         new_device.mac_vendor = response[2]
@@ -200,12 +201,13 @@ class PostgreSQLDatabase:
         new_device.os_type = response[4]
         new_device.os_vendor = response[5]
         new_device.os_family = response[6]
+        new_device.parent = response[7]
 
         return new_device
 
 
     # Saves an existing device back to the database after it has been changed.
-    def save_device(self, device, gateway_mac):
+    def save_device(self, gateway_mac, device):
 
         q = """UPDATE devices
                SET mac = '%s',
@@ -214,9 +216,10 @@ class PostgreSQLDatabase:
                    hostname = '%s',
                    os_type = '%s',
                    os_vendor = '%s',
-                   os_family = '%s'
+                   os_family = '%s',
+                   parent = '%s'
                WHERE gateway_mac='%s' AND mac='%s';
-            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, gateway_mac, device.mac)
+            """ % (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_family, device.parent, gateway_mac, device.mac)
         
         self.query(q)
 
@@ -255,6 +258,7 @@ class PostgreSQLDatabase:
                         os_type TEXT,
                         os_vendor TEXT,
                         os_family TEXT,
+                        parent TEXT,
                         gateway_mac TEXT REFERENCES networks (gateway_mac) ON DELETE CASCADE);
                         """
         
