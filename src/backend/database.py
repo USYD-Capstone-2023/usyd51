@@ -255,7 +255,7 @@ class PostgreSQLDatabase:
                         """
         
         query_devices = """CREATE TABLE IF NOT EXISTS devices
-                        (mac TEXT PRIMARY KEY,
+                        (mac TEXT NOT NULL,
                         ip TEXT NOT NULL,
                         mac_vendor TEXT,
                         hostname TEXT,
@@ -263,7 +263,8 @@ class PostgreSQLDatabase:
                         os_vendor TEXT,
                         os_family TEXT,
                         parent TEXT,
-                        gateway_mac TEXT REFERENCES networks (gateway_mac) ON DELETE CASCADE);
+                        gateway_mac TEXT REFERENCES networks (gateway_mac) ON DELETE CASCADE,
+                        CONSTRAINT id PRIMARY KEY (mac, gateway_mac));
                         """
         
         # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s

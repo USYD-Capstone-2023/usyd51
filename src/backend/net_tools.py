@@ -1,4 +1,4 @@
-from scapy.all import traceroute, conf, ARP, DNSRR, UDP, IP, Ether, srp, get_if_addr, sniff
+from scapy.all import traceroute, conf, ARP, DNSRR, UDP, IP, TCP, ICMP, Ether, srp, srp1, sr, sr1, get_if_addr, sniff, RandShort, DNS, DNSQR
 from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
@@ -38,11 +38,11 @@ class Net_tools:
         # Creates a new table in the database for the current network if it doesnt already exist
         db.register_network(self.gateway_mac, self.domain)
 
-        client_mac = Ether().src
+        self.client_mac = Ether().src
 
         # Creates a device object for the client device if one doesnt already exist
-        if not db.contains_mac(self.gateway_mac, client_mac):
-            client_device = Device(get_if_addr(conf.iface), client_mac)
+        if not db.contains_mac(self.gateway_mac, self.client_mac):
+            client_device = Device(get_if_addr(conf.iface), self.client_mac)
             client_device.hostname = socket.gethostname()
             client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
             db.add_device(self.gateway_mac, client_device)
@@ -100,15 +100,15 @@ class Net_tools:
         request = ethernet_frame / arp_frame
 
         # Send/recieve packet
-        responded = srp(request, timeout=0.3, retry=2, verbose=False)[0]
+        response = srp1(request, timeout=0.5, retry=2, verbose=False)
 
         # Formulate return values
         found_ip = None
         found_mac = None
 
-        if len(responded) > 0:
-            found_ip = responded[0][1].psrc
-            found_mac = responded[0][1].hwsrc
+        if response:
+            found_ip = response[0][1].psrc
+            found_mac = response[0][1].hwsrc
 
         return found_ip, found_mac
 
@@ -194,22 +194,17 @@ class Net_tools:
         ip = args[0]
         gateway = args[1]
         # This one seems to have issues, but doesnt give mac res errors
-        # answers = srp(IP(dst=ip, ttl=(1, 30), id=RandShort()) / TCP(flags=0x2), verbose=False, timeout=1)[0]
 
         # Emits TCP packets with incrementing ttl until the target is reached
-        answers = traceroute(ip, verbose=False, maxttl=10, iface=conf.iface, dport=[80, 443])[0]
+        answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
         addrs = [gateway]
-
+                
         for response_idx in range(1, len(answers)):
             # Dont register if the packet hit the same router again
-            if answers[response_idx].answer.src == addrs[-1]:
+            if answers.res[0][1].src == addrs[-1]:
                 break
 
-            addrs.append(answers[response_idx].answer.src)
-
-        # Occurs in cases where there is no found connection and traceroute fails
-        if ip not in addrs:
-            addrs.append(ip)
+            addrs.append(answers.res[0][1].src)
 
         return addrs
     
@@ -266,7 +261,7 @@ class Net_tools:
                     device_addrs.add(addr)
                     new_device = Device(addr, Net_tools.arp_helper(addr)[1])
                     new_device.parent = parent
-                    self.db.add_device(new_device)
+                    self.db.add_device(self.gateway_mac, new_device)
                     devices = self.db.get_all_devices(self.gateway_mac)
 
                 parent = addr
@@ -449,6 +444,8 @@ class Net_tools:
         subnet_mask = "255.255.255.0"
         domain = "unknown"
 
+        print(gws)
+
         if "default" in gws.keys() and netifaces.AF_INET in gws["default"].keys():
             default_gateway = netifaces.gateways()["default"][netifaces.AF_INET][0]
             default_iface = netifaces.gateways()["default"][netifaces.AF_INET][1]
@@ -474,7 +471,7 @@ class Net_tools:
             mac = Net_tools.arp_helper(ip)[1]
 
             # Add device to database if it doesnt exist
-            if not self.db.contains_mac(self.gateway_mac, mac):
+            if mac and not self.db.contains_mac(self.gateway_mac, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
                 device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-2]
@@ -493,7 +490,6 @@ class Net_tools:
 
     def run_wlan_sniffer(self, iface):
         sniff(prn=self.wlan_sniffer_callback, iface=iface)
-
 
 
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
