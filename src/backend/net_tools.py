@@ -1,4 +1,4 @@
-from scapy.all import traceroute, conf, ARP, DNSRR, UDP, IP, TCP, ICMP, Ether, srp, srp1, sr, sr1, get_if_addr, sniff, RandShort, DNS, DNSQR
+from scapy.all import traceroute, conf, ARP, DNSRR, UDP, IP, Ether, srp1, get_if_addr, sniff, RandShort
 from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
@@ -195,7 +195,7 @@ class Net_tools:
         gateway = args[1]
         # This one seems to have issues, but doesnt give mac res errors
 
-        # Emits TCP packets with incrementing ttl until the target is reached
+        # Emits UDP packets with incrementing ttl until the target is reached
         answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
         addrs = [gateway]
                 
