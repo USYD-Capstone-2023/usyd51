@@ -15,6 +15,7 @@ from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
 from device import Device
+from platform import system
 import nmap, socket, netifaces, threading, sys, signal
 
 MAC_TABLE_FP = "../cache/oui.csv"
