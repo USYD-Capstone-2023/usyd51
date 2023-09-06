@@ -1,6 +1,12 @@
-const loadingBarWidth = 40;
 // in millis
 const progressPollingRate = 400;
+
+const loadingBarTotalSteps = 3;
+
+const getLoadingBarWidth = (stepNumber, currentProgress) => {
+    console.log(currentProgress);
+    return 100 * ((currentProgress + stepNumber) / loadingBarTotalSteps);
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     // Add methods that can only happen when DOM is loaded in here.
@@ -16,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
         polling = false;
         loadingBar.style.width = 100 + "%";
         barLabel.innerHTML = "DONE!";
+        loadingBar.style.borderRadius = "5px";
 
         let target = document.getElementById("ready-button");
         target.textContent = "Ready";
@@ -30,11 +37,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Handles IPC with node, updates progress bar with info from backend
+    let currentLabel = undefined;
+    let stepNumber = 0;
     window.electronAPI.sendRequestProgress((_event, data) => {
         if (data["flag"]) {
+            if (currentLabel == undefined) {
+                currentLabel = data["label"];
+            } else if (currentLabel != data["label"]) {
+                currentLabel = data["label"];
+                stepNumber++;
+            }
             let done = data["progress"];
             let total = data["total"];
-            let percentage = (done / total) * 100;
+            let percentage = getLoadingBarWidth(stepNumber, done / total);
             loadingBar.style.width = percentage + "%";
             barLabel.innerHTML =
                 data["label"] + " (" + done + " / " + total + ")";

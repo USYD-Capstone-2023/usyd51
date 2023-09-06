@@ -1,7 +1,11 @@
 :root {
-    --primary-blue: #4BA3C3;
-    --pale-blue: #EAFCFF;
-    --white: #FFF;
+    --primary-blue: #4ba3c3;
+    --pale-blue: #eafcff;
+    --white: #fff;
+}
+
+html {
+    overflow-x: hidden;
 }
 
 header {
@@ -27,7 +31,7 @@ header {
     font-weight: 600;
     line-height: normal;
 }
- 
+
 body {
     display: flex;
     flex-direction: column;
@@ -40,31 +44,33 @@ body {
     width: 100%;
     height: 250px;
     flex-shrink: 0;
-    background-color: var(--pale-blue, #EAFCFF);
-    border-top: 2px solid var(--primary-blue, #4BA3C3);
-    border-bottom: 2px solid var(--primary-blue, #4BA3C3);
+    background-color: var(--pale-blue, #eafcff);
+    border-top: 2px solid var(--primary-blue, #4ba3c3);
+    border-bottom: 2px solid var(--primary-blue, #4ba3c3);
     position: relative;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .button {
     width: 60%;
     max-width: 800px;
-    height: 120px;
+    height: 55%;
     flex-shrink: 0;
     border-radius: 4px;
-    background: var(--primary-blue, #4BA3C3);
+    background: var(--primary-blue, #4ba3c3);
     display: flex;
     justify-content: center;
     align-items: center;
-    color: var(--white, #FFF);
+    color: var(--white, #fff);
     font-family: Inter, sans-serif;
     font-size: 30px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
     cursor: pointer;
-    margin-top: -190px;
     position: relative;
     z-index: 2;
     transition: background-color 0.3s;
@@ -79,7 +85,7 @@ body {
     align-items: center;
     justify-content: flex-start;
     width: 100%;
-    height: 100%;
+    height: 55%;
 }
 
 .icon {
@@ -97,7 +103,7 @@ body {
 
 .custom-circle-icon {
     border-radius: 20%;
-    background-color: #86CBE9;
+    background-color: #86cbe9;
     width: 60px;
     height: 60px;
     z-index: 1;
@@ -109,13 +115,13 @@ body {
 }
 
 .subtitle {
-    color: #123C6E;
+    color: #123c6e;
     font-family: Inter, sans-serif;
     font-size: 24px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
-    margin-top: 15vh;
+    margin-top: 10px;
     align-self: flex-start;
 }
 
@@ -124,8 +130,8 @@ body {
     max-width: 800px;
     height: 68px;
     flex-shrink: 0;
-    border: 1px solid var(--primary-blue, #4BA3C3);
-    background: #FFF;
+    border: 1px solid var(--primary-blue, #4ba3c3);
+    background: #fff;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -152,7 +158,7 @@ body {
 }
 
 .network-name {
-    color: var(--dark-blue, #123C6E);
+    color: var(--dark-blue, #123c6e);
     font-size: 20px;
     font-style: normal;
     font-weight: 600;
@@ -160,12 +166,12 @@ body {
 }
 
 .network-type {
-    color: var(--primary-blue, #4BA3C3);
+    color: var(--primary-blue, #4ba3c3);
 }
 
 .arrow-button {
-    background-color: var(--primary-blue, #4BA3C3);
-    color: var(--white, #FFF);
+    background-color: var(--primary-blue, #4ba3c3);
+    color: var(--white, #fff);
     width: 32px;
     height: 32px;
     display: flex;
