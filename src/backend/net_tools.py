@@ -193,6 +193,11 @@ class Net_tools:
 
         ip = args[0]
         gateway = args[1]
+
+        # Remove loops on gateway
+        if ip == gateway:
+            return []
+
         # This one seems to have issues, but doesnt give mac res errors
 
         # Emits UDP packets with incrementing ttl until the target is reached
@@ -268,9 +273,12 @@ class Net_tools:
                 parent = addr
 
             # Updates the devices parent node
-            device.parent = returns[job_counter][-1]
-            self.db.save_device(self.gateway_mac, device)
+            if len(returns[job_counter]) > 0:
+                device.parent = returns[job_counter][-1]
+            else:
+                device.parent = "unknown"
                 
+            self.db.save_device(self.gateway_mac, device)
             job_counter += 1
         
         self.lb.reset()
