@@ -3,7 +3,7 @@ from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
 from device import Device
-import nmap, socket, netifaces, threading, sys, signal
+import nmap, pywifi, socket, netifaces, threading, sys, signal,  time
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
@@ -65,6 +65,38 @@ class Net_tools:
         self.threadpool.end()
         print("Finished cleaning up! Server will now shut down.")
         sys.exit()
+
+
+    # ---------------------------------------------- NETWORK SSID -------------------------------------------- #
+
+    # Gets the SSID of the currently connected network
+    def get_network_ssid(self):
+
+        wifi = pywifi.PyWiFi()
+        ifaces = wifi.interfaces()
+
+        if len(ifaces) < 1:
+            return "Disconnected."
+
+        iface = ifaces[0]
+        # Exponential dropoff
+        results = []
+        for exp in range(6):
+            # Start scan and wait for results
+            iface.scan()
+            time.sleep(0.1 * pow(2, exp))
+            results = iface.scan_results()
+
+            if len(results) > 0:
+                break
+
+        if len(results) < 1:
+            return "Scan failed, try again."
+
+        # TODO fix
+        print(f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}")#results[0].ssid
+        return results[0].ssid
+
 
 
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
@@ -478,8 +510,11 @@ class Net_tools:
             ip = pkt[IP].src
             mac = Net_tools.arp_helper(ip)[1]
 
+            if mac == None:
+                return
+
             # Add device to database if it doesnt exist
-            if mac and not self.db.contains_mac(self.gateway_mac, mac):
+            if not self.db.contains_mac(self.gateway_mac, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
                 device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-2]
@@ -492,6 +527,10 @@ class Net_tools:
                     
                     # Update existing device and save to database if it already exists
                     device = self.db.get_device(self.gateway_mac, mac)
+                    if device == None:
+                        print("[DEBUG] err in wlan sniff")
+                        return
+
                     device.hostname = name
                     self.db.save_device(self.gateway_mac, device)
 
