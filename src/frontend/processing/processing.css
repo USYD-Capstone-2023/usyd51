@@ -13,6 +13,16 @@ header {
     margin-left: 30px;
 }
 
+body,
+html {
+    height: 100%;
+    overflow-x: hidden;
+}
+
+#create-network {
+    margin-left: 20px;
+}
+
 .current-network-box {
     display: flex; /* Use flexbox to create a horizontal layout */
     align-items: center; /* Align items vertically in the middle */
@@ -38,7 +48,7 @@ body {
 
 .rectangle-box {
     width: 100%;
-    height: 250px;
+    height: 30vh;
     flex-shrink: 0;
     background-color: var(--pale-blue, #eafcff);
     border-top: 2px solid var(--primary-blue, #4ba3c3);
@@ -46,6 +56,9 @@ body {
     position: relative;
     z-index: 1;
     padding-left: 5%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .button {
@@ -65,7 +78,7 @@ body {
     font-weight: 700;
     line-height: normal;
     cursor: pointer;
-    margin-top: -180px; /* Adjust this value to fine-tune the positioning */
+    margin-top: 0px; /* Adjust this value to fine-tune the positioning */
     position: relative;
     z-index: 2;
 }
@@ -89,22 +102,24 @@ body {
 
 .custom-loading-icon {
     display: inline-block;
-    width: 96px; /* Adjust the width and height for the desired icon size */
-    height: 96px;
+    width: 50px; /* Adjust the width and height for the desired icon size */
+    /* height: 96px; Applied automatically */
     border-radius: 50%;
     background-color: var(--primary-blue, #4ba3c3);
     text-align: center;
     line-height: 96px;
     color: white;
     font-size: 48px; /* Set the icon size inside the custom icon */
+    margin-left: 10px;
 }
 
 .settings-container {
     width: 80%;
     background-color: #c5cfd3;
     position: relative;
-    margin-top: 80px;
-    height: 60vh;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    height: 100%;
 }
 
 .not-ready,
@@ -120,20 +135,27 @@ body {
     align-items: center;
     justify-content: center;
     margin: 30px;
-    border-radius: 5%;
+    border-radius: 5px;
 }
 
 .ready {
     background-color: rgb(9, 153, 69);
 }
 
-#loading-bar {
+#bar-info-container {
+    width: 100%;
     margin: auto;
+    border-radius: 5px;
+    background-color: rgb(68, 111, 148);
+}
+#loading-bar {
+    margin: 10px 10% 10px;
     width: 80%;
 }
 
 #bar-info {
     width: 0%;
     height: 40px;
-    background-color: grey;
+    background-color: rgb(178, 255, 162);
+    border-radius: 5px 0px 0px 5px;
 }
