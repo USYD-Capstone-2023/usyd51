@@ -196,12 +196,13 @@ class Net_tools:
         # This one seems to have issues, but doesnt give mac res errors
 
         # Emits UDP packets with incrementing ttl until the target is reached
-        answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
+        # answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
+        answers = traceroute(ip, maxttl=10, iface=conf.iface, verbose=False)[0]
         addrs = [gateway]
                 
         for response_idx in range(1, len(answers)):
             # Dont register if the packet hit the same router again
-            if answers.res[0][1].src == addrs[-1]:
+            if answers.res[0][1].src == addrs[-1] or answers.res[0][1].src == ip:
                 break
 
             addrs.append(answers.res[0][1].src)
@@ -267,9 +268,8 @@ class Net_tools:
                 parent = addr
 
             # Updates the devices parent node
-            if len(returns[job_counter]) >= 2:
-                device.parent = returns[job_counter][-2]
-                self.db.save_device(self.gateway_mac, device)
+            device.parent = returns[job_counter][-1]
+            self.db.save_device(self.gateway_mac, device)
                 
             job_counter += 1
         

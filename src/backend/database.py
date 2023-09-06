@@ -196,8 +196,11 @@ class PostgreSQLDatabase:
                WHERE gateway_mac='%s' AND mac='%s';
             """ % (gateway_mac, mac)
         
-        response = self.query(q, res=True)[0]
-        
+        response = self.query(q, res=True)
+
+        if len(query) == 0:
+            return None
+            
         # Creates Device object from response
         new_device = Device(response[0], response[1])
         new_device.mac_vendor = response[2]
