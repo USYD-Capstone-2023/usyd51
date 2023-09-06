@@ -82,10 +82,10 @@ def get_network_names():
 
     return db.get_network_names()
 
-@app.get("/network_ssid")
-def get_network_ssid():
+@app.get("/ssid")
+def get_ssid():
 
-    return nt.get_network_ssid()
+    return nt.get_ssid()
 
 
 # Returns the progress and data of the current loading bar.

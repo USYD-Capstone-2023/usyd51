@@ -210,8 +210,11 @@ class PostgreSQLDatabase:
         
         response = self.query(q, res=True)
 
-        if len(response) < 8:
+        if len(response) == 0 or len(response[0]) < 8:
+            print(response)
             return None
+
+        response = response[0]
             
         # Creates Device object from response
         new_device = Device(response[0], response[1])
