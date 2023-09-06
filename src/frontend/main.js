@@ -97,7 +97,7 @@ function createWindow() {
     Menu.setApplicationMenu(menu);
 
     win.loadFile("home/home.html");
-    // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
+    win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
 }
 
 function loadHome(event) {
