@@ -27,7 +27,7 @@ function loadNetworkFromData(event, data) {
 function getNewMap(event, data) {
     // Load new network map from map_network
     let incoming_data = undefined;
-    http.get("http://127.0.0.1:5000/map_network", (resp) => {
+    http.get("http://127.0.0.1:5000/map_network/test", (resp) => {
         let data = "";
 
         resp.on("data", (chunk) => {
@@ -101,7 +101,7 @@ function loadNetwork(event, data) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
-    http.get("http://127.0.0.1:5000/get_network/" + data, (resp) => {
+    http.get("http://127.0.0.1:5000/network/" + data, (resp) => {
         let data = "";
         resp.on("data", (chunk) => {
             data += chunk;

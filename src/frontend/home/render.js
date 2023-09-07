@@ -139,6 +139,10 @@ window.electronAPI.networkList((_event, data) => {
         wrappers[0].parentNode.removeChild(wrappers[0]);
     }
     for (let network of Object.keys(data)) {
-        createNetworkBox(network, data[network]["name"], data[network]["ssid"]);
+        createNetworkBox(
+            data[network]["name"],
+            data[network]["name"],
+            data[network]["ssid"]
+        );
     }
 });
