@@ -13,7 +13,8 @@
 ### Future features
 - Settings "page" discussion
 	- James, Aryan, Leo
-
+- Scalable fonts?
+	- Leo, Aryan, Julian
 
 ### Other
 - last minute presentation discussion
