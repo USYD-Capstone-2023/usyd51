@@ -120,8 +120,21 @@ function loadNetwork(event, data) {
 function sendNetworks(event, data) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
-    let networkData = JSON.parse(fs.readFileSync("../cache/index.json")); // Load file data from index.json
-    win.webContents.send("network-list", networkData);
+    // let networkData = JSON.parse(fs.readFileSync("../cache/index.json")); // Load file data from index.json
+
+    http.get("http://127.0.0.1:5000/network_names", (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            response = JSON.parse(data);
+            win.webContents.send("network-list", response);
+        });
+    });
+
+    // win.webContents.send("network-list", networkData);
 }
 
 app.whenReady().then(() => {
