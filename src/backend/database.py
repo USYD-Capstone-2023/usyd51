@@ -95,15 +95,17 @@ class PostgreSQLDatabase:
 
     
     # Adds a network to the database if it doesnt already exist.
-    def register_network(self, gateway_mac, network_name):
+    def register_network(self, gateway_mac, ssid, name):
+
+        print(f"{name} {ssid} {gateway_mac}")
 
         if not self.contains_network(gateway_mac):
 
             print("[INFO] Registering new network...")
 
-            q = """INSERT INTO networks (gateway_mac, name)
-                VALUES ('%s', '%s');
-                """ % (gateway_mac, network_name)
+            q = """INSERT INTO networks (gateway_mac, ssid, name)
+                VALUES ('%s', '%s', '%s');
+                """ % (gateway_mac, ssid, name)
             
             self.query(q)
 
@@ -144,9 +146,38 @@ class PostgreSQLDatabase:
                FROM networks
             """
 
-        response = self.query(q)
+        response = self.query(q, res=True)
 
-        return response
+        return [{"mac" : x[0], "name" : x[1], "ssid" : x[2]} for x in response]
+    
+    
+    def get_network(self, network_name):
+
+        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+               FROM devices JOIN networks ON  devices.gateway_mac = networks.gateway_mac
+               WHERE networks.name = '%s';
+            """ % (network_name)
+        
+        responses = self.query(q, res=True)
+
+       # { mac : Device }
+        devices = {}
+
+        # Converts all responses into Device objects
+        for response in responses:
+            
+            new_device = Device(response[0], response[1])
+            new_device.mac_vendor = response[2]
+            new_device.hostname = response[3]
+            new_device.os_type = response[4]
+            new_device.os_vendor = response[5]
+            new_device.os_family = response[6]
+            new_device.parent = response[7]
+
+            devices[response[0]] = new_device
+
+        return devices
+
 
 
     # Adds a device into the database
@@ -269,7 +300,8 @@ class PostgreSQLDatabase:
         
         query_networks = """CREATE TABLE IF NOT EXISTS networks
                         (gateway_mac TEXT PRIMARY KEY NOT NULL,
-                        name TEXT);
+                        name TEXT,
+                        ssid TEXT);
                         """
         
         query_devices = """CREATE TABLE IF NOT EXISTS devices

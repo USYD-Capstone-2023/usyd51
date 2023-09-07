@@ -43,12 +43,16 @@ def get_current_devices():
 
 # Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
 # Serves the main mapping data for the program
-@app.get("/map_network")
-def map_network():
+@app.get("/map_network/<name>")
+def map_network(name):
 
-    # Checks network is registered in database
-    if not db.contains_network(nt.gateway_mac):
-        db.register_network(nt.gateway_mac, nt.domain)
+    ssid = nt.get_ssid()
+    
+    # Deleted network if it already exists
+    if db.contains_network(nt.gateway_mac):
+        db.delete_network(nt.gateway_mac)
+
+    db.register_network(nt.gateway_mac, ssid, name)
 
     # Adds all active devices on the network to the database
     nt.get_devices()
@@ -67,7 +71,7 @@ def map_network():
 def os_scan():
 
     nt.add_os_info()
-    return current_devices()
+    return get_current_devices()
 
 
 # Serves the information of the dhcp server
@@ -81,6 +85,17 @@ def get_dhcp_server_info():
 def get_network_names():
 
     return db.get_network_names()
+
+
+@app.get("/network/<network_name>")
+def get_network(network_name):
+
+    ret = {}
+    for x in db.get_network(network_name).values():
+        ret[x.mac] = x.to_json()
+
+    return ret
+
 
 @app.get("/ssid")
 def get_ssid():

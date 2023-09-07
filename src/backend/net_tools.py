@@ -49,28 +49,8 @@ class Net_tools:
         self.domain = self.dhcp_server_info["domain"]
         self.iface = self.dhcp_server_info["iface"]
         self.gateway_mac = Net_tools.arp_helper(self.gateway)[1]
+        self.name = None
 
-        # Creates a new table in the database for the current network if it doesnt already exist
-        db.register_network(self.gateway_mac, self.domain)
-
-        self.client_mac = Ether().src
-
-        # Creates a device object for the client device if one doesnt already exist
-        if not db.contains_mac(self.gateway_mac, self.client_mac):
-            client_device = Device(get_if_addr(conf.iface), self.client_mac)
-            client_device.hostname = socket.gethostname()
-            client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
-            db.add_device(self.gateway_mac, client_device)
-
-        # Creates device object to represent the gateway if one doesnt exist already
-        if not db.contains_mac(self.gateway_mac, self.gateway_mac):
-            gateway_device = Device(self.gateway, self.gateway_mac)
-            gateway_device.hostname = self.domain
-            db.add_device(self.gateway_mac, gateway_device)
-
-        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
-        DNS_sniffer.daemon = True
-        DNS_sniffer.start()
 
     # Signal handler to gracefully end the threadpool on shutdown
     def cleanup(
@@ -80,6 +60,34 @@ class Net_tools:
         self.threadpool.end()
         print("Finished cleaning up! Server will now shut down.")
         sys.exit()
+
+
+    # --------------------------------------------- ON START -------------------------------------- #
+
+    def new_network(self, name):
+
+        self.name = name
+            # Creates a new table in the database for the current network if it doesnt already exist
+        self.db.register_network(self.gateway_mac, self.domain, self.name)
+
+        self.client_mac = Ether().src
+
+        # Creates a device object for the client device if one doesnt already exist
+        if not self.db.contains_mac(self.gateway_mac, self.client_mac):
+            client_device = Device(get_if_addr(conf.iface), self.client_mac)
+            client_device.hostname = socket.gethostname()
+            client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
+            self.db.add_device(self.gateway_mac, client_device)
+
+        # Creates device object to represent the gateway if one doesnt exist already
+        if not self.db.contains_mac(self.gateway_mac, self.gateway_mac):
+            gateway_device = Device(self.gateway, self.gateway_mac)
+            gateway_device.hostname = self.domain
+            self.db.add_device(self.gateway_mac, gateway_device)
+
+        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
+        DNS_sniffer.daemon = True
+        DNS_sniffer.start()
 
 
     # --------------------------------------------- SSID ------------------------------------------ #
