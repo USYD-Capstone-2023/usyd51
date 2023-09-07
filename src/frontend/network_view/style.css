@@ -3,6 +3,7 @@
     --pale-blue: #eafcff;
     --white: #fff;
     --dark-blue: #123c6e;
+    --accent-blue: #86CBE9;
 }
 
 html {
@@ -21,6 +22,47 @@ header {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.pill-container {
+    position: fixed;
+    display: flex;
+    top: 3.5rem;
+    left: 50%;
+    width: 14rem;
+    height: 2rem;
+    margin-left: -7rem;
+    justify-content: center;
+}
+
+.pill-element {
+    flex: 1;
+    font-family: Inter, sans-serif;
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--dark-blue);
+    text-align: center;
+    vertical-align: auto;
+    line-height: 1.8rem;
+}
+
+.pill-left {
+    border-radius: 4px 0 0 4px;
+}
+
+.pill-right {
+    border-radius: 0 4px 4px 0;
+}
+
+.pill-unselected {
+    background-color: var(--pale-blue);
+    border: 0.1rem solid var(--primary-blue);
+}
+
+.pill-selected, .pill-unselected:hover {
+    background-color: var(--accent-blue);
+    border: 0.1rem solid var(--dark-blue);
+    cursor: pointer;
 }
 
 .network-name {
