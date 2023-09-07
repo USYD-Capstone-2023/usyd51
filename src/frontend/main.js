@@ -88,7 +88,7 @@ function createWindow() {
     Menu.setApplicationMenu(menu);
 
     win.loadFile("home/home.html");
-    win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
+    // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
 }
 
 function loadHome(event) {
@@ -118,10 +118,9 @@ function loadNetwork(event, data) {
     // Wait until dom has loaded to send data
 }
 
-function sendNetworks(event, data) {
+function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
-    // let networkData = JSON.parse(fs.readFileSync("../cache/index.json")); // Load file data from index.json
 
     http.get("http://127.0.0.1:5000/network_names", (resp) => {
         let data = "";
@@ -136,6 +135,24 @@ function sendNetworks(event, data) {
     });
 
     // win.webContents.send("network-list", networkData);
+}
+
+function requestRemoveNetwork(event, data) {
+    let url = "http://127.0.0.1:5000/delete_network/" + data;
+    console.log("test");
+    let response = undefined;
+    http.get(url, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            response = JSON.parse(data);
+            win.webContents.send("", response);
+            sendNetworks(event);
+        });
+    });
 }
 
 app.whenReady().then(() => {
@@ -156,6 +173,9 @@ app.whenReady().then(() => {
 
     // Requests a new network map
     ipcMain.on("get-new-network", getNewMap);
+
+    // Request a network be deleted
+    ipcMain.on("request-network-delete", requestRemoveNetwork);
 
     createWindow();
 

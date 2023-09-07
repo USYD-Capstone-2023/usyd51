@@ -36,4 +36,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     // Request a new network
     getNewNetwork: () => ipcRenderer.send("get-new-network"),
+
+    requestRemoveNetwork: (data) =>
+        ipcRenderer.send("request-network-delete", data),
 });

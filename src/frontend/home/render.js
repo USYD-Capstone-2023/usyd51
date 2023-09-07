@@ -100,6 +100,10 @@ function createNetworkBox(filename, name, ssid) {
         window.electronAPI.loadNetwork(filename);
     };
 
+    removeButton.onclick = () => {
+        window.electronAPI.requestRemoveNetwork(name);
+    };
+
     networkBox.appendChild(arrowButton);
 
     document.querySelector(".network-container").appendChild(networkBoxWrapper);
@@ -130,6 +134,9 @@ function editModeToggle() {
 }
 
 window.electronAPI.networkList((_event, data) => {
+    for (let box of document.getElementsByClassName("network-box-wrapper")) {
+        box.remove();
+    }
     for (let network of Object.keys(data)) {
         createNetworkBox(network, data[network]["name"], data[network]["ssid"]);
     }
