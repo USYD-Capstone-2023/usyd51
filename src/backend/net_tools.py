@@ -1,3 +1,4 @@
+# External
 from scapy.all import (
     traceroute,
     conf,
@@ -11,19 +12,21 @@ from scapy.all import (
     sniff,
     RandShort,
 )
+
+# Local
 from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
 from device import Device
 from platform import system
-import nmap, socket, netifaces, threading, sys, signal
+import nmap, socket, netifaces, threading, sys, signal, pywifi, time
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
 
-
 class Net_tools:
     def __init__(self, db, lb):
+
         if NUM_THREADS < 1:
             print("[ERR ] Thread count cannot be less than 1. Exitting...")
             sys.exit(-1)
@@ -78,10 +81,61 @@ class Net_tools:
         print("Finished cleaning up! Server will now shut down.")
         sys.exit()
 
+
+    # --------------------------------------------- SSID ------------------------------------------ #
+
+    def get_ssid(self):
+
+        current_system = system()
+        # MacOS - Get by running the airport program.
+        if current_system == "Darwin":
+            import subprocess
+
+            process = subprocess.Popen(
+                [
+                    "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport",
+                    "-I",
+                ],
+                stdout=subprocess.PIPE,
+            )
+            out, err = process.communicate()
+            process.wait()
+            for line in out.decode("utf8").split("\n"):
+                if " SSID" in line:
+                    return line.split(": ")[1]
+        
+
+        wifi = pywifi.PyWiFi()
+        ifaces = wifi.interfaces()
+
+        if len(ifaces) < 1:
+            return "Disconnected"
+
+        iface = ifaces[0]
+        # Exponential dropoff
+        results = []
+        for exp in range(6):
+            # Start scan and wait for results
+            iface.scan()
+            time.sleep(0.1 * pow(2, exp))
+            results = iface.scan_results()
+
+            if len(results) > 0:
+                break
+
+        if results:
+            # TODO fix
+            print(f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}")
+            return results[0].ssid
+
+        return "Disconnected"
+
+
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
     # Updates the mac vendor field of all devices in the current network's table of the database
     def add_mac_vendors(self):
+
         # Retrieves all devices from database
         devices = self.db.get_all_devices(self.gateway_mac)
 
@@ -102,6 +156,7 @@ class Net_tools:
 
     # Sends an ARP ping to the given ip address to check it is alive and retrieve its MAC
     def arp_helper(ip):
+
         # Creating ARP packet
         arp_frame = ARP(pdst=ip)
         ethernet_frame = Ether(dst="FF:FF:FF:FF:FF:FF")
@@ -120,8 +175,10 @@ class Net_tools:
 
         return found_ip, found_mac
 
+
     # Gets all active active devices on the network
     def get_devices(self):
+
         print("[INFO] Getting all active devices on network.")
 
         # Breaks subnet and gateway ip into bytes
@@ -206,6 +263,7 @@ class Net_tools:
 
     # Thread worker to get path to provided ip address
     def traceroute_helper(args):
+
         ip = args[0]
         gateway = args[1]
 
@@ -231,6 +289,7 @@ class Net_tools:
 
     # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
     def add_routes(self):
+
         print("[INFO] Tracing Routes...")
 
         # Retrieve network devices from database
@@ -308,6 +367,7 @@ class Net_tools:
 
     # Thread worker to get os info from the provided ip address
     def os_helper(ip):
+
         nm = nmap.PortScanner()
         # Performs scan
         data = nm.scan(ip, arguments="-O")
@@ -329,6 +389,7 @@ class Net_tools:
         return os_info
 
     def add_os_info(self):
+
         print("[INFO] Getting OS info...")
 
         if not self.db.contains_network(self.gateway_mac):
@@ -394,6 +455,7 @@ class Net_tools:
 
     # Thread worker for reverse DNS lookup
     def hostname_helper(addr):
+
         try:
             return socket.gethostbyaddr(addr)[0]
         except:
@@ -401,6 +463,7 @@ class Net_tools:
 
     # Retrieves the hostnames of all devices on the network and saves them to the database
     def add_hostnames(self):
+
         # Retrieve network devices from database
         devices = self.db.get_all_devices(self.gateway_mac)
 
@@ -471,6 +534,7 @@ class Net_tools:
 
     # Gets the gateway, interface, subnet mask and domain name of the current network
     def get_dhcp_server_info():
+
         print("[INFO] Retrieveing DHCP server info...")
 
         gws = netifaces.gateways()
@@ -502,6 +566,7 @@ class Net_tools:
 
     # Packet sniffing daemon to get hostnames
     def wlan_sniffer_callback(self, pkt):
+
         # Sniffs mDNS responses for new hostnames and devices
         if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
             # Can only be saved to database if the network is registered
@@ -511,8 +576,11 @@ class Net_tools:
             ip = pkt[IP].src
             mac = Net_tools.arp_helper(ip)[1]
 
+            if mac == None:
+                return
+
             # Add device to database if it doesnt exist
-            if mac and not self.db.contains_mac(self.gateway_mac, mac):
+            if not self.db.contains_mac(self.gateway_mac, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
                 device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-2]
@@ -524,42 +592,17 @@ class Net_tools:
                 if name.split(".")[-2] != "arpa" and name[0] != "_":
                     # Update existing device and save to database if it already exists
                     device = self.db.get_device(self.gateway_mac, mac)
+                    if device == None:
+                        print("[DEBUG] err in wlan sniff")
+                        return
+
                     device.hostname = name
                     self.db.save_device(self.gateway_mac, device)
 
     def run_wlan_sniffer(self, iface):
         sniff(prn=self.wlan_sniffer_callback, iface=iface)
 
-    # ---------------------------------------- SSID ----------------------------------------
 
-    def get_ssid(self):
-        current_system = system()
-        # MacOS - Get by running the airport program.
-        if current_system == "Darwin":
-            import subprocess
-
-            process = subprocess.Popen(
-                [
-                    "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport",
-                    "-I",
-                ],
-                stdout=subprocess.PIPE,
-            )
-            out, err = process.communicate()
-            process.wait()
-            for line in out.decode("utf8").split("\n"):
-                if " SSID" in line:
-                    return line.split(": ")[1]
-
-        import pywifi
-
-        wifi = pywifi.PyWifi()
-        interface = wifi.interfaces()[0]
-        interface.scan()
-        results = interface.scan_results()
-        if results:
-            return results[0].ssid
-        return None
 
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
     # ---------------------------------------- WIP -----------------------------------------

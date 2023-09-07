@@ -92,6 +92,7 @@ class PostgreSQLDatabase:
                 conn.close()
 
         return response
+
     
     # Adds a network to the database if it doesnt already exist.
     def register_network(self, gateway_mac, network_name):
@@ -128,13 +129,24 @@ class PostgreSQLDatabase:
     def contains_network(self, gateway_mac):
 
         q = """SELECT 1
-        FROM networks
-        WHERE gateway_mac = '%s';
-        """ % (gateway_mac)
+               FROM networks
+               WHERE gateway_mac = '%s';
+            """ % (gateway_mac)
         
         response = self.query(q, res=True)
 
         return response != None and len(response) > 0
+
+    
+    def get_network_names(self):
+
+        q = """SELECT *
+               FROM networks
+            """
+
+        response = self.query(q)
+
+        return response
 
 
     # Adds a device into the database
@@ -198,8 +210,11 @@ class PostgreSQLDatabase:
         
         response = self.query(q, res=True)
 
-        if len(query) == 0:
+        if len(response) == 0 or len(response[0]) < 8:
+            print(response)
             return None
+
+        response = response[0]
             
         # Creates Device object from response
         new_device = Device(response[0], response[1])
