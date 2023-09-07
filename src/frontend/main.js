@@ -13,6 +13,21 @@ app.on("ready", () => {
     });
 });
 
+function removeNetwork(event, data) {
+    http.get("http://127.0.0.1:5000/remove_network/data", (resp) => {
+        let data = "";
+
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            // Check if valid, otherwise send error.
+            return;
+        });
+    });
+}
+
 function loadNetworkFromData(event, data) {
     console.log("Loading network tab from load network from data");
     const webContents = event.sender;
@@ -142,6 +157,9 @@ app.whenReady().then(() => {
 
     // Requests a new network map
     ipcMain.on("get-new-network", getNewMap);
+
+    // Send remove network request
+    ipcMain.on("remove-network", removeNetwork);
 
     createWindow();
 

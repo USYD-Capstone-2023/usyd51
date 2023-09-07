@@ -138,6 +138,10 @@ body {
 .network-container {
     width: 60%;
     max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .subtitle {
@@ -152,7 +156,7 @@ body {
 }
 
 .network-box {
-    width: 100%;
+    width: calc(100% - 10px);
     max-width: 800px;
     height: 68px;
     flex-shrink: 0;

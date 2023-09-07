@@ -100,6 +100,11 @@ function createNetworkBox(filename, name, ssid) {
         window.electronAPI.loadNetwork(filename);
     };
 
+    removeButton.onclick = () => {
+        // We want to request data from the backend and load the corresponding page.
+        window.electronAPI.removeNetwork(filename);
+    };
+
     networkBox.appendChild(arrowButton);
 
     document.querySelector(".network-container").appendChild(networkBoxWrapper);
