@@ -118,7 +118,7 @@ header {
     margin: 1rem;
     width: 20rem;
     height: 16rem;
-    display: flex;
+    display: none;
     flex-direction: column;
     align-items: stretch;
 }

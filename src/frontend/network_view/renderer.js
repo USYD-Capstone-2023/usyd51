@@ -12,5 +12,4 @@ close_button.onclick = () => {
 
 let settings_button = document.getElementById("settings_symbol");
 settings_button.onclick = () => {
-    info_panel.style.display = "flex";
 };
