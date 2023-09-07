@@ -143,9 +143,9 @@ class PostgreSQLDatabase:
         response = self.query(q, res=True)
         retval = {}
         for item in response:
-            retval[item[1]] = {}
-            retval[item[1]]["ssid"] = item[0]
-            retval[item[1]]["name"] = item[1]
+            retval[item[0]] = {}
+            retval[item[0]]["ssid"] = item[0]
+            retval[item[0]]["name"] = item[1]
 
         return retval
 

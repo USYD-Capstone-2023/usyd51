@@ -140,7 +140,6 @@ function sendNetworks(event) {
 function requestRemoveNetwork(event, data) {
     let url = "http://127.0.0.1:5000/delete_network/" + data;
     console.log("test");
-    let response = undefined;
     http.get(url, (resp) => {
         let data = "";
         resp.on("data", (chunk) => {
@@ -148,8 +147,6 @@ function requestRemoveNetwork(event, data) {
         });
 
         resp.on("end", () => {
-            response = JSON.parse(data);
-            win.webContents.send("", response);
             sendNetworks(event);
         });
     });

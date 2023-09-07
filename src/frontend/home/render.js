@@ -134,8 +134,9 @@ function editModeToggle() {
 }
 
 window.electronAPI.networkList((_event, data) => {
-    for (let box of document.getElementsByClassName("network-box-wrapper")) {
-        box.remove();
+    let wrappers = document.getElementsByClassName("network-box-wrapper");
+    while (wrappers.length != 0) {
+        wrappers[0].parentNode.removeChild(wrappers[0]);
     }
     for (let network of Object.keys(data)) {
         createNetworkBox(network, data[network]["name"], data[network]["ssid"]);
