@@ -79,15 +79,6 @@ function createWindow() {
             label: app.name,
             submenu: [
                 {
-                    click: () => {
-                        let data = JSON.parse(
-                            fs.readFileSync("../backend/clients.json")
-                        );
-                        win.webContents.send("update-data", data);
-                    },
-                    label: "Update data",
-                },
-                {
                     click: () => win.webContents.openDevTools(),
                     label: "Developer Tools",
                 },
@@ -110,18 +101,55 @@ function loadNetwork(event, data) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
-    let networkData = JSON.parse(fs.readFileSync("../cache/" + data));
+    http.get("http://127.0.0.1:5000/get_network/" + data, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            response = JSON.parse(data);
+            win.webContents.send("network-list", response);
+            win.webContents.once("dom-ready", () =>
+                win.webContents.send("update-data", response)
+            );
+        });
+    });
     // Wait until dom has loaded to send data
-    win.webContents.once("dom-ready", () =>
-        win.webContents.send("update-data", networkData)
-    );
 }
 
-function sendNetworks(event, data) {
+function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
-    let networkData = JSON.parse(fs.readFileSync("../cache/index.json")); // Load file data from index.json
-    win.webContents.send("network-list", networkData);
+
+    http.get("http://127.0.0.1:5000/network_names", (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            response = JSON.parse(data);
+            win.webContents.send("network-list", response);
+        });
+    });
+
+    // win.webContents.send("network-list", networkData);
+}
+
+function requestRemoveNetwork(event, data) {
+    let url = "http://127.0.0.1:5000/delete_network/" + data;
+    console.log("test");
+    http.get(url, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            sendNetworks(event);
+        });
+    });
 }
 
 app.whenReady().then(() => {
@@ -142,6 +170,9 @@ app.whenReady().then(() => {
 
     // Requests a new network map
     ipcMain.on("get-new-network", getNewMap);
+
+    // Request a network be deleted
+    ipcMain.on("request-network-delete", requestRemoveNetwork);
 
     createWindow();
 

@@ -89,6 +89,15 @@ class Net_tools:
         DNS_sniffer.daemon = True
         DNS_sniffer.start()
 
+    # Signal handler to gracefully end the threadpool on shutdown
+    def cleanup(
+        self,
+        *args,
+    ):
+        self.threadpool.end()
+        print("Finished cleaning up! Server will now shut down.")
+        sys.exit()
+
     # --------------------------------------------- SSID ------------------------------------------ #
 
     def get_ssid(self):
