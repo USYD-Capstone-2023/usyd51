@@ -77,6 +77,7 @@ function createNetworkBox(filename, name, ssid){
     arrowButton.innerHTML = '<i class="fa fa-arrow-right"></i>';
     arrowButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
+        localStorage.setItem("network_reference", filename);
         window.electronAPI.loadNetwork(filename);
     }
             

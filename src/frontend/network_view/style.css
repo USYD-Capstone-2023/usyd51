@@ -42,7 +42,6 @@ header {
     font-weight: bold;
     color: var(--dark-blue);
     text-align: center;
-    vertical-align: auto;
     line-height: 1.8rem;
 }
 
