@@ -13,3 +13,21 @@ close_button.onclick = () => {
 let settings_button = document.getElementById("settings_symbol");
 settings_button.onclick = () => {
 };
+
+let map_button = document.getElementById("map_button");
+let list_button = document.getElementById("list_button");
+let history_button = document.getElementById("history_button");
+
+map_button.onclick = () => {
+    map_button.className = "pill-selected pill-left pill-element";
+    list_button.className = "pill-unselected pill-element";
+    history_button.className = "pill-unselected pill-right pill-element";
+    document.getElementById("cy").style.display = 'block';
+};
+
+list_button.onclick = () => {
+    map_button.className = "pill-unselected pill-left pill-element";
+    list_button.className = "pill-selected pill-element";
+    history_button.className = "pill-unselected pill-right pill-element";
+    document.getElementById("cy").style.display = 'none';
+};
