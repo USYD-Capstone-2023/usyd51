@@ -2,9 +2,10 @@
 
 ## Map Network ##
 
-Gets all information required to map the network, including device IP addresses, MAC addresses, each device's parent node, MAC vendor, hostname.
+Gets all information required to map the network, including device IP addresses, MAC addresses, each device's parent node, MAC vendor, hostname. 
+Registers data in the database under the specified network name.
 
-Usage: ```/map_network```
+Usage: ```/map_network/<network_name>```
 
 Return format:
 ```python
@@ -19,16 +20,16 @@ Return format:
         "os_type" : os_type,
         "os_vendor" : os_vendor,
         "parent" : parent_nodes_ip
-    }
+    }, ...
 }
 ```
 All values default to "unknown" if they haven't been found.
 
 ## Get Network No Update ##
 
-Returns all network information requirred to map the network from the database, does not run new scans but can contain new information from passive scanning.
+Returns all network information required to map the network from the database, does not run new scans but can contain new information from passive scanning.
 
-Usage: ```/get_network_no_update```
+Usage: ```/network/<network_name>```
 
 Return format:
 ```python
@@ -43,7 +44,7 @@ Return format:
         "os_type" : os_type,
         "os_vendor" : os_vendor,
         "parent" : parent_nodes_ip
-    }
+    }, ...
 
 }
 
@@ -59,29 +60,16 @@ or
 Uses TCP fingerprinting to determine the most likely operating system for each device on the network.
 Data is saved to database, then all device info is returned.
 
-Usage: ```/os_info```
+Usage: ```/os_info/<network_name>```
 
 Return format:
 ```python
-{
-    device_mac : {
-
-        "hostname" : device_hostname,
-        "ip" : device_ip,
-        "mac" : device_mac_address,
-        "mac_vendor" : device_mac_vendor,
-        "os_family" : os_family,
-        "os_type" : os_type,
-        "os_vendor" : os_vendor,
-        "parent" : parent_nodes_ip
-    }
-
-}
+    "scan complete."
 ```
 
 ## DHCP Server Info ##
 
-Returns the information of the DHCP server.
+Returns the information of the DHCP server for the current connection.
 
 Usage: ```/dhcp_info```
 
@@ -97,7 +85,7 @@ Return format:
 
 ## Request Progress ##
 
-Gets the current progress information of the backend loading bar, used to synchronise with a frontend loading bar.
+Gets the current progress information of the backend loading bar, used to synchronise with a frontend loading bar. CURRENTLY ONLY WORKS IF ONE REQUEST IS ISSUED AT A TIME!
 
 Usage: ```/request_progress```
 
@@ -115,11 +103,22 @@ Return format:
 
 Deletes a network from the database based on the network's gateway's MAC address
 
-Usage: ```/delete_network/<gateway_mac>```
+Usage: ```/delete_network/<network_name>```
 
 Return format:
 ```python
     "Successfully deleted network"
     or
     "Could not find entered network..."
+```
+
+## SSID ##
+
+Gets the SSID of the current network.
+
+Usage: ```/ssid```
+
+Return format:
+```python
+    <ssid>
 ```

@@ -19,10 +19,14 @@ from job import Job
 from MAC_table import MAC_table
 from device import Device
 from platform import system
-import nmap, socket, netifaces, threading, sys, signal, pywifi, time
+import nmap, socket, netifaces, threading, sys, signal, time
+
+if system() != "Darwin":
+    import pywifi
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
+
 
 class Net_tools:
     def __init__(self, db, lb):
@@ -49,28 +53,7 @@ class Net_tools:
         self.domain = self.dhcp_server_info["domain"]
         self.iface = self.dhcp_server_info["iface"]
         self.gateway_mac = Net_tools.arp_helper(self.gateway)[1]
-
-        # Creates a new table in the database for the current network if it doesnt already exist
-        db.register_network(self.gateway_mac, self.domain)
-
-        self.client_mac = Ether().src
-
-        # Creates a device object for the client device if one doesnt already exist
-        if not db.contains_mac(self.gateway_mac, self.client_mac):
-            client_device = Device(get_if_addr(conf.iface), self.client_mac)
-            client_device.hostname = socket.gethostname()
-            client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
-            db.add_device(self.gateway_mac, client_device)
-
-        # Creates device object to represent the gateway if one doesnt exist already
-        if not db.contains_mac(self.gateway_mac, self.gateway_mac):
-            gateway_device = Device(self.gateway, self.gateway_mac)
-            gateway_device.hostname = self.domain
-            db.add_device(self.gateway_mac, gateway_device)
-
-        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
-        DNS_sniffer.daemon = True
-        DNS_sniffer.start()
+        self.name = None
 
     # Signal handler to gracefully end the threadpool on shutdown
     def cleanup(
@@ -81,6 +64,48 @@ class Net_tools:
         print("Finished cleaning up! Server will now shut down.")
         sys.exit()
 
+    # --------------------------------------------- ON START -------------------------------------- #
+
+    # Prepares the backend to run scans on the current network
+    def new_network(self, name):
+
+        self.name = name
+
+        # Deleted network if it already exists
+        if self.db.contains_network(self.name):
+            self.db.delete_network(self.name)
+
+        # Creates a new table in the database for the current network if it doesnt already exist
+        self.db.register_network(self.gateway_mac, self.get_ssid(), self.name)
+
+        self.client_mac = Ether().src
+
+        # Creates a device object for the client device if one doesnt already exist
+        if not self.db.contains_mac(self.name, self.client_mac):
+            client_device = Device(get_if_addr(conf.iface), self.client_mac)
+            client_device.hostname = socket.gethostname()
+            client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
+            self.db.add_device(self.name, client_device)
+
+        # Creates device object to represent the gateway if one doesnt exist already
+        if not self.db.contains_mac(self.name, self.gateway_mac):
+            gateway_device = Device(self.gateway, self.gateway_mac)
+            gateway_device.hostname = self.domain
+            self.db.add_device(self.name, gateway_device)
+
+        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
+        DNS_sniffer.daemon = True
+        DNS_sniffer.start()
+
+
+    # Signal handler to gracefully end the threadpool on shutdown
+    def cleanup(
+        self,
+        *args,
+    ):
+        self.threadpool.end()
+        print("Finished cleaning up! Server will now shut down.")
+        sys.exit()
 
     # --------------------------------------------- SSID ------------------------------------------ #
 
@@ -103,7 +128,6 @@ class Net_tools:
             for line in out.decode("utf8").split("\n"):
                 if " SSID" in line:
                     return line.split(": ")[1]
-        
 
         wifi = pywifi.PyWiFi()
         ifaces = wifi.interfaces()
@@ -125,11 +149,12 @@ class Net_tools:
 
         if results:
             # TODO fix
-            print(f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}")
+            # print(
+            #     f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}"
+            # )
             return results[0].ssid
 
         return "Disconnected"
-
 
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
@@ -137,7 +162,7 @@ class Net_tools:
     def add_mac_vendors(self):
 
         # Retrieves all devices from database
-        devices = self.db.get_all_devices(self.gateway_mac)
+        devices = self.db.get_all_devices(self.name)
 
         # Set loading bar
         self.lb.set_params("Resolving MAC Vendors", 40, len(devices.keys()))
@@ -146,7 +171,7 @@ class Net_tools:
         # Adds mac vendor to device and saves to database
         for device in devices.values():
             device.mac_vendor = self.mac_table.find_vendor(device.mac)
-            self.db.save_device(self.gateway_mac, device)
+            self.db.save_device(self.name, device)
             self.lb.increment()
             self.lb.show()
 
@@ -250,12 +275,12 @@ class Net_tools:
         for i in range(num_addrs):
             ip = returns[i][0]
             mac = returns[i][1]
-            if mac and ip and not self.db.contains_mac(self.gateway_mac, mac):
-                self.db.add_device(self.gateway_mac, Device(ip, mac))
+            if mac and ip and not self.db.contains_mac(self.name, mac):
+                self.db.add_device(self.name, Device(ip, mac))
 
         print(
             "\n[INFO] Found %d devices!\n"
-            % (len(self.db.get_all_devices(self.gateway_mac)))
+            % (len(self.db.get_all_devices(self.name)))
         )
         self.lb.reset()
 
@@ -287,13 +312,14 @@ class Net_tools:
 
         return addrs
 
+
     # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
     def add_routes(self):
 
         print("[INFO] Tracing Routes...")
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.gateway_mac)
+        devices = self.db.get_all_devices(self.name)
         device_addrs = set()
 
         # Set loading bar
@@ -347,8 +373,8 @@ class Net_tools:
                     device_addrs.add(addr)
                     new_device = Device(addr, Net_tools.arp_helper(addr)[1])
                     new_device.parent = parent
-                    self.db.add_device(self.gateway_mac, new_device)
-                    devices = self.db.get_all_devices(self.gateway_mac)
+                    self.db.add_device(self.name, new_device)
+                    devices = self.db.get_all_devices(self.name)
 
                 parent = addr
 
@@ -358,7 +384,7 @@ class Net_tools:
             else:
                 device.parent = "unknown"
 
-            self.db.save_device(self.gateway_mac, device)
+            self.db.save_device(self.name, device)
             job_counter += 1
 
         self.lb.reset()
@@ -388,17 +414,18 @@ class Net_tools:
 
         return os_info
 
+
     def add_os_info(self):
 
         print("[INFO] Getting OS info...")
 
-        if not self.db.contains_network(self.gateway_mac):
+        if not self.db.contains_network(self.name):
             return {
                 "error": "Current network is not registered in the database, run /map_network to add this network to the database."
             }
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.gateway_mac)
+        devices = self.db.get_all_devices(self.name)
 
         # Set loading bar
         self.lb.set_params("Scanned", 40, len(devices.keys()))
@@ -461,11 +488,12 @@ class Net_tools:
         except:
             return "unknown"
 
+
     # Retrieves the hostnames of all devices on the network and saves them to the database
     def add_hostnames(self):
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.gateway_mac)
+        devices = self.db.get_all_devices(self.name)
 
         # Set loading bar
         self.lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
@@ -522,7 +550,7 @@ class Net_tools:
         for device in devices.values():
             if device.hostname != "unkown":
                 device.hostname = returns[job_counter]
-                self.db.save_device(self.gateway_mac, device)
+                self.db.save_device(self.name, device)
             job_counter += 1
 
         print("[INFO] Name resolution complete!\n")
@@ -544,8 +572,6 @@ class Net_tools:
         default_iface = "unknown"
         subnet_mask = "255.255.255.0"
         domain = "unknown"
-
-        print(gws)
 
         if "default" in gws.keys() and netifaces.AF_INET in gws["default"].keys():
             default_gateway = netifaces.gateways()["default"][netifaces.AF_INET][0]
@@ -570,7 +596,7 @@ class Net_tools:
         # Sniffs mDNS responses for new hostnames and devices
         if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
             # Can only be saved to database if the network is registered
-            if not self.db.contains_network(self.gateway_mac):
+            if not self.db.contains_network(self.name):
                 return
 
             ip = pkt[IP].src
@@ -580,29 +606,28 @@ class Net_tools:
                 return
 
             # Add device to database if it doesnt exist
-            if not self.db.contains_mac(self.gateway_mac, mac):
+            if not self.db.contains_mac(self.name, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
-                device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-2]
-                self.db.add_device(self.gateway_mac, device)
+                device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-1]
+                self.db.add_device(self.name, device)
 
             if DNSRR in pkt:
                 # Exclude non-human names and addresses
                 name = pkt[DNSRR].rrname.decode("utf-8")
                 if name.split(".")[-2] != "arpa" and name[0] != "_":
                     # Update existing device and save to database if it already exists
-                    device = self.db.get_device(self.gateway_mac, mac)
+                    device = self.db.get_device(self.name, mac)
                     if device == None:
                         print("[DEBUG] err in wlan sniff")
                         return
 
                     device.hostname = name
-                    self.db.save_device(self.gateway_mac, device)
+                    self.db.save_device(self.name, device)
+
 
     def run_wlan_sniffer(self, iface):
         sniff(prn=self.wlan_sniffer_callback, iface=iface)
-
-
 
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
     # ---------------------------------------- WIP -----------------------------------------
