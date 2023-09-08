@@ -26,8 +26,8 @@ nt = Net_tools(db, lb)
 
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
-@app.get("/get_network_no_update/<name>")
-def get_current_devices(name):
+@app.get("/network/<name>")
+def get_network(name):
 
     if not db.contains_network(name):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
@@ -57,7 +57,7 @@ def map_network(name):
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return get_current_devices(name)
+    return get_network(name)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
@@ -65,7 +65,7 @@ def map_network(name):
 def os_scan():
 
     nt.add_os_info()
-    return get_current_devices()
+    return "Scan complete."
 
 
 # Serves the information of the dhcp server
@@ -79,16 +79,6 @@ def get_dhcp_server_info():
 def get_network_names():
 
     return db.get_network_names()
-
-
-@app.get("/network/<name>")
-def get_network(name):
-
-    ret = {}
-    for x in db.get_network(name).values():
-        ret[x.mac] = x.to_json()
-
-    return ret
 
 
 @app.get("/ssid")
