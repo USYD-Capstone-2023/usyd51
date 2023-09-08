@@ -135,7 +135,18 @@ function editModeToggle() {
 }
 
 window.electronAPI.networkList((_event, data) => {
+    // Remove all existing wrappers. This is so the list is refreshed when a box is removed.
+    let wrappers = document.getElementsByClassName("network-box-wrapper");
+    while (wrappers.length != 0) {
+        wrappers[0].parentNode.removeChild(wrappers[0]);
+    }
+
+    // Loop through all network ids and create a box for each network containing name and SSID.
     for (let network of Object.keys(data)) {
-        createNetworkBox(network, data[network]["name"], data[network]["ssid"]);
+        createNetworkBox(
+            data[network]["name"],
+            data[network]["name"],
+            data[network]["ssid"]
+        );
     }
 });

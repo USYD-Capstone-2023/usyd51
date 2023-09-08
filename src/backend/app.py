@@ -4,7 +4,7 @@ from flask import Flask
 # Local
 from loading_bar import Loading_bar
 from net_tools import *
-from database import PostgreSQLDatabase
+from database import SQLiteDB
 
 # Stdlib
 import os
@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 # Initialises database object
 # Temp login information
-db = PostgreSQLDatabase("net_tool_db", "postgres", "root")
+db = SQLiteDB("networks.db")
 
 # Initialise loading bar, network utilities and mac vendor lookup table
 lb = Loading_bar()
@@ -26,13 +26,13 @@ nt = Net_tools(db, lb)
 
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
-@app.get("/get_network_no_update")
-def get_current_devices():
+@app.get("/get_network_no_update/<name>")
+def get_current_devices(name):
 
-    if not db.contains_network(nt.gateway_mac):
+    if not db.contains_network(name):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
-    devices = db.get_all_devices(nt.gateway_mac)
+    devices = db.get_all_devices(name)
 
     ret = {}
     for device in devices.values():
@@ -43,13 +43,11 @@ def get_current_devices():
 
 # Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
 # Serves the main mapping data for the program
-@app.get("/map_network")
-def map_network():
+@app.get("/map_network/<name>")
+def map_network(name):
 
-    # Checks network is registered in database
-    if not db.contains_network(nt.gateway_mac):
-        db.register_network(nt.gateway_mac, nt.domain)
-
+    # Creates a new network in the backend, begins passive scanning and adds to database
+    nt.new_network(name)
     # Adds all active devices on the network to the database
     nt.get_devices()
     # Adds routing information for all devicesin the database
@@ -59,7 +57,7 @@ def map_network():
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return get_current_devices()
+    return get_current_devices(name)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
@@ -67,7 +65,7 @@ def map_network():
 def os_scan():
 
     nt.add_os_info()
-    return current_devices()
+    return get_current_devices()
 
 
 # Serves the information of the dhcp server
@@ -81,6 +79,17 @@ def get_dhcp_server_info():
 def get_network_names():
 
     return db.get_network_names()
+
+
+@app.get("/network/<name>")
+def get_network(name):
+
+    ret = {}
+    for x in db.get_network(name).values():
+        ret[x.mac] = x.to_json()
+
+    return ret
+
 
 @app.get("/ssid")
 def get_ssid():
@@ -100,10 +109,10 @@ def get_current_progress():
 
 
 # Deletes a network and all related devices from the database
-@app.get("/delete_network/<gateway_id>")
-def delete_network(gateway_id):
+@app.get("/delete_network/<name>")
+def delete_network(name):
 
-    if db.delete_network(gateway_id):
+    if db.delete_network(name):
         return "Successfully deleted network"
 
     return "Could not find entered network..."
