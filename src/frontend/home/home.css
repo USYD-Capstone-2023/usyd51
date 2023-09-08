@@ -229,3 +229,20 @@ body {
 
     /* display: none; */
 }
+
+.flashing-dot {
+    border-radius: 50%;
+    margin: 10px;
+    width: 15px;
+    height: 15px;
+    background-color: #7fff4c;
+    animation: 1s blink ease infinite;
+    border-color: black;
+    border-style: solid;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}

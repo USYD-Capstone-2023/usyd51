@@ -13,21 +13,6 @@ app.on("ready", () => {
     });
 });
 
-function removeNetwork(event, data) {
-    http.get("http://127.0.0.1:5000/remove_network/data", (resp) => {
-        let data = "";
-
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
-
-        resp.on("end", () => {
-            // Check if valid, otherwise send error.
-            return;
-        });
-    });
-}
-
 function loadNetworkFromData(event, data) {
     console.log("Loading network tab from load network from data");
     const webContents = event.sender;
@@ -137,15 +122,28 @@ function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
 
-    http.get("http://127.0.0.1:5000/network_names", (resp) => {
+    http.get("http://127.0.0.1:5000/ssid", (resp) => {
         let data = "";
         resp.on("data", (chunk) => {
             data += chunk;
         });
 
         resp.on("end", () => {
-            response = JSON.parse(data);
-            win.webContents.send("network-list", response);
+            ssid = data;
+
+            http.get("http://127.0.0.1:5000/network_names", (resp) => {
+                let data = "";
+                resp.on("data", (chunk) => {
+                    data += chunk;
+                });
+
+                resp.on("end", () => {
+                    response = {};
+                    response["data"] = JSON.parse(data);
+                    response["ssid"] = ssid;
+                    win.webContents.send("network-list", response);
+                });
+            });
         });
     });
 

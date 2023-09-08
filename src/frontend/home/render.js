@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // })
 
-function createNetworkBox(filename, name, ssid) {
+function createNetworkBox(filename, name, ssid, flashing = False) {
     let networkBoxWrapper = document.createElement("div");
     networkBoxWrapper.setAttribute("class", "network-box-wrapper");
 
@@ -101,10 +101,16 @@ function createNetworkBox(filename, name, ssid) {
     };
 
     removeButton.onclick = () => {
-        console.log("test");
         // We want to request data from the backend and load the corresponding page.
         window.electronAPI.requestRemoveNetwork(filename);
     };
+
+    if (flashing) {
+        console.log("test");
+        let flashingDot = document.createElement("div");
+        flashingDot.setAttribute("class", "flashing-dot");
+        networkBox.appendChild(flashingDot);
+    }
 
     networkBox.appendChild(arrowButton);
 
@@ -135,19 +141,23 @@ function editModeToggle() {
     return editMode;
 }
 
-window.electronAPI.networkList((_event, data) => {
+window.electronAPI.networkList((_event, response) => {
     // Remove all existing wrappers. This is so the list is refreshed when a box is removed.
     let wrappers = document.getElementsByClassName("network-box-wrapper");
     while (wrappers.length != 0) {
         wrappers[0].parentNode.removeChild(wrappers[0]);
     }
-
+    // Split response into parts
+    let data = response["data"];
+    let ssid = response["ssid"];
     // Loop through all network ids and create a box for each network containing name and SSID.
     for (let network of Object.keys(data)) {
+        console.log(network, ssid, data[network]["ssid"]);
         createNetworkBox(
             data[network]["name"],
             data[network]["name"],
-            data[network]["ssid"]
+            data[network]["ssid"],
+            ssid == data[network]["ssid"]
         );
     }
 });
