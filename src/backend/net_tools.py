@@ -1,4 +1,4 @@
-from scapy.all import traceroute, conf, ARP, Ether, srp
+from scapy.all import traceroute, conf, ARP, Ether, srp, sr1, TCP, IP
 import nmap, socket, netifaces
 
 # Collection of tools used to get information from the network and its devices
@@ -100,6 +100,23 @@ def get_dhcp_server_info():
         domain = hostname_helper(default_gateway)
 
     return {"router" : default_gateway, "iface" : default_iface, "subnet_mask" : subnet_mask, "domain" : domain}
+
+def check_port(ip, port):
+    
+    try:
+        # Create a TCP SYN packet to check if the port is open
+        response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+
+        if response and response.haslayer(TCP):
+            if response.getlayer(TCP).flags == 0x12:  # TCP SYN-ACK flag
+                return True #return True if the port is open
+            else:
+                return False #return false if the port is closed
+        else:
+            return False #return false if the port is closed
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
 
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
