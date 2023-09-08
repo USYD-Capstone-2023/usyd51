@@ -1,76 +1,34 @@
-#!/usr/bin/python
-import psycopg2
+import sqlite3, sys
 
 from device import Device
 
+class SQLiteDB:
 
-class PostgreSQLDatabase:
-    def __init__(self, database, username, password, host="localhost", port="5432"):
+    def __init__(self, database):
+
         self.connection = None
         self.cursor = None
-
         self.db = database
-        self.un = username
-        self.ps = password
 
-        self.host = host
-        self.port = port
+        if not self.init_tables():
 
-        self.init_db()
-        self.init_tables()
+            print("[ERR ] Fatal error occurred while initialising database. Exitting...")
+            sys.exit(-1)
 
-    def init_db(self):
-        conn = None
-        try:
-            ## Open Database Connection
-            conn = psycopg2.connect(
-                user=self.un,
-                password=self.ps,
-                host=self.host,
-                port=self.port,
-            )
 
-            conn.autocommit = True
+    def query(self, querystring, params=(), res=False):
 
-            # Create Cursor Object
-            cur = conn.cursor()
-
-            # Checks if the database exists, creates a new one if not
-            cur.execute(
-                "SELECT 1 FROM pg_catalog.pg_database WHERE datname = '%s';" % (self.db)
-            )
-            db_exists = cur.fetchone()
-            if not db_exists:
-                print("[INFO] Creating database...")
-                cur.execute("CREATE DATABASE %s;" % (self.db))
-                conn.commit()
-
-        except (Exception, psycopg2.DatabaseError) as error:
-            print(error)
-
-        finally:
-            if conn:
-                cur.close()
-                conn.close()
-
-    def query(self, querystring, res=False):
         response = None
         conn = None
         try:
             ## Open Database Connection
-            conn = psycopg2.connect(
-                user=self.un,
-                password=self.ps,
-                host=self.host,
-                port=self.port,
-                database=self.db,
-            )
+            conn = sqlite3.connect(self.db)
 
             # Create Cursor Object
             cur = conn.cursor()
 
             # Run query
-            cur.execute(querystring)
+            cur.execute(querystring, params)
 
             # Check Response
             if res:
@@ -79,7 +37,7 @@ class PostgreSQLDatabase:
                 # Commit Query
                 conn.commit()
 
-        except (Exception, psycopg2.DatabaseError) as error:
+        except sqlite3.Error as error:
             print(error)
             print(querystring)
 
@@ -90,72 +48,78 @@ class PostgreSQLDatabase:
 
         return response
 
+
     # Adds a network to the database if it doesnt already exist.
     def register_network(self, gateway_mac, ssid, name):
-        print(f"{name} {ssid} {gateway_mac}")
 
         if not self.contains_network(gateway_mac):
             print("[INFO] Registering new network...")
 
-            q = """INSERT INTO networks (gateway_mac, ssid, name)
-                VALUES ('%s', '%s', '%s');
-                """ % (
-                gateway_mac,
-                ssid,
-                name,
-            )
+            query = """
+                    INSERT INTO networks (name, gateway_mac, ssid)
+                    VALUES (?, ?, ?);
+                    """
+            
+            params = (name, gateway_mac, ssid,)
 
-            self.query(q)
+            self.query(query, params)
+
 
     # Deletes a network from the database
-    def delete_network(self, gateway_mac):
-        if not self.contains_network(gateway_mac):
+    def delete_network(self, network_name):
+
+        if not self.contains_network(network_name):
             return False
 
-        q = """DELETE FROM networks
-               WHERE gateway_mac = '%s';
+        query = """
+                DELETE FROM networks
+                WHERE name = ?;
+                """
 
-               DELETE FROM devices
-               WHERE gateway_mac = '%s';
-            """ % (
-            gateway_mac,
-            gateway_mac,
-        )
+        params = (network_name,)
 
-        self.query(q)
+        self.query(query, params)
         return True
 
-    # Checks if the current network exists in the database
-    def contains_network(self, gateway_mac):
-        q = """SELECT 1
-               FROM networks
-               WHERE gateway_mac = '%s';
-            """ % (
-            gateway_mac
-        )
 
-        response = self.query(q, res=True)
+    # Checks if the current network exists in the database
+    def contains_network(self, network_name):
+
+        query = """
+                SELECT 1
+                FROM networks
+                WHERE name = ?;
+                """
+
+        params = (network_name,)
+
+        response = self.query(query, params, res=True)
 
         return response != None and len(response) > 0
 
+
     def get_network_names(self):
-        q = """SELECT *
-               FROM networks
-            """
 
-        response = self.query(q, res=True)
+        query = """
+                SELECT *
+                FROM networks
+                """
 
-        return [{"mac": x[0], "name": x[1], "ssid": x[2]} for x in response]
+        response = self.query(query, res=True)
+
+        return [{"name": x[0], "gateway_mac": x[1], "ssid": x[2]} for x in response]
+
 
     def get_network(self, network_name):
-        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
-               FROM devices JOIN networks ON  devices.gateway_mac = networks.gateway_mac
-               WHERE networks.name = '%s';
-            """ % (
-            network_name
-        )
 
-        responses = self.query(q, res=True)
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices JOIN networks ON devices.network_name = networks.name
+                WHERE networks.name = ?;
+                """ 
+        params = (network_name,)
+
+        responses = self.query(query, params, res=True)
 
         # { mac : Device }
         devices = {}
@@ -173,48 +137,49 @@ class PostgreSQLDatabase:
             devices[response[0]] = new_device
 
         return devices
+
 
     # Adds a device into the database
-    def add_device(self, gateway_mac, device):
-        q = """INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, gateway_mac)
-               VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
-            """ % (
-            device.mac,
-            device.ip,
-            device.mac_vendor,
-            device.hostname,
-            device.os_type,
-            device.os_vendor,
-            device.os_family,
-            device.parent,
-            gateway_mac,
-        )
+    def add_device(self, network_name, device):
 
-        self.query(q)
+        query = """
+                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_name)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """
+
+        params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
+                 device.os_vendor, device.os_family, device.parent, network_name,)
+
+        self.query(query, params)
+
 
     # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
-    def contains_mac(self, gateway_mac, mac):
-        q = """SELECT 1
-               FROM devices 
-               WHERE mac='%s' AND gateway_mac='%s';
-            """ % (
-            mac,
-            gateway_mac,
-        )
+    def contains_mac(self, network_name, mac):
+        
+        query = """
+                SELECT 1
+                FROM devices 
+                WHERE mac = ? AND network_name = ?;
+                """
 
-        response = self.query(q, res=True)
-        return len(response) > 0
+        params = (mac, network_name,)
+
+        response = self.query(query, params, res=True)
+        return response != None and len(response) > 0 != None
+
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
-    def get_all_devices(self, gateway_mac):
-        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
-               FROM devices
-               WHERE gateway_mac='%s';
-            """ % (
-            gateway_mac
-        )
+    def get_all_devices(self, network_name):
 
-        responses = self.query(q, res=True)
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices
+                WHERE network_name = ?;
+                """
+
+        params = (network_name,)
+
+        responses = self.query(query, params, res=True)
 
         # { mac : Device }
         devices = {}
@@ -233,20 +198,21 @@ class PostgreSQLDatabase:
 
         return devices
 
-    # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
-    def get_device(self, gateway_mac, mac):
-        q = """SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
-               FROM devices
-               WHERE gateway_mac='%s' AND mac='%s';
-            """ % (
-            gateway_mac,
-            mac,
-        )
 
-        response = self.query(q, res=True)
+    # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
+    def get_device(self, network_name, mac):
+
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices
+                WHERE network_name = ? AND mac = ?;
+                """
+            
+        params = (network_name, mac,)
+
+        response = self.query(query, params, res=True)
 
         if len(response) == 0 or len(response[0]) < 8:
-            print(response)
             return None
 
         response = response[0]
@@ -262,43 +228,44 @@ class PostgreSQLDatabase:
 
         return new_device
 
+
     # Saves an existing device back to the database after it has been changed.
-    def save_device(self, gateway_mac, device):
-        q = """UPDATE devices
-               SET mac = '%s',
-                   ip = '%s',
-                   mac_vendor = '%s',
-                   hostname = '%s',
-                   os_type = '%s',
-                   os_vendor = '%s',
-                   os_family = '%s',
-                   parent = '%s'
-               WHERE gateway_mac='%s' AND mac='%s';
-            """ % (
-            device.mac,
-            device.ip,
-            device.mac_vendor,
-            device.hostname,
-            device.os_type,
-            device.os_vendor,
-            device.os_family,
-            device.parent,
-            gateway_mac,
-            device.mac,
-        )
+    def save_device(self, network_name, device):
 
-        self.query(q)
+        query = """
+                UPDATE devices
+                SET mac = ?,
+                    ip = ?,
+                    mac_vendor = ?,
+                    hostname = ?,
+                    os_type = ?,
+                    os_vendor = ?,
+                    os_family = ?,
+                    parent = ?
+                WHERE network_name = ? AND mac = ?;
+                """
 
-    def clear(self):
-        q = """DROP DATABASE %s""" % (self.db)
+        params = (device.mac, device.ip, device.mac_vendor,
+                  device.hostname, device.os_type, device.os_vendor,
+                  device.os_family, device.parent, network_name, device.mac,)
 
-        self.query(q)
+        self.query(query, params)
 
-        self.init_db()
 
     # Setup tables if it doesn't exist
-    # Currently using router MAC as PK for networks, need to find something much better
+    # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
+
+
+        try:
+
+            conn = sqlite3.connect(self.db)
+        
+        except sqlite3.Error as e:
+
+            print(e)
+            return False
+
         # Main Tables
         # query_users = """CREATE TABLE IF NOT EXISTS users
         #                 (id TEXT PRIMARY KEY NOT NULL,
@@ -307,23 +274,25 @@ class PostgreSQLDatabase:
         #                 company TEXT NOT NULL);
         #                 """
 
-        query_networks = """CREATE TABLE IF NOT EXISTS networks
-                        (gateway_mac TEXT PRIMARY KEY NOT NULL,
-                        name TEXT,
-                        ssid TEXT);
+        query_networks = """
+                        CREATE TABLE IF NOT EXISTS networks
+                            (name TEXT TEXT PRIMARY KEY,
+                            gateway_mac TEXT NOT NULL,
+                            ssid TEXT);
                         """
 
-        query_devices = """CREATE TABLE IF NOT EXISTS devices
-                        (mac TEXT NOT NULL,
-                        ip TEXT NOT NULL,
-                        mac_vendor TEXT,
-                        hostname TEXT,
-                        os_type TEXT,
-                        os_vendor TEXT,
-                        os_family TEXT,
-                        parent TEXT,
-                        gateway_mac TEXT REFERENCES networks (gateway_mac) ON DELETE CASCADE,
-                        CONSTRAINT id PRIMARY KEY (mac, gateway_mac));
+        query_devices = """
+                        CREATE TABLE IF NOT EXISTS devices
+                            (mac TEXT NOT NULL,
+                            ip TEXT NOT NULL,
+                            mac_vendor TEXT,
+                            hostname TEXT,
+                            os_type TEXT,
+                            os_vendor TEXT,
+                            os_family TEXT,
+                            parent TEXT,
+                            network_name TEXT REFERENCES networks (name) ON DELETE CASCADE,
+                            CONSTRAINT id PRIMARY KEY (mac, network_name));
                         """
 
         # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s
@@ -346,13 +315,14 @@ class PostgreSQLDatabase:
         #                 vendor TEXT);
         #                 """
         # Join tables
-        query_alive = """CREATE TABLE IF NOT EXISTS alive
-                    (id SERIAL PRIMARY KEY NOT NULL,
-                    ip TEXT NOT NULL,
-                    mac TEXT NOT NULL,
-                    first_seen TIMESTAMP,
-                    last_check TIMESTAMP,
-                    last_online TIMESTAMP);
+        query_alive = """
+                    CREATE TABLE IF NOT EXISTS alive
+                        (id SERIAL PRIMARY KEY NOT NULL,
+                        ip TEXT NOT NULL,
+                        mac TEXT NOT NULL,
+                        first_seen TIMESTAMP,
+                        last_check TIMESTAMP,
+                        last_online TIMESTAMP);
                     """
 
         # query_layer3_ports = """CREATE TABLE IF NOT EXISTS layer3_ports
@@ -371,3 +341,5 @@ class PostgreSQLDatabase:
         # self.query(query_wirelessaps)
         self.query(query_alive)
         # self.query(query_layer3_ports)
+
+        return True
