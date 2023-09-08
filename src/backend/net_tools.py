@@ -1,5 +1,5 @@
 from scapy.all import traceroute, conf, ARP, Ether, srp, sr1, TCP, IP
-import nmap, socket, netifaces
+import nmap, socket, netifaces, requests
 
 # Collection of tools used to get information from the network and its devices
 
@@ -117,6 +117,18 @@ def check_port(ip, port):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
+def check_website(ip):
+    url = f"http://{ip}"  # Construct the URL with the provided IP
+    try:
+        response = requests.get(url, timeout=1)
+        
+        # Check if the response status code is in the 200 range (i.e., a successful response)
+        if 200 <= response.status_code < 300:
+            return True #return true if this hosts a website
+        else:
+            return False #return false if this does not host a website
+    except requests.RequestException as e:
+        return False #return false if this does not host a website
 
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
