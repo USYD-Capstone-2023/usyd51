@@ -3,12 +3,18 @@ const { spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-
+const winPlatforms = ["Win32", "Win64", "Windows", "WinCE"];
+const winOS = winPlatforms.indexOf(process.platform);
 let flaskProcess;
 
+
 app.on("ready", () => {
-    flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
-    flaskProcess.stdout.on("data", (data) => {
+	if (winOS) {
+		flaskProcess = spawn("flask", ["run"], { cwd: "..\\backend\\" });
+	} else {
+    	flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
+    }
+	flaskProcess.stdout.on("data", (data) => {
         console.log(`Flask data: ${data}`);
     });
 });
@@ -98,10 +104,10 @@ function loadHome(event) {
 }
 
 function loadNetwork(event, data) {
-    const webContents = event.sender;
+	const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
-    http.get("http://127.0.0.1:5000/network/" + data, (resp) => {
+	http.get("http://127.0.0.1:5000/network/" + data, (resp) => {
         let data = "";
         resp.on("data", (chunk) => {
             data += chunk;
@@ -119,9 +125,9 @@ function loadNetwork(event, data) {
 }
 
 function sendNetworks(event) {
-    const webContents = event.sender;
+	const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
-
+	
     http.get("http://127.0.0.1:5000/ssid", (resp) => {
         let data = "";
         resp.on("data", (chunk) => {
@@ -146,7 +152,6 @@ function sendNetworks(event) {
             });
         });
     });
-
     // win.webContents.send("network-list", networkData);
 }
 
@@ -168,20 +173,20 @@ function requestRemoveNetwork(event, data) {
 app.whenReady().then(() => {
     // Load network from json.
     ipcMain.on("load-network", loadNetwork);
-
-    // Send all saved networks.
+    
+	// Send all saved networks.
     ipcMain.on("request-networks", sendNetworks);
 
     // Load the home page
     ipcMain.on("load-home", loadHome);
-
-    // Loads network tab then sends data from obj
+    
+	// Loads network tab then sends data from obj
     ipcMain.on("load-network-from-data", loadNetworkFromData);
 
     // Checks the progress of the data loading
     ipcMain.on("check-request-progress", checkRequestProgress);
-
-    // Requests a new network map
+    
+	// Requests a new network map
     ipcMain.on("get-new-network", getNewMap);
 
     // Request a network be deleted
@@ -197,8 +202,6 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-    // if (process.platform !== 'darwin') {
     flaskProcess.kill();
     app.quit();
-    // }
 });
