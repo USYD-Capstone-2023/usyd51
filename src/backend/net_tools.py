@@ -19,7 +19,7 @@ from job import Job
 from MAC_table import MAC_table
 from device import Device
 from platform import system
-import nmap, socket, netifaces, threading, sys, signal, time
+import nmap, socket, netifaces, threading, sys, signal, time, subprocess, os
 
 if system() != "Darwin":
     import pywifi
@@ -120,9 +120,9 @@ class Net_tools:
     def get_ssid(self):
 
         current_system = system()
+
         # MacOS - Get by running the airport program.
         if current_system == "Darwin":
-            import subprocess
 
             process = subprocess.Popen(
                 [
@@ -137,30 +137,13 @@ class Net_tools:
                 if " SSID" in line:
                     return line.split(": ")[1]
 
-        wifi = pywifi.PyWiFi()
-        ifaces = wifi.interfaces()
+        elif current_system == "Linux":
 
-        if len(ifaces) < 1:
-            return None
+            return os.popen("iwconfig " + conf.iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
-        iface = ifaces[0]
-        # Exponential dropoff
-        results = []
-        for exp in range(7):
-            # Start scan and wait for results
-            iface.scan()
-            time.sleep(0.1 * pow(2, exp))
-            results = iface.scan_results()
+        else:
 
-            if len(results) > 0:
-                break
-
-        if len(results) > 0:
-            # TODO fix
-            # print(
-            #     f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}"
-            # )
-            return results[0].ssid
+            return "average windowos user lmao"
 
         return None
 
