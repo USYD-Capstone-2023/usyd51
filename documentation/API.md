@@ -3,9 +3,9 @@
 ## Map Network ##
 
 Gets all information required to map the network, including device IP addresses, MAC addresses, each device's parent node, MAC vendor, hostname. 
-Registers data in the database under the specified network name.
+Registers data in the database with the network's SSID as the default name
 
-Usage: ```/map_network/<network_name>```
+Usage: ```/map_network```
 
 Return format:
 ```python
@@ -22,8 +22,27 @@ Return format:
         "parent" : parent_nodes_ip
     }, ...
 }
+
+or
+
+{"error" : "Failed to scan network, are you connected to the internet?"}
+
 ```
 All values default to "unknown" if they haven't been found.
+
+## Rename Network ##
+
+Renames a network to the desired name.
+
+Usage: ```/rename_network/<old name>,<new name>```
+
+Return format:
+```python
+"success"
+or
+"error"
+
+```
 
 ## Get Network No Update ##
 
@@ -122,3 +141,20 @@ Return format:
 ```python
     <ssid>
 ```
+
+## Network Names ##
+
+Gets the name, ssid, id and name of each network in the database.
+
+Usage: ```/network_names```
+
+Return format:
+```python
+{
+    "gateway_mac" : gateway_mac,
+    "id" : id,
+    "name" : name,
+    "ssid" : ssid,
+}
+```
+

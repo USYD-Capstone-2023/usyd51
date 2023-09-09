@@ -67,16 +67,22 @@ class Net_tools:
     # --------------------------------------------- ON START -------------------------------------- #
 
     # Prepares the backend to run scans on the current network
-    def new_network(self, name):
+    def new_network(self):
 
-        self.name = name
+        ssid = self.get_ssid()
+
+        if not ssid:
+            return False
+
+        self.name = ssid
 
         # Deleted network if it already exists
         if self.db.contains_network(self.name):
             self.db.delete_network(self.name)
 
         # Creates a new table in the database for the current network if it doesnt already exist
-        self.db.register_network(self.gateway_mac, self.get_ssid(), self.name)
+        if not self.db.register_network(self.gateway_mac, ssid, self.name):
+            return False
 
         self.client_mac = Ether().src
 
@@ -96,6 +102,8 @@ class Net_tools:
         DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
         DNS_sniffer.daemon = True
         DNS_sniffer.start()
+
+        return True
 
 
     # Signal handler to gracefully end the threadpool on shutdown
@@ -133,12 +141,12 @@ class Net_tools:
         ifaces = wifi.interfaces()
 
         if len(ifaces) < 1:
-            return "Disconnected"
+            return None
 
         iface = ifaces[0]
         # Exponential dropoff
         results = []
-        for exp in range(6):
+        for exp in range(7):
             # Start scan and wait for results
             iface.scan()
             time.sleep(0.1 * pow(2, exp))
@@ -147,14 +155,14 @@ class Net_tools:
             if len(results) > 0:
                 break
 
-        if results:
+        if len(results) > 0:
             # TODO fix
             # print(
             #     f"Seems to return the strongest signal, not the current connected one... {[x.ssid for x in results]}"
             # )
             return results[0].ssid
 
-        return "Disconnected"
+        return None
 
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
@@ -505,20 +513,10 @@ class Net_tools:
         counter_ptr = [0]
         returns = [-1] * len(devices.keys())
 
-        # Counts the number of dispatched jobs
-        dispatched = len(devices.keys())
-
         # The current job, for referencing the return location for the thread
         job_counter = 0
 
         for device in devices.values():
-            # If hostname has been found in wlan DNSRR sniffer, use it instead
-            if device.hostname != "unknown":
-                self.lb.increment()
-                dispatched -= 1
-                returns[job_counter] = device.hostname
-                job_counter += 1
-                continue
 
             # Create job and add to threadpool queue for execution
             job = Job(
@@ -538,9 +536,9 @@ class Net_tools:
 
         # Wait for all jobs to be comleted
         mutex.acquire()
-        while counter_ptr[0] < dispatched:
+        while counter_ptr[0] < len(devices.keys()):
             cond.wait()
-            self.lb.set_progress(counter_ptr[0] + (len(devices.keys()) - dispatched))
+            self.lb.set_progress(counter_ptr[0])
             self.lb.show()
 
         mutex.release()
@@ -548,7 +546,7 @@ class Net_tools:
         # Add returned hostnames to devices, save to database
         job_counter = 0
         for device in devices.values():
-            if device.hostname != "unkown":
+            if returns[job_counter] != "unkown":
                 device.hostname = returns[job_counter]
                 self.db.save_device(self.name, device)
             job_counter += 1
@@ -622,8 +620,9 @@ class Net_tools:
                         print("[DEBUG] err in wlan sniff")
                         return
 
-                    device.hostname = name
-                    self.db.save_device(self.name, device)
+                    if device.hostname == "unknown":
+                        device.hostname = name
+                        self.db.save_device(self.name, device)
 
 
     def run_wlan_sniffer(self, iface):
