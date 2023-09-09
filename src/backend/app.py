@@ -48,7 +48,7 @@ def map_network():
 
     # Creates a new network in the backend, begins passive scanning and adds to database
     if not nt.new_network():
-        return "Failed to scan network, are you connected to the internet?"
+        return {"error" : "Failed to scan network, are you connected to the internet?"}
 
     # Adds all active devices on the network to the database
     nt.get_devices()
