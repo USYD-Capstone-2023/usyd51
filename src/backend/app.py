@@ -87,6 +87,12 @@ def get_ssid():
     return nt.get_ssid()
 
 
+@app.get("/rename_network/<old_name>,<new_name>")
+def rename_network(old_name, new_name):
+
+    return "success" if db.rename_network(old_name, new_name) else "error"
+
+
 # Returns the progress and data of the current loading bar.
 # Polled by frontend to update ui loading bars in electron  
 @app.get("/request_progress")
