@@ -129,6 +129,65 @@ def check_website(ip):
             return False #return false if this does not host a website
     except requests.RequestException as e:
         return False #return false if this does not host a website
+    
+def in_class_A(ip):
+    A_ip_range = [[10, 0, 0, 0], [10, 255, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    if ip[0] == 10:
+        return True
+    else:
+        return False
+    
+def in_class_B(ip):
+    B_ip_range = [[172,16,0,0], [172, 31, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    if ip[0] == 172:
+        if ip[1] >= 16 and ip[1] <= 31:
+            return True
+    return False
+
+def in_class_C(ip):
+    C_ip_range = [[192, 168, 0, 0], [192, 168, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    #print(ip)
+    if ip[0] == 192:
+        #print(196)
+        if ip[1] == 168:
+            #print(168)
+            return True
+    return False
+
+def vertical_traceroute(target_host="8.8.8.8"):
+    # Define the target host (in this case, Google's DNS server)
+    # Create a list to store the traceroute results
+    traceroute_results = []
+
+    # Perform the traceroute
+    for ttl in range(1, 31):  # Set the maximum TTL to 30
+        # Create an ICMP echo request packet with the specified TTL
+        packet = IP(dst=target_host, ttl=ttl) / ICMP()
+
+        # Send the packet and receive a reply
+        reply = sr1(packet, verbose=False, timeout=1)
+
+        if reply is not None:
+            traceroute_results.append(reply.src)
+
+        # Check if we have reached the target host
+        if reply and reply.src == target_host:
+            break
+
+    local_vertical = []
+    # Print the traceroute results
+    for i, ip in enumerate(traceroute_results):
+        if in_class_A(ip) or in_class_B(ip) or in_class_C(ip):
+            local_vertical.append(ip)
+    
+    #returns a list of ip strings that are inside of your network and a part of a traceroute to google
+    return local_vertical
 
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
