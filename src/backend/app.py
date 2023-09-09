@@ -43,11 +43,13 @@ def get_network(name):
 
 # Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
 # Serves the main mapping data for the program
-@app.get("/map_network/<name>")
-def map_network(name):
+@app.get("/map_network")
+def map_network():
 
     # Creates a new network in the backend, begins passive scanning and adds to database
-    nt.new_network(name)
+    if not nt.new_network():
+        return "Failed to scan network, are you connected to the internet?"
+
     # Adds all active devices on the network to the database
     nt.get_devices()
     # Adds routing information for all devicesin the database
@@ -57,7 +59,7 @@ def map_network(name):
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return get_network(name)
+    return get_network(nt.name)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
