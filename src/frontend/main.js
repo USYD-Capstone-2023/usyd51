@@ -26,7 +26,7 @@ function loadNetworkFromData(event, data) {
 function getNewMap(event, data) {
     // Load new network map from map_network
     let incoming_data = undefined;
-    http.get("http://127.0.0.1:5000/map_network/", (resp) => {
+    http.get("http://127.0.0.1:5000/map_network", (resp) => {
         let data = "";
 
         resp.on("data", (chunk) => {
@@ -42,37 +42,60 @@ function getNewMap(event, data) {
     });
 }
 
-ipcMain.handle("set-new-network-name", async (event, arg) => {
-    // Arg0 is original name, arg1 is new name
-    http.get("http://127.0.0.1:5000/ssid", (resp) => {
-        let data = "";
+function getSSID() {
+    return new Promise((resolve, reject) => {
+        http.get("http://127.0.0.1:5000/ssid", (resp) => {
+            let data = "";
 
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
+            resp.on("data", (chunk) => {
+                data += chunk;
+            });
 
-        resp.on("end", () => {
-            let ssid = data;
-            console.log("Argument ->" + arg + "<-");
-            http.get(
-                "http://127.0.0.1:5000/rename_network/" + ssid + "," + arg,
-                (resp) => {
-                    let data = "";
-
-                    resp.on("data", (chunk) => {
-                        data += chunk;
-                    });
-
-                    resp.on("end", () => {
-                        if (data == "success") {
-                            return true;
-                        }
-                        return false;
-                    });
-                }
-            );
+            resp.on("end", () => {
+                resolve(data);
+            });
+            resp.on("error", (err) => {
+                reject(err);
+            });
         });
     });
+}
+
+function renameNetwork(old_name, new_name) {
+    return new Promise((resolve, reject) => {
+        http.get(
+            "http://127.0.0.1:5000/rename_network/" + old_name + "," + new_name,
+            (resp) => {
+                let data = "";
+
+                resp.on("data", (chunk) => {
+                    data += chunk;
+                });
+
+                resp.on("end", () => {
+                    if (data == "success") {
+                        resolve(true);
+                    }
+                    resolve(false);
+                });
+
+                resp.on("error", (err) => {
+                    reject(err);
+                });
+            }
+        );
+    });
+}
+
+ipcMain.handle("set-new-network-name", async (event, arg) => {
+    try {
+        const SSID = await getSSID();
+        const result = await renameNetwork(SSID, arg);
+        return result;
+    } catch (error) {
+        console.log("Error");
+        return false;
+    }
 });
 
 // Gets the progress of the current request from the backend
@@ -102,6 +125,7 @@ function createWindow() {
         minHeight: 500,
         minWidth: 500,
         webPreferences: {
+            contextIsolation: true,
             preload: path.join(__dirname, "preload.js"),
         },
     });

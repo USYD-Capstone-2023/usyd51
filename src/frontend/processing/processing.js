@@ -33,17 +33,15 @@ document.addEventListener("DOMContentLoaded", () => {
             "Finished Processing";
         target.onclick = () => {
             let new_name = document.getElementById("input-name").value;
-            console.log("new_name: " + new_name);
             if (new_name == "") {
                 window.electronAPI.loadNetworkFromData(data);
             } else {
                 // If user has set a name then check if the network name is valid
                 // If it is then load data and set name, otherwise set text colour to red.
-                window.electronAPI
+                const result = window.electronAPI
                     .trySetNewNetworkName(new_name)
-                    .then((success) => {
-                        console.log(success);
-                        if (success) {
+                    .then((res) => {
+                        if (res) {
                             window.electronAPI.loadNetworkFromData(data);
                         } else {
                             document.getElementById(
