@@ -141,3 +141,20 @@ Return format:
 ```python
     <ssid>
 ```
+
+## Network Names ##
+
+Gets the name, ssid, id and name of each network in the database.
+
+Usage: ```/network_names```
+
+Return format:
+```python
+{
+    "gateway_mac" : gateway_mac,
+    "id" : id,
+    "name" : name,
+    "ssid" : ssid,
+}
+```
+
