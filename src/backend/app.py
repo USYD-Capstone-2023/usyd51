@@ -86,13 +86,18 @@ def get_network_names():
 @app.get("/ssid")
 def get_ssid():
 
-    return nt.get_ssid()
+    ret = nt.get_ssid()
+    return "error" if ret == None else ret
 
 
 @app.get("/rename_network/<old_name>,<new_name>")
 def rename_network(old_name, new_name):
 
-    return "success" if db.rename_network(old_name, new_name) else "error"
+    if db.rename_network(old_name, new_name):
+        nt.name = new_name
+        return "success"
+    
+    return "error"
 
 
 # Returns the progress and data of the current loading bar.
