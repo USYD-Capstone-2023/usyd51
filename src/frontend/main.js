@@ -14,7 +14,6 @@ app.on("ready", () => {
 });
 
 function loadNetworkFromData(event, data) {
-    console.log("Loading network tab from load network from data");
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
@@ -27,7 +26,7 @@ function loadNetworkFromData(event, data) {
 function getNewMap(event, data) {
     // Load new network map from map_network
     let incoming_data = undefined;
-    http.get("http://127.0.0.1:5000/map_network/test", (resp) => {
+    http.get("http://127.0.0.1:5000/map_network/", (resp) => {
         let data = "";
 
         resp.on("data", (chunk) => {
@@ -42,6 +41,39 @@ function getNewMap(event, data) {
         });
     });
 }
+
+ipcMain.handle("set-new-network-name", async (event, arg) => {
+    // Arg0 is original name, arg1 is new name
+    http.get("http://127.0.0.1:5000/ssid", (resp) => {
+        let data = "";
+
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            let ssid = data;
+            console.log("Argument ->" + arg + "<-");
+            http.get(
+                "http://127.0.0.1:5000/rename_network/" + ssid + "," + arg,
+                (resp) => {
+                    let data = "";
+
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
+
+                    resp.on("end", () => {
+                        if (data == "success") {
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+            );
+        });
+    });
+});
 
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
@@ -152,7 +184,6 @@ function sendNetworks(event) {
 
 function requestRemoveNetwork(event, data) {
     let url = "http://127.0.0.1:5000/delete_network/" + data;
-    console.log("test");
     http.get(url, (resp) => {
         let data = "";
         resp.on("data", (chunk) => {

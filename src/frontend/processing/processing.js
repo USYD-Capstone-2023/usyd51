@@ -3,8 +3,9 @@ const progressPollingRate = 400;
 
 const loadingBarTotalSteps = 3;
 
+let newNetworkDefaultName;
+
 const getLoadingBarWidth = (stepNumber, currentProgress) => {
-    console.log(currentProgress);
     return 100 * ((currentProgress + stepNumber) / loadingBarTotalSteps);
 };
 
@@ -14,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const loadingBar = document.getElementById("bar-info");
     const barLabel = document.getElementById("bar-label");
     window.electronAPI.getNewNetwork();
-    console.log("getting Devices");
 
     let polling = true;
 
@@ -32,7 +32,28 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("create-network").innerText =
             "Finished Processing";
         target.onclick = () => {
-            window.electronAPI.loadNetworkFromData(data);
+            let new_name = document.getElementById("input-name").value;
+            console.log("new_name: " + new_name);
+            if (new_name == "") {
+                window.electronAPI.loadNetworkFromData(data);
+            } else {
+                // If user has set a name then check if the network name is valid
+                // If it is then load data and set name, otherwise set text colour to red.
+                window.electronAPI
+                    .trySetNewNetworkName(new_name)
+                    .then((success) => {
+                        console.log(success);
+                        if (success) {
+                            window.electronAPI.loadNetworkFromData(data);
+                        } else {
+                            document.getElementById(
+                                "input-description"
+                            ).style.color = "red";
+                        }
+                    });
+            }
+
+            // window.electronAPI.loadNetworkFromData(data);
         }; // I believe this can be done without a IPC call.
     });
 

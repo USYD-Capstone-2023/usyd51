@@ -72,6 +72,9 @@ function createNetworkBox(filename, name, ssid, flashing = False) {
     removeButton.setAttribute("class", "remove-button");
     networkBoxWrapper.appendChild(removeButton);
     removeButton.innerHTML = "-";
+    if (editMode) {
+        removeButton.style.display = "flex";
+    }
 
     let networkBox = document.createElement("button");
     networkBox.setAttribute("class", "network-box");
