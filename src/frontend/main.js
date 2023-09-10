@@ -3,8 +3,8 @@ const { spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const winPlatforms = ["Win32", "Win64", "Windows", "WinCE"];
-const winOS = winPlatforms.indexOf(process.platform) != -1;
+const winPlatforms = ["win32", "win64", "windows", "wince"];
+const winOS = winPlatforms.indexOf(process.platform.toLowerCase()) != -1;
 let flaskProcess;
 
 app.on("ready", () => {
