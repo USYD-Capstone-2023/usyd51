@@ -1,125 +1,357 @@
-#!/usr/bin/python
-import psycopg2
+import sqlite3, sys
 
+from device import Device
 
-class PostgreSQLDatabase:
-    def __init__(self, database, username, password, host="localhost", port="5432"):
+class SQLiteDB:
+
+    def __init__(self, database):
+
         self.connection = None
         self.cursor = None
-
         self.db = database
-        self.un = username
-        self.ps = password
 
-        self.host = host
-        self.port = port
+        if not self.init_tables():
 
-    def query(self, querystring, res=False):
+            print("[ERR ] Fatal error occurred while initialising database. Exitting...")
+            sys.exit(-1)
+
+
+    def query(self, querystring, params=(), res=False):
+
         response = None
+        conn = None
         try:
             ## Open Database Connection
-            conn = psycopg2.connect(
-                user=self.un,
-                password=self.ps,
-                host=self.host,
-                port=self.port,
-                database=self.db,
-            )
+            conn = sqlite3.connect(self.db)
 
             # Create Cursor Object
             cur = conn.cursor()
 
             # Run query
-            cur.execute(querystring)
+            cur.execute(querystring, params)
 
             # Check Response
             if res:
                 response = cur.fetchall()
-                # print(response)
-
-            # Commit Query
-            if not res:
+            else:
+                # Commit Query
                 conn.commit()
 
-        except (Exception, psycopg2.DatabaseError) as error:
+        except sqlite3.Error as error:
             print(error)
+            print(querystring)
 
         finally:
             if conn:
                 cur.close()
                 conn.close()
-                # print("PostgreSQL connection is closed")
 
         return response
 
-    def add_device(self, device, network_id):
-        q = ("""INSERT INTO devices (id, ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, network_id)
-                VALUES(%d, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """ % (device.id, device.ip, device.mac, device.mac_vendor, device.hostname, device.os_type, device.os_vendor, device.os_familty, device.network_id))
-        result = query(q)
-    
-    def get_all_endpoints(self, network_id):
-        q = ("SELECT * FROM devices WHERE network_id=%s" % (network_id))
-        result = self.query(q)
-        return result
 
-    ## Get an endpoint by ID
-    def get_endpoint(self, id):
-        q = ("SELECT * FROM endpoints WHERE id='{0}'".format(id))
-        result = self.query(q)
-        return result[0][0]
-    
-    ## Get a layer 3 device by id
-    def get_layer3(self, id):
-        q = ("SELECT * FROM endpoints WHERE id='{0}'".format(id))
-        result = self.query(q)
-        return result[0][0]
-    
-    ## Extract data for building a full diagram for the switch/router.
-    def get_layer3_ports(self, id):
-        # Get the information about the layer3 switch/router
-        q = ("SELECT * FROM layer3s WHERE id='{0}".format(id))
+    # Adds a network to the database if it doesnt already exist.
+    def register_network(self, gateway_mac, ssid, name):
 
-        # Get the device or port connection information
-        q2 = ("SELECT * FROM layer3_ports WHERE layer3='{0}'".format(id))
+        if self.contains_network(name):
+            return False
 
-        # With this information you can now build a full diagram of a switch and what is connected on it.
+        print("[INFO] Registering new network...")
 
-        result_layer3 = self.query(q)
-        result_join = self.query(q2)
+        query = """
+                INSERT INTO networks (id, gateway_mac, name, ssid)
+                VALUES (?, ?, ?, ?);
+                """
+        
+        params = (self.get_next_network_id(), gateway_mac, name, ssid,)
 
-        # You can combine the data here later or just return them in a tuple.
-        return (result_layer3, result_join)
+        self.query(query, params)
 
-    
+        return True
+
+
+    # Deletes a network from the database
+    def delete_network(self, network_name):
+
+        if not self.contains_network(network_name):
+            return False
+
+        query = """
+                DELETE FROM networks
+                WHERE name = ?;
+                """
+
+        params = (network_name,)
+
+        self.query(query, params)
+
+        query = """
+                DELETE FROM devices
+                WHERE network_name = ?;
+                """
+
+        self.query(query, params)
+        return True
+
+
+    # Checks if the current network exists in the database
+    def contains_network(self, network_name):
+
+        query = """
+                SELECT 1
+                FROM networks
+                WHERE name = ?;
+                """
+
+        params = (network_name,)
+
+        response = self.query(query, params, res=True)
+
+        return response != None and len(response) > 0
+
+
+    # Returns a list of all networks
+    def get_network_names(self):
+
+        query = """
+                SELECT *
+                FROM networks
+                """
+
+        response = self.query(query, res=True)
+
+        return [{"id" : x[0], "gateway_mac": x[1], "name": x[2], "ssid": x[3]} for x in response]
+
+
+    # Returns all devices associated with a specific network
+    def get_network(self, network_name):
+
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices JOIN networks ON devices.network_name = networks.name
+                WHERE networks.name = ?;
+                """ 
+        params = (network_name,)
+
+        responses = self.query(query, params, res=True)
+
+        # { mac : Device }
+        devices = {}
+
+        # Converts all responses into Device objects
+        for response in responses:
+            new_device = Device(response[0], response[1])
+            new_device.mac_vendor = response[2]
+            new_device.hostname = response[3]
+            new_device.os_type = response[4]
+            new_device.os_vendor = response[5]
+            new_device.os_family = response[6]
+            new_device.parent = response[7]
+
+            devices[response[0]] = new_device
+
+        return devices
+
+
+    # Allows users to rename a network and all its data
+    def rename_network(self, old_name, new_name):
+
+        if not self.contains_network(old_name) or self.contains_network(new_name):
+            return False
+
+        query = """
+                UPDATE devices
+                SET network_name = ?
+                WHERE network_name = ?;
+                """
+
+        params = (new_name, old_name,)
+
+        self.query(query, params)
+
+        query = """
+                UPDATE networks
+                SET name = ?
+                WHERE name = ?;
+                """
+
+        self.query(query, params)
+        return True
+
+
+    # Adds a device into the database
+    def add_device(self, network_name, device):
+
+        query = """
+                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_name)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """
+
+        params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
+                 device.os_vendor, device.os_family, device.parent, network_name,)
+
+        self.query(query, params)
+
+
+    # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
+    def contains_mac(self, network_name, mac):
+        
+        query = """
+                SELECT 1
+                FROM devices 
+                WHERE mac = ? AND network_name = ?;
+                """
+
+        params = (mac, network_name,)
+
+        response = self.query(query, params, res=True)
+        return response != None and len(response) > 0 != None
+
+
+    # Gets all devices stored in the network corresponding to the gateway's MAC address
+    def get_all_devices(self, network_name):
+
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices
+                WHERE network_name = ?;
+                """
+
+        params = (network_name,)
+
+        responses = self.query(query, params, res=True)
+
+        # { mac : Device }
+        devices = {}
+
+        # Converts all responses into Device objects
+        for response in responses:
+            new_device = Device(response[0], response[1])
+            new_device.mac_vendor = response[2]
+            new_device.hostname = response[3]
+            new_device.os_type = response[4]
+            new_device.os_vendor = response[5]
+            new_device.os_family = response[6]
+            new_device.parent = response[7]
+
+            devices[response[0]] = new_device
+
+        return devices
+
+
+    # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
+    def get_device(self, network_name, mac):
+
+        query = """
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                FROM devices
+                WHERE network_name = ? AND mac = ?;
+                """
+            
+        params = (network_name, mac,)
+
+        response = self.query(query, params, res=True)
+
+        if len(response) == 0 or len(response[0]) < 8:
+            return None
+
+        response = response[0]
+
+        # Creates Device object from response
+        new_device = Device(response[0], response[1])
+        new_device.mac_vendor = response[2]
+        new_device.hostname = response[3]
+        new_device.os_type = response[4]
+        new_device.os_vendor = response[5]
+        new_device.os_family = response[6]
+        new_device.parent = response[7]
+
+        return new_device
+
+
+    # Saves an existing device back to the database after it has been changed.
+    def save_device(self, network_name, device):
+
+        query = """
+                UPDATE devices
+                SET mac = ?,
+                    ip = ?,
+                    mac_vendor = ?,
+                    hostname = ?,
+                    os_type = ?,
+                    os_vendor = ?,
+                    os_family = ?,
+                    parent = ?
+                WHERE network_name = ? AND mac = ?;
+                """
+
+        params = (device.mac, device.ip, device.mac_vendor,
+                  device.hostname, device.os_type, device.os_vendor,
+                  device.os_family, device.parent, network_name, device.mac,)
+
+        self.query(query, params)
+
+
+    # Gets the next available unique network id
+    def get_next_network_id(self):
+
+        query = """
+                SELECT id
+                FROM networks
+                """
+
+        response = self.query(query, res=True)
+
+        next = -1
+        for r in response:
+            next = max(next, r[0])
+
+        return next + 1
+
+
     # Setup tables if it doesn't exist
-    # Currently using router MAC as PK for networks, need to find something much better
-    def default(self):
+    # Currently using rouster MAC as PK for networks, need to find something much better
+    def init_tables(self):
+
+
+        try:
+
+            conn = sqlite3.connect(self.db)
+        
+        except sqlite3.Error as e:
+
+            print(e)
+            return False
+
         # Main Tables
-        query_users = """CREATE TABLE IF NOT EXISTS users
-                        (id TEXT PRIMARY KEY NOT NULL,
-                        email TEXT NOT NULL,
-                        password TEXT NOT NULL,
-                        company TEXT NOT NULL);
+        # query_users = """CREATE TABLE IF NOT EXISTS users
+        #                 (id TEXT PRIMARY KEY NOT NULL,
+        #                 email TEXT NOT NULL,
+        #                 password TEXT NOT NULL,
+        #                 company TEXT NOT NULL);
+        #                 """
+
+        query_networks = """
+                        CREATE TABLE IF NOT EXISTS networks
+                            (id INTEGER PRIMARY KEY,
+                            gateway_mac TEXT,
+                            name TEXT UNIQUE,
+                            ssid TEXT);
                         """
-        
-        query_networks = """CREATE TABLE IF NOT EXISTS networks
-                        (router_mac TEXT PRIMARY KEY NOT NULL,
-                        name TEXT,
-                        user_id FOREIGN KEY (id) REFERENCES users);
+
+        query_devices = """
+                        CREATE TABLE IF NOT EXISTS devices
+                            (mac TEXT NOT NULL,
+                            ip TEXT NOT NULL,
+                            mac_vendor TEXT,
+                            hostname TEXT,
+                            os_type TEXT,
+                            os_vendor TEXT,
+                            os_family TEXT,
+                            parent TEXT,
+                            network_name TEXT REFERENCES networks (name),
+                            CONSTRAINT id PRIMARY KEY (mac, network_name));
                         """
-        
-        query_devices = """CREATE TABLE IF NOT EXISTS devices
-                        (mac TEXT PRIMARY KEY,
-                        ip TEXT NOT NULL,
-                        mac_vendor TEXT,
-                        hostname TEXT,
-                        os_type TEXT,
-                        os_vendor TEXT,
-                        os_family TEXT,
-                        network_id FOREIGN KEY (id) REFERENCES networks);
-                        """
-        
+
         # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s
         #                 (id SERIAL PRIMARY KEY NOT NULL,
         #                 ip TEXT NOT NULL,
@@ -129,7 +361,7 @@ class PostgreSQLDatabase:
         #                 ports FOREIGN KEY (id) REFERENCES layer3_ports,
         #                 vendor TEXT);
         #                 """
-        
+
         # query_wirelessaps = """CREATE TABLE IF NOT EXISTS wirelessaps
         #                 (id SERIAL PRIMARY KEY NOT NULL,
         #                 ip TEXT NOT NULL,
@@ -140,15 +372,16 @@ class PostgreSQLDatabase:
         #                 vendor TEXT);
         #                 """
         # Join tables
-        query_alive = """CREATE TABLE IF NOT EXISTS alive
-                    (id SERIAL PRIMARY KEY NOT NULL,
-                    ip TEXT NOT NULL,
-                    mac TEXT NOT NULL,
-                    first_seen TIMESTAMP,
-                    last_check TIMESTAMP,
-                    last_online TIMESTAMP);
+        query_alive = """
+                    CREATE TABLE IF NOT EXISTS alive
+                        (id SERIAL PRIMARY KEY NOT NULL,
+                        ip TEXT NOT NULL,
+                        mac TEXT NOT NULL,
+                        first_seen TIMESTAMP,
+                        last_check TIMESTAMP,
+                        last_online TIMESTAMP);
                     """
-        
+
         # query_layer3_ports = """CREATE TABLE IF NOT EXISTS layer3_ports
         #             (id SERIAL PRIMARY KEY NOT NULL,
         #             port_name TEXT NOT NULL,
@@ -156,9 +389,9 @@ class PostgreSQLDatabase:
         #             layer3 FORIEGN KEY (id) REFERENCES layer3s,
         #             device FORIEGN KEY (id) REFERENCES devices;
         #             """
-        
+
         # run all the database queries
-        self.query(query_users)
+        # self.query(query_users)
         self.query(query_networks)
         self.query(query_devices)
         # self.query(query_layer3s)
@@ -166,4 +399,4 @@ class PostgreSQLDatabase:
         self.query(query_alive)
         # self.query(query_layer3_ports)
 
-        
+        return True

@@ -36,4 +36,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     // Request a new network
     getNewNetwork: () => ipcRenderer.send("get-new-network"),
+
+    requestRemoveNetwork: (data) =>
+        ipcRenderer.send("request-network-delete", data),
+
+    // Set a new network's name
+    trySetNewNetworkName: (newName) =>
+        ipcRenderer.invoke("set-new-network-name", newName),
+
+    // Re set an existing network's name
+    trySetNetworkName: (names) => ipcRenderer.invoke("set-network-name", names),
 });

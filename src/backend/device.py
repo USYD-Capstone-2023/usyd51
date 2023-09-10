@@ -1,13 +1,15 @@
 class Device:
 
-    ip = "unknown"
-    mac = "unknown"
-    mac_vendor = "unknown"
-    os_family = "unknown"
-    os_vendor = "unknown"
-    os_type = "unknown"
-    hostname = "unknown"
-    parent = "unknown"
+    default = "unknown"
+    
+    ip = default
+    mac = default
+    mac_vendor = default
+    os_family = default
+    os_vendor = default
+    os_type = default
+    hostname = default
+    parent = default
 
     # Required not null fields
     def __init__(self, ip, mac):

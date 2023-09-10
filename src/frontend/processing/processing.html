@@ -1,37 +1,53 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Processing Page</title>
-    <link rel="stylesheet" href="processing.css">
-    <link rel="stylesheet" href="../font-awesome-4.7.0/css/font-awesome.min.css">
-    <script language="javascript" type="text/javascript" src="processing.js"></script>
+    <head>
+        <title>Processing Page</title>
+        <link rel="stylesheet" href="processing.css" />
+        <link
+            rel="stylesheet"
+            href="../font-awesome-4.7.0/css/font-awesome.min.css"
+        />
+        <script
+            language="javascript"
+            type="text/javascript"
+            src="processing.js"
+        ></script>
+    </head>
 
-    
-</head>
+    <body>
+        <header>
+            <div class="current-network-box">
+                <i class="fa fa-wifi" style="color: #000000"></i>
+                <div class="current-network">Home Network (SSID)</div>
+            </div>
+        </header>
 
-<body>
-    <header>
-        <div class="current-network-box">
-            <i class="fa fa-wifi" style="color: #000000;"></i>
-            <div class="current-network">Home Network (SSID)</div>
-        </div>
-    </header>
-
-        <div class="rectangle-box"></div>
+        <div class="rectangle-box">
             <div class="button" id="new-network-button">
                 <div class="create-new-network">
-                    <img src="../Assets/loading-gif.gif" class="custom-loading-icon" id="loading-icon"></img>
-                    <div class="creating-network" id="create-network"> Processing... </div>
+                    <img
+                        src="../Assets/loading-gif.gif"
+                        class="custom-loading-icon"
+                        id="loading-icon"
+                    />
+                    <div class="creating-network" id="create-network">
+                        Processing...
+                    </div>
                 </div>
-            </div> 
+            </div>
         </div>
 
         <div class="settings-container">
             <div id="loading-bar">
-                <div id="bar-info"></div>
+                <div id="bar-info-container"><div id="bar-info"></div></div>
+
                 <div id="bar-label" style="text-align: center"></div>
+            </div>
+            <div id="input-name-container">
+                <div id="input-description">Input name:</div>
+                <input id="input-name" placeholder="[SSID]" />
             </div>
             <div id="ready-button" class="not-ready">Not Ready</div>
         </div>
-</body>
+    </body>
 </html>
