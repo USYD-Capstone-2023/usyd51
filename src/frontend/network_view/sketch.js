@@ -113,7 +113,7 @@ function coseLayout() {
 function updateInfoBox(nodeData) {
     //THIS NEEDS TO BE UPDATE WHEN WE HAVE THE PROPER JSONS
     document.getElementById("info_panel_container").style.display = 'flex';
-    document.getElementById("node_type").textContent = "Windows PC/Laptop";
+    document.getElementById("node_type").textContent = "Device";
     document.getElementById("node_hostname").textContent = nodeData.hostname;
     document.getElementById("node_IP").textContent = nodeData.id;
     document.getElementById("node_MAC").textContent = nodeData.mac;
