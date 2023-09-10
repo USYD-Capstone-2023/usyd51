@@ -11,8 +11,13 @@ close_button.onclick = () => {
 };
 
 let settings_button = document.getElementById("settings_symbol");
-settings_button.onclick = () => {
-};
+settings_button.addEventListener("click", function () {
+    if (currentLayout == "cose") {
+        breadthLayout();
+    } else {
+        coseLayout();
+    }
+});
 
 let map_button = document.getElementById("map_button");
 let list_button = document.getElementById("list_button");
