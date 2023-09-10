@@ -104,6 +104,14 @@ function createNetworkBox(filename, name, ssid, index, flashing = False) {
                     .then((res) => {
                         if (res) {
                             networkName.style.color = "black";
+
+                            // Update name
+                            const currentName = networkName.innerText;
+
+                            arrowButton.onclick = () => {
+                                // We want to request data from the backend and load the corresponding page.
+                                window.electronAPI.loadNetwork(currentName);
+                            };
                             return;
                         } else {
                             networkName.innerText = originalNames[index];
