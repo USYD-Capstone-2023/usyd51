@@ -1,6 +1,6 @@
 class db_dummy:
 
-    # network {mac : {mac : device}}
+    # network {network_id : {mac : device}}
     devices = {}
     networks = {}
     def __init__(self, database, username, password, host="localhost", port="5432"):
@@ -27,7 +27,13 @@ class db_dummy:
         self.devices[network_id][device.mac] = device
 
     def get_device(self, network_id, mac):
-        return self.devices[network_id][mac]
+        if network_id in self.devices.keys():
+            if mac in self.devices[network_id].keys():
+                return self.devices[network_id][mac]
+            else:
+                raise KeyError("Device not found")
+        else:
+            raise KeyError("Network not found")
 
     def register_network(self, network_id):
         if network_id not in self.devices.keys():
@@ -37,7 +43,14 @@ class db_dummy:
         return self.devices[network_id]
 
     def add_device(self, device, network_id):
-        self.devices[network_id][device.mac] = device
+        if network_id in self.devices.keys():
+            self.devices[network_id][device.mac] = device
+        else:
+            raise KeyError
 
     def add_device_parent(self, device, network_id, parent):
         self.devices[network_id][device.mac].parent = parent
+    
+    def TESTING_WIPE_DATABASE(self):
+        self.devices = {}
+        self.networks = {}
