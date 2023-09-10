@@ -29,28 +29,30 @@ header {
     display: flex;
     top: 3.5rem;
     left: 50%;
-    width: 14rem;
-    height: 2rem;
-    margin-left: -7rem;
+    width: 12rem;
+    height: 1.75rem;
+    margin-left: -6rem;
     justify-content: center;
 }
 
 .pill-element {
     flex: 1;
     font-family: Inter, sans-serif;
-    font-size: 1rem;
+    font-size: 0.85rem;
     font-weight: bold;
     color: var(--dark-blue);
     text-align: center;
-    line-height: 1.8rem;
+    line-height: 1.55rem;
 }
 
 .pill-left {
     border-radius: 4px 0 0 4px;
+    margin-right: -0.05rem;
 }
 
 .pill-right {
     border-radius: 0 4px 4px 0;
+    margin-left: -0.05rem;
 }
 
 .pill-unselected {
@@ -62,6 +64,14 @@ header {
     background-color: var(--accent-blue);
     border: 0.1rem solid var(--dark-blue);
     cursor: pointer;
+}
+
+.pill-selected {
+    z-index: 2;
+}
+
+.pill-unselected:hover {
+    z-index: 3;
 }
 
 .network-name {
