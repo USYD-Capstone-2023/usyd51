@@ -141,11 +141,12 @@ class Net_tools:
 
             return os.popen("iwconfig " + conf.iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
-        else:
+        elif current_system == "Windows":
 
-            return "average windowos user lmao"
+            out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
+            return out.split(":")[-1][1:]
 
-        return None
+        return "OS UNSUPPORTED"
 
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
