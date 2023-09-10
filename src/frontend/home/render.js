@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //Handles the Drag and Drop functionality for the network list
     setTimeout(() => {
-        const networkBoxes = document.querySelectorAll(".network-box");
+        const networkBoxes = document.querySelectorAll(".network-box-wrapper");
         const networkContainer = document.querySelector(".network-container");
 
         networkBoxes.forEach((box) => {
@@ -68,6 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function createNetworkBox(filename, name, ssid, index, flashing = False) {
     let networkBoxWrapper = document.createElement("div");
     networkBoxWrapper.setAttribute("class", "network-box-wrapper");
+    networkBoxWrapper.setAttribute("draggable", "true");
 
     let removeButton = document.createElement("button");
     removeButton.setAttribute("class", "remove-button");
@@ -79,7 +80,6 @@ function createNetworkBox(filename, name, ssid, index, flashing = False) {
 
     let networkBox = document.createElement("button");
     networkBox.setAttribute("class", "network-box");
-    networkBox.setAttribute("draggable", "true");
     networkBoxWrapper.appendChild(networkBox);
 
     let networkInfo = document.createElement("div");
