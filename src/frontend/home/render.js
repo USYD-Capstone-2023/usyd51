@@ -1,4 +1,5 @@
 let editMode = false;
+let originalNames = [];
 
 window.electronAPI.requestNetworks();
 
@@ -64,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // })
 
-function createNetworkBox(filename, name, ssid, flashing = False) {
+function createNetworkBox(filename, name, ssid, index, flashing = False) {
     let networkBoxWrapper = document.createElement("div");
     networkBoxWrapper.setAttribute("class", "network-box-wrapper");
 
@@ -87,7 +88,32 @@ function createNetworkBox(filename, name, ssid, flashing = False) {
 
     let networkName = document.createElement("div");
     networkName.setAttribute("class", "network-name");
+    networkName.setAttribute("spellcheck", "false"); // Remove red underline when setting new name
+
     networkName.innerText = name;
+
+    // This deals with if the text box has been edited
+    networkName.addEventListener("blur", async () => {
+        if (editMode) {
+            if (originalNames[index] != networkName.innerText) {
+                const result = window.electronAPI
+                    .trySetNetworkName([
+                        originalNames[index],
+                        networkName.innerText,
+                    ])
+                    .then((res) => {
+                        if (res) {
+                            networkName.style.color = "black";
+                            return;
+                        } else {
+                            networkName.innerText = originalNames[index];
+                            networkName.style.color = "#123c6e";
+                        }
+                    });
+            }
+        }
+    });
+
     networkInfo.appendChild(networkName);
 
     let networkType = document.createElement("div");
@@ -141,6 +167,23 @@ function editModeToggle() {
         }
     }
 
+    let networkNames = document.getElementsByClassName("network-name");
+    for (let i = 0; i < removeButtons.length; i++) {
+        if (editMode) {
+            networkNames[i].contentEditable = "true";
+            originalNames.push(networkNames[i].innerHTML);
+        } else {
+            networkNames[i].contentEditable = "false";
+            if (networkNames[i].innerHTML != originalNames[i]) {
+                // Network name has been changed. Attempt to save it.
+            }
+        }
+    }
+
+    if (!editMode) {
+        originalNames = [];
+    }
+
     return editMode;
 }
 
@@ -155,11 +198,11 @@ window.electronAPI.networkList((_event, response) => {
     let ssid = response["ssid"];
     // Loop through all network ids and create a box for each network containing name and SSID.
     for (let network of Object.keys(data)) {
-        console.log(network, ssid, data[network]["ssid"]);
         createNetworkBox(
             data[network]["name"],
             data[network]["name"],
             data[network]["ssid"],
+            network,
             ssid == data[network]["ssid"]
         );
     }

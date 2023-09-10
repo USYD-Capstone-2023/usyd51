@@ -98,6 +98,16 @@ ipcMain.handle("set-new-network-name", async (event, arg) => {
     }
 });
 
+ipcMain.handle("set-network-name", async (event, arg) => {
+    try {
+        const result = await renameNetwork(arg[0], arg[1]);
+        return result;
+    } catch (error) {
+        console.log("Error");
+        return false;
+    }
+});
+
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
     const webContents = event.sender;
