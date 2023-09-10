@@ -1,17 +1,23 @@
 # External
 from scapy.all import (
     traceroute,
+    TracerouteResult,
     conf,
     ARP,
     DNSRR,
     UDP,
     IP,
+    TCP,
     Ether,
     srp1,
+    sr1,
     get_if_addr,
     sniff,
     RandShort,
 )
+import nmap
+import netifaces
+import requests
 
 # Local
 from threadpool import Threadpool
@@ -19,10 +25,7 @@ from job import Job
 from MAC_table import MAC_table
 from device import Device
 from platform import system
-import nmap, socket, netifaces, threading, sys, signal, time, subprocess, os
-
-if system() != "Darwin":
-    import pywifi
+import socket, threading, sys, signal, subprocess, os
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
@@ -75,7 +78,6 @@ class Net_tools:
             return False
 
         self.name = ssid
-
         # Deleted network if it already exists
         if self.db.contains_network(self.name):
             self.db.delete_network(self.name)
@@ -288,19 +290,22 @@ class Net_tools:
         if ip == gateway:
             return []
 
-        # This one seems to have issues, but doesnt give mac res errors
-
         # Emits UDP packets with incrementing ttl until the target is reached
         # answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
         answers = traceroute(ip, maxttl=10, iface=conf.iface, verbose=False)[0]
         addrs = [gateway]
 
-        for response_idx in range(1, len(answers)):
-            # Dont register if the packet hit the same router again
-            if answers.res[0][1].src == addrs[-1] or answers.res[0][1].src == ip:
-                break
+        if ip in answers.get_trace().keys():
+            for answer in answers.get_trace()[ip].keys():
 
-            addrs.append(answers.res[0][1].src)
+                hop_ip =  answers.get_trace()[ip][answer][0]
+
+                # Dont register if the packet hit the same router again
+                if hop_ip not in addrs:
+                    addrs.append(hop_ip)
+
+        if ip not in addrs:
+            addrs.append(ip)
 
         return addrs
 
@@ -372,7 +377,7 @@ class Net_tools:
 
             # Updates the devices parent node
             if len(returns[job_counter]) > 0:
-                device.parent = returns[job_counter][-1]
+                device.parent = returns[job_counter][-2]
             else:
                 device.parent = "unknown"
 
@@ -380,6 +385,47 @@ class Net_tools:
             job_counter += 1
 
         self.lb.reset()
+
+
+    def check_website(ip):
+
+        url = f"http://{ip}"  # Construct the URL with the provided IP
+        try:
+            response = requests.get(url, timeout=1)
+            
+            # Check if the response status code is in the 200 range (i.e., a successful response)
+            if 200 <= response.status_code < 300:
+                return True #return true if this hosts a website
+            else:
+                return False #return false if this does not host a website
+        except requests.RequestException as e:
+            return False #return false if this does not host a website
+        
+
+    def vertical_traceroute(self, target_host="8.8.8.8"):
+
+        # Run traceroute to google's DNS server
+        traceroute_results = Net_tools.traceroute_helper((target_host, self.gateway))
+
+        # Print the traceroute results
+        for i in range(len(traceroute_results) - 1):
+            ip = traceroute_results[i]
+            if Net_tools.in_class_A(ip) or Net_tools.in_class_B(ip) or Net_tools.in_class_C(ip):
+
+                mac = Net_tools.arp_helper(ip)[1]
+                if mac == None:
+                    continue
+
+                if self.db.contains_mac(self.name, mac):
+                    device = self.db.get_device(self.name, mac)
+                    device.parent = traceroute_results[i+1]
+                    self.db.save_device(self.name, device)
+                    continue
+
+                new_device = Device(ip, mac)
+                new_device.parent = traceroute_results[i+1]
+                self.db.add_device(self.name, new_device)
+
 
     # ---------------------------------------------- OS FINGERPRINTING ---------------------------------------------- #
 
@@ -611,6 +657,62 @@ class Net_tools:
 
     def run_wlan_sniffer(self, iface):
         sniff(prn=self.wlan_sniffer_callback, iface=iface)
+
+    # ---------------------------------------- IP ----------------------------------------------------- #
+           
+    def in_class_A(ip):
+
+        A_ip_range = [[10, 0, 0, 0], [10, 255, 255, 255]]
+        ip = ip.split(".")
+        ip = [int(x) for x in ip] 
+        if ip[0] == 10:
+            return True
+        else:
+            return False
+        
+        
+    def in_class_B(ip):
+
+        B_ip_range = [[172,16,0,0], [172, 31, 255, 255]]
+        ip = ip.split(".")
+        ip = [int(x) for x in ip] 
+        if ip[0] == 172:
+            if ip[1] >= 16 and ip[1] <= 31:
+                return True
+        return False
+    
+
+    def in_class_C(ip):
+
+        C_ip_range = [[192, 168, 0, 0], [192, 168, 255, 255]]
+        ip = ip.split(".")
+        ip = [int(x) for x in ip] 
+        #print(ip)
+        if ip[0] == 192:
+            #print(196)
+            if ip[1] == 168:
+                #print(168)
+                return True
+        return False
+    
+    # ---------------------------------------- PORTS ---------------------------------------------------- #
+    
+    def check_port(ip, port):
+        
+        try:
+            # Create a TCP SYN packet to check if the port is open
+            response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+
+            if response and response.haslayer(TCP):
+                if response.getlayer(TCP).flags == 0x12:  # TCP SYN-ACK flag
+                    return True #return True if the port is open
+                else:
+                    return False #return false if the port is closed
+            else:
+                return False #return false if the port is closed
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+    
 
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
     # ---------------------------------------- WIP -----------------------------------------

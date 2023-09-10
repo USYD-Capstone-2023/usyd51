@@ -52,6 +52,8 @@ def map_network():
 
     # Adds all active devices on the network to the database
     nt.get_devices()
+    # Runs a vertical traceroute to the last internal network device
+    nt.vertical_traceroute()
     # Adds routing information for all devicesin the database
     nt.add_routes()
     # Looks up mac vendor for all devices in the database

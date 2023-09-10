@@ -67,7 +67,6 @@ class SQLiteDB:
         self.query(query, params)
 
         return True
-        
 
 
     # Deletes a network from the database
@@ -82,6 +81,13 @@ class SQLiteDB:
                 """
 
         params = (network_name,)
+
+        self.query(query, params)
+
+        query = """
+                DELETE FROM devices
+                WHERE network_name = ?;
+                """
 
         self.query(query, params)
         return True
@@ -342,7 +348,7 @@ class SQLiteDB:
                             os_vendor TEXT,
                             os_family TEXT,
                             parent TEXT,
-                            network_name TEXT REFERENCES networks (name) ON DELETE CASCADE,
+                            network_name TEXT REFERENCES networks (name),
                             CONSTRAINT id PRIMARY KEY (mac, network_name));
                         """
 
