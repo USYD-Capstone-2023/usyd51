@@ -3,18 +3,22 @@ const { spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-
+const winPlatforms = ["win32", "win64", "windows", "wince"];
+const winOS = winPlatforms.indexOf(process.platform.toLowerCase()) != -1;
 let flaskProcess;
 
 app.on("ready", () => {
-    flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
+    if (winOS) {
+        flaskProcess = spawn("flask", ["run"], { cwd: "..\\backend\\" });
+    } else {
+        flaskProcess = spawn("sudo", ["flask", "run"], { cwd: "../backend/" });
+    }
     flaskProcess.stdout.on("data", (data) => {
         console.log(`Flask data: ${data}`);
     });
 });
 
 function loadNetworkFromData(event, data) {
-    console.log("Loading network tab from load network from data");
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
@@ -43,6 +47,72 @@ function getNewMap(event, data) {
     });
 }
 
+function getSSID() {
+    return new Promise((resolve, reject) => {
+        http.get("http://127.0.0.1:5000/ssid", (resp) => {
+            let data = "";
+
+            resp.on("data", (chunk) => {
+                data += chunk;
+            });
+
+            resp.on("end", () => {
+                resolve(data);
+            });
+            resp.on("error", (err) => {
+                reject(err);
+            });
+        });
+    });
+}
+
+function renameNetwork(old_name, new_name) {
+    return new Promise((resolve, reject) => {
+        http.get(
+            "http://127.0.0.1:5000/rename_network/" + old_name + "," + new_name,
+            (resp) => {
+                let data = "";
+
+                resp.on("data", (chunk) => {
+                    data += chunk;
+                });
+
+                resp.on("end", () => {
+                    if (data == "success") {
+                        resolve(true);
+                    }
+                    resolve(false);
+                });
+
+                resp.on("error", (err) => {
+                    reject(err);
+                });
+            }
+        );
+    });
+}
+
+ipcMain.handle("set-new-network-name", async (event, arg) => {
+    try {
+        const SSID = await getSSID();
+        const result = await renameNetwork(SSID, arg);
+        return result;
+    } catch (error) {
+        console.log("Error");
+        return false;
+    }
+});
+
+ipcMain.handle("set-network-name", async (event, arg) => {
+    try {
+        const result = await renameNetwork(arg[0], arg[1]);
+        return result;
+    } catch (error) {
+        console.log("Error");
+        return false;
+    }
+});
+
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
     const webContents = event.sender;
@@ -67,7 +137,10 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1000,
         height: 800,
+        minHeight: 500,
+        minWidth: 500,
         webPreferences: {
+            contextIsolation: true,
             preload: path.join(__dirname, "preload.js"),
         },
     });
@@ -76,15 +149,6 @@ function createWindow() {
         {
             label: app.name,
             submenu: [
-                {
-                    click: () => {
-                        let data = JSON.parse(
-                            fs.readFileSync("../backend/clients.json")
-                        );
-                        win.webContents.send("update-data", data);
-                    },
-                    label: "Update data",
-                },
                 {
                     click: () => win.webContents.openDevTools(),
                     label: "Developer Tools",
@@ -108,18 +172,66 @@ function loadNetwork(event, data) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
-    let networkData = JSON.parse(fs.readFileSync("../cache/" + data));
+    http.get("http://127.0.0.1:5000/network/" + data, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            response = JSON.parse(data);
+            win.webContents.send("network-list", response);
+            win.webContents.once("dom-ready", () =>
+                win.webContents.send("update-data", response)
+            );
+        });
+    });
     // Wait until dom has loaded to send data
-    win.webContents.once("dom-ready", () =>
-        win.webContents.send("update-data", networkData)
-    );
 }
 
-function sendNetworks(event, data) {
+function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
-    let networkData = JSON.parse(fs.readFileSync("../cache/index.json")); // Load file data from index.json
-    win.webContents.send("network-list", networkData);
+
+    http.get("http://127.0.0.1:5000/ssid", (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            ssid = data;
+
+            http.get("http://127.0.0.1:5000/network_names", (resp) => {
+                let data = "";
+                resp.on("data", (chunk) => {
+                    data += chunk;
+                });
+
+                resp.on("end", () => {
+                    response = {};
+                    response["data"] = JSON.parse(data);
+                    response["ssid"] = ssid;
+                    win.webContents.send("network-list", response);
+                });
+            });
+        });
+    });
+    // win.webContents.send("network-list", networkData);
+}
+
+function requestRemoveNetwork(event, data) {
+    let url = "http://127.0.0.1:5000/delete_network/" + data;
+    http.get(url, (resp) => {
+        let data = "";
+        resp.on("data", (chunk) => {
+            data += chunk;
+        });
+
+        resp.on("end", () => {
+            sendNetworks(event);
+        });
+    });
 }
 
 app.whenReady().then(() => {
@@ -141,6 +253,9 @@ app.whenReady().then(() => {
     // Requests a new network map
     ipcMain.on("get-new-network", getNewMap);
 
+    // Request a network be deleted
+    ipcMain.on("request-network-delete", requestRemoveNetwork);
+
     createWindow();
 
     app.on("activate", () => {
@@ -151,8 +266,6 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-    // if (process.platform !== 'darwin') {
     flaskProcess.kill();
     app.quit();
-    // }
 });
