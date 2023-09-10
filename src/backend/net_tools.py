@@ -1,5 +1,5 @@
-from scapy.all import traceroute, conf, ARP, Ether, srp
-import nmap, socket, netifaces
+from scapy.all import traceroute, conf, ARP, Ether, srp, sr1, TCP, IP
+import nmap, socket, netifaces, requests
 
 # Collection of tools used to get information from the network and its devices
 
@@ -100,6 +100,94 @@ def get_dhcp_server_info():
         domain = hostname_helper(default_gateway)
 
     return {"router" : default_gateway, "iface" : default_iface, "subnet_mask" : subnet_mask, "domain" : domain}
+
+def check_port(ip, port):
+    
+    try:
+        # Create a TCP SYN packet to check if the port is open
+        response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+
+        if response and response.haslayer(TCP):
+            if response.getlayer(TCP).flags == 0x12:  # TCP SYN-ACK flag
+                return True #return True if the port is open
+            else:
+                return False #return false if the port is closed
+        else:
+            return False #return false if the port is closed
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+def check_website(ip):
+    url = f"http://{ip}"  # Construct the URL with the provided IP
+    try:
+        response = requests.get(url, timeout=1)
+        
+        # Check if the response status code is in the 200 range (i.e., a successful response)
+        if 200 <= response.status_code < 300:
+            return True #return true if this hosts a website
+        else:
+            return False #return false if this does not host a website
+    except requests.RequestException as e:
+        return False #return false if this does not host a website
+    
+def in_class_A(ip):
+    A_ip_range = [[10, 0, 0, 0], [10, 255, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    if ip[0] == 10:
+        return True
+    else:
+        return False
+    
+def in_class_B(ip):
+    B_ip_range = [[172,16,0,0], [172, 31, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    if ip[0] == 172:
+        if ip[1] >= 16 and ip[1] <= 31:
+            return True
+    return False
+
+def in_class_C(ip):
+    C_ip_range = [[192, 168, 0, 0], [192, 168, 255, 255]]
+    ip = ip.split(".")
+    ip = [int(x) for x in ip] 
+    #print(ip)
+    if ip[0] == 192:
+        #print(196)
+        if ip[1] == 168:
+            #print(168)
+            return True
+    return False
+
+def vertical_traceroute(target_host="8.8.8.8"):
+    # Define the target host (in this case, Google's DNS server)
+    # Create a list to store the traceroute results
+    traceroute_results = []
+
+    # Perform the traceroute
+    for ttl in range(1, 31):  # Set the maximum TTL to 30
+        # Create an ICMP echo request packet with the specified TTL
+        packet = IP(dst=target_host, ttl=ttl) / ICMP()
+
+        # Send the packet and receive a reply
+        reply = sr1(packet, verbose=False, timeout=1)
+
+        if reply is not None:
+            traceroute_results.append(reply.src)
+
+        # Check if we have reached the target host
+        if reply and reply.src == target_host:
+            break
+
+    local_vertical = []
+    # Print the traceroute results
+    for i, ip in enumerate(traceroute_results):
+        if in_class_A(ip) or in_class_B(ip) or in_class_C(ip):
+            local_vertical.append(ip)
+    
+    #returns a list of ip strings that are inside of your network and a part of a traceroute to google
+    return local_vertical
 
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
