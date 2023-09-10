@@ -31,7 +31,14 @@
         ></i>
       </div>
     </header>
+    
     <div id="cy"></div>
+
+    <div class="pill-container">
+      <div class="pill-selected pill-left pill-element" id="map_button">Map</div>
+      <div class="pill-unselected pill-element" id="list_button">List</div>
+      <div class="pill-unselected pill-right pill-element" id="history_button">History</div>
+    </div>
 
     <div class="info-panel-container" id="info_panel_container">
       <div class="info-panel-header">
@@ -69,6 +76,26 @@
           <span class="info-panel-box-item-value" id="node_MAC"
             >XX-XX-XX-XX-XX-XX</span
           >
+        </div>
+        <div class="info-panel-box-item">
+          <span class="info-panel-box-item-title">Ports</span>
+        </div>
+        <div id="port_table_container">
+          <div id="port_numbers">
+            <span class="port-title">Port #</span>
+            <span class="port-row">22</span>
+            <span class="port-row">80</span>
+          </div>
+          <div id="tcp_status">
+            <span class="port-title">TCP</span>
+            <span class="port-row">Yes</span>
+            <span class="port-row">No</span>
+          </div>
+          <div id="udp_status">
+            <span class="port-title">UDP</span>
+            <span class="port-row">Yes</span>
+            <span class="port-row">No</span>
+          </div>
         </div>
       </div>
       <button id="toggleStyle">Toggle Style</button>
