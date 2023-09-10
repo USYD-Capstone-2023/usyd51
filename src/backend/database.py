@@ -52,17 +52,22 @@ class SQLiteDB:
     # Adds a network to the database if it doesnt already exist.
     def register_network(self, gateway_mac, ssid, name):
 
-        if not self.contains_network(gateway_mac):
-            print("[INFO] Registering new network...")
+        if self.contains_network(name):
+            return False
 
-            query = """
-                    INSERT INTO networks (name, gateway_mac, ssid)
-                    VALUES (?, ?, ?);
-                    """
-            
-            params = (name, gateway_mac, ssid,)
+        print("[INFO] Registering new network...")
 
-            self.query(query, params)
+        query = """
+                INSERT INTO networks (id, gateway_mac, name, ssid)
+                VALUES (?, ?, ?, ?);
+                """
+        
+        params = (self.get_next_network_id(), gateway_mac, name, ssid,)
+
+        self.query(query, params)
+
+        return True
+        
 
 
     # Deletes a network from the database
@@ -98,6 +103,7 @@ class SQLiteDB:
         return response != None and len(response) > 0
 
 
+    # Returns a list of all networks
     def get_network_names(self):
 
         query = """
@@ -107,9 +113,10 @@ class SQLiteDB:
 
         response = self.query(query, res=True)
 
-        return [{"name": x[0], "gateway_mac": x[1], "ssid": x[2]} for x in response]
+        return [{"id" : x[0], "gateway_mac": x[1], "name": x[2], "ssid": x[3]} for x in response]
 
 
+    # Returns all devices associated with a specific network
     def get_network(self, network_name):
 
         query = """
@@ -137,6 +144,32 @@ class SQLiteDB:
             devices[response[0]] = new_device
 
         return devices
+
+
+    # Allows users to rename a network and all its data
+    def rename_network(self, old_name, new_name):
+
+        if not self.contains_network(old_name) or self.contains_network(new_name):
+            return False
+
+        query = """
+                UPDATE devices
+                SET network_name = ?
+                WHERE network_name = ?;
+                """
+
+        params = (new_name, old_name,)
+
+        self.query(query, params)
+
+        query = """
+                UPDATE networks
+                SET name = ?
+                WHERE name = ?;
+                """
+
+        self.query(query, params)
+        return True
 
 
     # Adds a device into the database
@@ -252,6 +285,23 @@ class SQLiteDB:
         self.query(query, params)
 
 
+    # Gets the next available unique network id
+    def get_next_network_id(self):
+
+        query = """
+                SELECT id
+                FROM networks
+                """
+
+        response = self.query(query, res=True)
+
+        next = -1
+        for r in response:
+            next = max(next, r[0])
+
+        return next + 1
+
+
     # Setup tables if it doesn't exist
     # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
@@ -276,8 +326,9 @@ class SQLiteDB:
 
         query_networks = """
                         CREATE TABLE IF NOT EXISTS networks
-                            (name TEXT TEXT PRIMARY KEY,
-                            gateway_mac TEXT NOT NULL,
+                            (id INTEGER PRIMARY KEY,
+                            gateway_mac TEXT,
+                            name TEXT UNIQUE,
                             ssid TEXT);
                         """
 
