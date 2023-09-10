@@ -172,6 +172,8 @@ header {
     border-radius: 4px;
     display: flex;
     flex-direction: column;
+    max-height: 85%;
+    padding-bottom: 0.5rem;
 }
 
 .info-panel-box-item {
@@ -230,4 +232,27 @@ header {
     position: absolute;
     bottom: 10px;
     right: 10px;
+}
+
+#port_table_container {
+    display: flex;
+    justify-content: space-evenly;
+    overflow-y: scroll;
+}
+
+.port-title, .port-row {
+    font-family: Inter, sans-serif;
+    font-size: 1rem;
+    color: var(--dark-blue);
+}
+
+.port-title {
+    font-weight: bold;
+}
+
+#port_numbers, #tcp_status, #udp_status {
+    display: flex;
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: center;
 }
