@@ -4,7 +4,7 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const winPlatforms = ["Win32", "Win64", "Windows", "WinCE"];
-const winOS = winPlatforms.indexOf(process.platform);
+const winOS = winPlatforms.indexOf(process.platform) != -1;
 let flaskProcess;
 
 
