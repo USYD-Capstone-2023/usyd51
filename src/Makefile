@@ -1,6 +1,7 @@
 
 
 install:
+	python3 install_script.py
 	cd frontend; npm install
 
 start:
