@@ -159,3 +159,18 @@ body {
     background-color: rgb(178, 255, 162);
     border-radius: 5px 0px 0px 5px;
 }
+
+#input-name-container {
+    display: flex;
+    align-items: left;
+    justify-content: center;
+}
+
+#input-name {
+    margin-top: 10px;
+    background-color: #eafcff;
+}
+
+#input-description {
+    margin-top: 10px;
+}
