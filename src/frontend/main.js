@@ -28,28 +28,9 @@ function loadNetworkFromData(event, data) {
     );
 }
 
-function getNewMap(event, data) {
-    // Load new network map from map_network
-    let incoming_data = undefined;
-    http.get("http://127.0.0.1:5000/map_network", (resp) => {
-        let data = "";
-
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
-
-        resp.on("end", () => {
-            incoming_data = JSON.parse(data);
-            const webContents = event.sender;
-            const win = BrowserWindow.fromWebContents(webContents);
-            win.webContents.send("is-ready", incoming_data);
-        });
-    });
-}
-
-function getSSID() {
+async function makeRequest(extender) {
     return new Promise((resolve, reject) => {
-        http.get("http://127.0.0.1:5000/ssid", (resp) => {
+        http.get("http://127.0.0.1:5000/" + extender, (resp) => {
             let data = "";
 
             resp.on("data", (chunk) => {
@@ -66,36 +47,38 @@ function getSSID() {
     });
 }
 
+function getNewMap(event, data) {
+    // Load new network map from map_network
+    let incoming_data = undefined;
+    makeRequest("map_network")
+        .then((data) => {
+            incoming_data = JSON.parse(data);
+            const webContents = event.sender;
+            const win = BrowserWindow.fromWebContents(webContents);
+            win.webContents.send("is-ready", incoming_data);
+        })
+        .catch((err) => {
+            console.log("Error: " + err);
+        });
+}
+
+function getSSID() {
+    return makeRequest("ssid");
+}
+
 function renameNetwork(old_name, new_name) {
-    return new Promise((resolve, reject) => {
-        http.get(
-            "http://127.0.0.1:5000/rename_network/" + old_name + "," + new_name,
-            (resp) => {
-                let data = "";
-
-                resp.on("data", (chunk) => {
-                    data += chunk;
-                });
-
-                resp.on("end", () => {
-                    if (data == "success") {
-                        resolve(true);
-                    }
-                    resolve(false);
-                });
-
-                resp.on("error", (err) => {
-                    reject(err);
-                });
-            }
-        );
+    const result = makeRequest(
+        "rename_network/" + old_name + "," + new_name
+    ).then((data) => {
+        return data == "success";
     });
+    return result;
 }
 
 ipcMain.handle("set-new-network-name", async (event, arg) => {
     try {
         const SSID = await getSSID();
-        const result = await renameNetwork(SSID, arg);
+        const result = renameNetwork(SSID, arg);
         return result;
     } catch (error) {
         console.log("Error");
@@ -105,7 +88,7 @@ ipcMain.handle("set-new-network-name", async (event, arg) => {
 
 ipcMain.handle("set-network-name", async (event, arg) => {
     try {
-        const result = await renameNetwork(arg[0], arg[1]);
+        const result = renameNetwork(arg[0], arg[1]);
         return result;
     } catch (error) {
         console.log("Error");
@@ -115,21 +98,11 @@ ipcMain.handle("set-network-name", async (event, arg) => {
 
 // Gets the progress of the current request from the backend
 function checkRequestProgress(event) {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-    let url = "http://127.0.0.1:5000/request_progress";
-
-    let response = undefined;
-    http.get(url, (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
-
-        resp.on("end", () => {
-            response = JSON.parse(data);
-            win.webContents.send("send-request-progress", response);
-        });
+    makeRequest("request_progress").then((data) => {
+        const webContents = event.sender;
+        const win = BrowserWindow.fromWebContents(webContents);
+        response = JSON.parse(data);
+        win.webContents.send("send-request-progress", response);
     });
 }
 
@@ -172,65 +145,35 @@ function loadNetwork(event, data) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
     win.loadFile("network_view/index.html");
-    http.get("http://127.0.0.1:5000/network/" + data, (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
+    makeRequest("network/").then((data) => {
+        response = JSON.parse(data);
 
-        resp.on("end", () => {
-            response = JSON.parse(data);
-            win.webContents.send("network-list", response);
-            win.webContents.once("dom-ready", () =>
-                win.webContents.send("update-data", response)
-            );
-        });
+        // win.webContents.send("network-list", response);
+
+        // Wait until dom has loaded to send data
+        win.webContents.once("dom-ready", () =>
+            win.webContents.send("update-data", response)
+        );
     });
-    // Wait until dom has loaded to send data
 }
 
 function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
 
-    http.get("http://127.0.0.1:5000/ssid", (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
-
-        resp.on("end", () => {
-            ssid = data;
-
-            http.get("http://127.0.0.1:5000/network_names", (resp) => {
-                let data = "";
-                resp.on("data", (chunk) => {
-                    data += chunk;
-                });
-
-                resp.on("end", () => {
-                    response = {};
-                    response["data"] = JSON.parse(data);
-                    response["ssid"] = ssid;
-                    win.webContents.send("network-list", response);
-                });
-            });
+    makeRequest("ssid").then((ssid_data) => {
+        makeRequest("network_names").then((names_data) => {
+            response = {};
+            response["data"] = JSON.parse(names_data);
+            response["ssid"] = ssid_data;
+            win.webContents.send("network-list", response);
         });
     });
-    // win.webContents.send("network-list", networkData);
 }
 
 function requestRemoveNetwork(event, data) {
-    let url = "http://127.0.0.1:5000/delete_network/" + data;
-    http.get(url, (resp) => {
-        let data = "";
-        resp.on("data", (chunk) => {
-            data += chunk;
-        });
-
-        resp.on("end", () => {
-            sendNetworks(event);
-        });
+    makeRequest("delete_network/" + data).then((data) => {
+        sendNetworks(event);
     });
 }
 
