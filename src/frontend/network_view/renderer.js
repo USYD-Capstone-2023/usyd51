@@ -1,3 +1,35 @@
+/* Input:
+ports_list: list of port numbers as strings
+tcp_list: list of strings of tcp status on the ports in the same order
+udp_list: list of strings of udp status on the ports in the same order
+*/
+function fillPortTable(ports_list, tcp_list, udp_list) {
+    let port_col = document.getElementById('port_numbers');
+    let tcp_col = document.getElementById('tcp_status');
+    let udp_col = document.getElementById('udp_status');
+
+    port_col.innerHTML = '<span class="port-title">Port #</span>';
+    tcp_col.innerHTML = '<span class="port-title">TCP</span>';
+    udp_col.innerHTML = '<span class="port-title">UDP</span>';
+
+    for (index = 0; index < ports_list.length; index++) {
+        let new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = ports_list[index];
+        port_col.appendChild(new_element);
+
+        new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = tcp_list[index];
+        tcp_col.appendChild(new_element);
+
+        new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = udp_list[index];
+        udp_col.appendChild(new_element);
+    }
+}
+
 let info_panel = document.getElementById("info_panel_container");
 
 let back_button = document.getElementById("back_button");
