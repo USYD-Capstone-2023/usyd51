@@ -107,6 +107,7 @@ function createNetworkBox(filename, name, ssid, index, flashing = False) {
 
                             // Update name
                             const currentName = networkName.innerText;
+                            originalNames[index] = currentName;
 
                             arrowButton.onclick = () => {
                                 // We want to request data from the backend and load the corresponding page.
@@ -144,7 +145,6 @@ function createNetworkBox(filename, name, ssid, index, flashing = False) {
     };
 
     if (flashing) {
-        console.log("test");
         let flashingDot = document.createElement("div");
         flashingDot.setAttribute("class", "flashing-dot");
         networkBox.appendChild(flashingDot);
@@ -197,6 +197,9 @@ function editModeToggle() {
 }
 
 window.electronAPI.networkList((_event, response) => {
+    // Update current network at top of page
+    document.getElementById("current-network").innerHTML = response["ssid"];
+
     // Remove all existing wrappers. This is so the list is refreshed when a box is removed.
     let wrappers = document.getElementsByClassName("network-box-wrapper");
     while (wrappers.length != 0) {
