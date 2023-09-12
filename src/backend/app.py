@@ -26,13 +26,13 @@ nt = Net_tools(db, lb)
 
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
-@app.get("/network/<name>")
-def get_network(name):
+@app.get("/network/<network_id>")
+def get_network(network_id):
 
-    if not db.contains_network(name):
+    if not db.contains_network(network_id):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
-    devices = db.get_all_devices(name)
+    devices = db.get_all_devices(network_id)
 
     ret = {}
     for device in devices.values():
@@ -61,7 +61,7 @@ def map_network():
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return get_network(nt.name)
+    return get_network(nt.network_id)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
@@ -92,11 +92,10 @@ def get_ssid():
     return "error" if ret == None else ret
 
 
-@app.get("/rename_network/<old_name>,<new_name>")
-def rename_network(old_name, new_name):
+@app.get("/rename_network/<network_id>,<new_name>")
+def rename_network(network_id, new_name):
 
-    if db.rename_network(old_name, new_name):
-        nt.name = new_name
+    if db.rename_network(network_id, new_name):
         return "success"
     
     return "error"
@@ -114,10 +113,10 @@ def get_current_progress():
 
 
 # Deletes a network and all related devices from the database
-@app.get("/delete_network/<name>")
-def delete_network(name):
+@app.get("/delete_network/<network_id>")
+def delete_network(network_id):
 
-    if db.delete_network(name):
+    if db.delete_network(network_id):
         return "Successfully deleted network"
 
     return "Could not find entered network..."

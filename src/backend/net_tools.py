@@ -77,11 +77,10 @@ class Net_tools:
         if not ssid:
             return False
 
-        self.name = ssid
-
         self.network_id = self.db.get_next_network_id()
         # Creates a new table in the database for the current network if it doesnt already exist
-        if not self.db.register_network(self.network_id, self.gateway_mac, ssid, self.name):
+        # Default name for the network is set to ssid
+        if not self.db.register_network(self.network_id, self.gateway_mac, ssid, ssid):
             return False
 
         self.client_mac = Ether().src
