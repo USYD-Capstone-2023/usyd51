@@ -56,7 +56,7 @@ class Net_tools:
         self.domain = self.dhcp_server_info["domain"]
         self.iface = self.dhcp_server_info["iface"]
         self.gateway_mac = Net_tools.arp_helper(self.gateway)[1]
-        self.name = None
+        self.network_id = None
 
     # Signal handler to gracefully end the threadpool on shutdown
     def cleanup(
@@ -78,28 +78,26 @@ class Net_tools:
             return False
 
         self.name = ssid
-        # Deleted network if it already exists
-        if self.db.contains_network(self.name):
-            self.db.delete_network(self.name)
 
+        self.network_id = self.db.get_next_network_id()
         # Creates a new table in the database for the current network if it doesnt already exist
-        if not self.db.register_network(self.gateway_mac, ssid, self.name):
+        if not self.db.register_network(self.network_id, self.gateway_mac, ssid, self.name):
             return False
 
         self.client_mac = Ether().src
 
         # Creates a device object for the client device if one doesnt already exist
-        if not self.db.contains_mac(self.name, self.client_mac):
+        if not self.db.contains_mac(self.network_id, self.client_mac):
             client_device = Device(get_if_addr(conf.iface), self.client_mac)
             client_device.hostname = socket.gethostname()
             client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
-            self.db.add_device(self.name, client_device)
+            self.db.add_device(self.network_id, client_device)
 
         # Creates device object to represent the gateway if one doesnt exist already
-        if not self.db.contains_mac(self.name, self.gateway_mac):
+        if not self.db.contains_mac(self.network_id, self.gateway_mac):
             gateway_device = Device(self.gateway, self.gateway_mac)
             gateway_device.hostname = self.domain
-            self.db.add_device(self.name, gateway_device)
+            self.db.add_device(self.network_id, gateway_device)
 
         DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
         DNS_sniffer.daemon = True
@@ -156,7 +154,7 @@ class Net_tools:
     def add_mac_vendors(self):
 
         # Retrieves all devices from database
-        devices = self.db.get_all_devices(self.name)
+        devices = self.db.get_all_devices(self.network_id)
 
         # Set loading bar
         self.lb.set_params("Resolving MAC Vendors", 40, len(devices.keys()))
@@ -165,7 +163,7 @@ class Net_tools:
         # Adds mac vendor to device and saves to database
         for device in devices.values():
             device.mac_vendor = self.mac_table.find_vendor(device.mac)
-            self.db.save_device(self.name, device)
+            self.db.save_device(self.network_id, device)
             self.lb.increment()
             self.lb.show()
 
@@ -269,13 +267,11 @@ class Net_tools:
         for i in range(num_addrs):
             ip = returns[i][0]
             mac = returns[i][1]
-            if mac and ip and not self.db.contains_mac(self.name, mac):
-                self.db.add_device(self.name, Device(ip, mac))
+            if mac and ip and not self.db.contains_mac(self.network_id, mac):
+                self.db.add_device(self.network_id, Device(ip, mac))
 
-        print(
-            "\n[INFO] Found %d devices!\n"
-            % (len(self.db.get_all_devices(self.name)))
-        )
+        print("\n[INFO] Found %d devices!\n"
+            % (len(self.db.get_all_devices(self.network_id))))
         self.lb.reset()
 
     # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #
@@ -316,7 +312,7 @@ class Net_tools:
         print("[INFO] Tracing Routes...")
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.name)
+        devices = self.db.get_all_devices(self.network_id)
         device_addrs = set()
 
         # Set loading bar
@@ -370,8 +366,8 @@ class Net_tools:
                     device_addrs.add(addr)
                     new_device = Device(addr, Net_tools.arp_helper(addr)[1])
                     new_device.parent = parent
-                    self.db.add_device(self.name, new_device)
-                    devices = self.db.get_all_devices(self.name)
+                    self.db.add_device(self.network_id, new_device)
+                    devices = self.db.get_all_devices(self.network_id)
 
                 parent = addr
 
@@ -381,7 +377,7 @@ class Net_tools:
             else:
                 device.parent = "unknown"
 
-            self.db.save_device(self.name, device)
+            self.db.save_device(self.network_id, device)
             job_counter += 1
 
         self.lb.reset()
@@ -416,15 +412,15 @@ class Net_tools:
                 if mac == None:
                     continue
 
-                if self.db.contains_mac(self.name, mac):
-                    device = self.db.get_device(self.name, mac)
+                if self.db.contains_mac(self.network_id, mac):
+                    device = self.db.get_device(self.network_id, mac)
                     device.parent = traceroute_results[i+1]
-                    self.db.save_device(self.name, device)
+                    self.db.save_device(self.network_id, device)
                     continue
 
                 new_device = Device(ip, mac)
                 new_device.parent = traceroute_results[i+1]
-                self.db.add_device(self.name, new_device)
+                self.db.add_device(self.network_id, new_device)
 
 
     # ---------------------------------------------- OS FINGERPRINTING ---------------------------------------------- #
@@ -457,13 +453,13 @@ class Net_tools:
 
         print("[INFO] Getting OS info...")
 
-        if not self.db.contains_network(self.name):
+        if not self.db.contains_network(self.network_id):
             return {
                 "error": "Current network is not registered in the database, run /map_network to add this network to the database."
             }
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.name)
+        devices = self.db.get_all_devices(self.network_id)
 
         # Set loading bar
         self.lb.set_params("Scanned", 40, len(devices.keys()))
@@ -531,7 +527,7 @@ class Net_tools:
     def add_hostnames(self):
 
         # Retrieve network devices from database
-        devices = self.db.get_all_devices(self.name)
+        devices = self.db.get_all_devices(self.network_id)
 
         # Set loading bar
         self.lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
@@ -578,7 +574,7 @@ class Net_tools:
         for device in devices.values():
             if returns[job_counter] != "unkown":
                 device.hostname = returns[job_counter]
-                self.db.save_device(self.name, device)
+                self.db.save_device(self.network_id, device)
             job_counter += 1
 
         print("[INFO] Name resolution complete!\n")
@@ -624,7 +620,7 @@ class Net_tools:
         # Sniffs mDNS responses for new hostnames and devices
         if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
             # Can only be saved to database if the network is registered
-            if not self.db.contains_network(self.name):
+            if not self.db.contains_network(self.network_id):
                 return
 
             ip = pkt[IP].src
@@ -634,25 +630,25 @@ class Net_tools:
                 return
 
             # Add device to database if it doesnt exist
-            if not self.db.contains_mac(self.name, mac):
+            if not self.db.contains_mac(self.network_id, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
                 device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-1]
-                self.db.add_device(self.name, device)
+                self.db.add_device(self.network_id, device)
 
             if DNSRR in pkt:
                 # Exclude non-human names and addresses
                 name = pkt[DNSRR].rrname.decode("utf-8")
                 if name.split(".")[-2] != "arpa" and name[0] != "_":
                     # Update existing device and save to database if it already exists
-                    device = self.db.get_device(self.name, mac)
+                    device = self.db.get_device(self.network_id, mac)
                     if device == None:
                         print("[DEBUG] err in wlan sniff")
                         return
 
                     if device.hostname == "unknown":
                         device.hostname = name
-                        self.db.save_device(self.name, device)
+                        self.db.save_device(self.network_id, device)
 
 
     def run_wlan_sniffer(self, iface):

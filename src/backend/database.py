@@ -50,10 +50,7 @@ class SQLiteDB:
 
 
     # Adds a network to the database if it doesnt already exist.
-    def register_network(self, gateway_mac, ssid, name):
-
-        if self.contains_network(name):
-            return False
+    def register_network(self, id, gateway_mac, ssid, name):
 
         print("[INFO] Registering new network...")
 
@@ -62,7 +59,7 @@ class SQLiteDB:
                 VALUES (?, ?, ?, ?);
                 """
         
-        params = (self.get_next_network_id(), gateway_mac, name, ssid,)
+        params = (id, gateway_mac, name, ssid,)
 
         self.query(query, params)
 
@@ -70,23 +67,23 @@ class SQLiteDB:
 
 
     # Deletes a network from the database
-    def delete_network(self, network_name):
+    def delete_network(self, network_id):
 
-        if not self.contains_network(network_name):
+        if not self.contains_network(network_id):
             return False
 
         query = """
                 DELETE FROM networks
-                WHERE name = ?;
+                WHERE id = ?;
                 """
 
-        params = (network_name,)
+        params = (network_id,)
 
         self.query(query, params)
 
         query = """
                 DELETE FROM devices
-                WHERE network_name = ?;
+                WHERE network_id = ?;
                 """
 
         self.query(query, params)
@@ -94,15 +91,15 @@ class SQLiteDB:
 
 
     # Checks if the current network exists in the database
-    def contains_network(self, network_name):
+    def contains_network(self, network_id):
 
         query = """
                 SELECT 1
                 FROM networks
-                WHERE name = ?;
+                WHERE id = ?;
                 """
 
-        params = (network_name,)
+        params = (network_id,)
 
         response = self.query(query, params, res=True)
 
@@ -113,7 +110,7 @@ class SQLiteDB:
     def get_network_names(self):
 
         query = """
-                SELECT *
+                SELECT id, gateway_mac, name, ssid
                 FROM networks
                 """
 
@@ -123,22 +120,36 @@ class SQLiteDB:
 
 
     # Returns all devices associated with a specific network
-    def get_network(self, network_name):
+    def get_network(self, network_id):
 
         query = """
                 SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
-                FROM devices JOIN networks ON devices.network_name = networks.name
-                WHERE networks.name = ?;
+                FROM devices
+                WHERE network_id = ?;
                 """ 
-        params = (network_name,)
+        params = (network_id,)
 
-        responses = self.query(query, params, res=True)
+        devices = self.query(query, params, res=True)
+
+        query = """
+                SELECT id, gateway_mac, name, ssid
+                FROM networks
+                WHERE network_id = ?;
+                """ 
+
+        network_info = self.query(query, params, res=True)
+
+        network = {
+            "id" : network_info[0],
+            "gateway_mac" : network_info[1],
+            "name" : network_info[2],
+            "ssid" : network_info[3]} 
 
         # { mac : Device }
-        devices = {}
+        devices_info = {}
 
         # Converts all responses into Device objects
-        for response in responses:
+        for response in devices:
             new_device = Device(response[0], response[1])
             new_device.mac_vendor = response[2]
             new_device.hostname = response[3]
@@ -147,76 +158,70 @@ class SQLiteDB:
             new_device.os_family = response[6]
             new_device.parent = response[7]
 
-            devices[response[0]] = new_device
+            devices[response[1]] = new_device
 
-        return devices
+        network["devices"] = devices_info
+
+        return network
 
 
     # Allows users to rename a network and all its data
-    def rename_network(self, old_name, new_name):
+    def rename_network(self, network_id, new_name):
 
-        if not self.contains_network(old_name) or self.contains_network(new_name):
+        if not self.contains_network(network_id):
             return False
-
-        query = """
-                UPDATE devices
-                SET network_name = ?
-                WHERE network_name = ?;
-                """
-
-        params = (new_name, old_name,)
-
-        self.query(query, params)
 
         query = """
                 UPDATE networks
                 SET name = ?
-                WHERE name = ?;
+                WHERE id = ?;
                 """
+
+        params = (network_id, old_name,)
 
         self.query(query, params)
         return True
 
 
     # Adds a device into the database
-    def add_device(self, network_name, device):
+    def add_device(self, network_id, device):
 
         query = """
-                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_name)
+                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id)
                 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
 
         params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
-                 device.os_vendor, device.os_family, device.parent, network_name,)
+                 device.os_vendor, device.os_family, device.parent, network_id,)
 
         self.query(query, params)
 
 
     # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
-    def contains_mac(self, network_name, mac):
+    def contains_mac(self, network_id, mac):
         
         query = """
                 SELECT 1
                 FROM devices 
-                WHERE mac = ? AND network_name = ?;
+                WHERE mac = ? AND network_id = ?;
                 """
 
-        params = (mac, network_name,)
+        params = (mac, network_id,)
 
         response = self.query(query, params, res=True)
         return response != None and len(response) > 0 != None
 
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
-    def get_all_devices(self, network_name):
+    def get_all_devices(self, network_id):
 
         query = """
                 SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
                 FROM devices
-                WHERE network_name = ?;
+                WHERE network_id = ?;
                 """
 
-        params = (network_name,)
+        params = (network_id,)
 
         responses = self.query(query, params, res=True)
 
@@ -239,15 +244,15 @@ class SQLiteDB:
 
 
     # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
-    def get_device(self, network_name, mac):
+    def get_device(self, network_id, mac):
 
         query = """
                 SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
                 FROM devices
-                WHERE network_name = ? AND mac = ?;
+                WHERE network_id = ? AND mac = ?;
                 """
             
-        params = (network_name, mac,)
+        params = (network_id, mac,)
 
         response = self.query(query, params, res=True)
 
@@ -269,7 +274,7 @@ class SQLiteDB:
 
 
     # Saves an existing device back to the database after it has been changed.
-    def save_device(self, network_name, device):
+    def save_device(self, network_id, device):
 
         query = """
                 UPDATE devices
@@ -281,12 +286,12 @@ class SQLiteDB:
                     os_vendor = ?,
                     os_family = ?,
                     parent = ?
-                WHERE network_name = ? AND mac = ?;
+                WHERE network_id = ? AND mac = ?;
                 """
 
         params = (device.mac, device.ip, device.mac_vendor,
                   device.hostname, device.os_type, device.os_vendor,
-                  device.os_family, device.parent, network_name, device.mac,)
+                  device.os_family, device.parent, network_id, device.mac,)
 
         self.query(query, params)
 
@@ -348,8 +353,8 @@ class SQLiteDB:
                             os_vendor TEXT,
                             os_family TEXT,
                             parent TEXT,
-                            network_name TEXT REFERENCES networks (name),
-                            CONSTRAINT id PRIMARY KEY (mac, network_name));
+                            network_id TEXT REFERENCES networks (id),
+                            CONSTRAINT id PRIMARY KEY (mac, network_id));
                         """
 
         # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s
