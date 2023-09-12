@@ -144,13 +144,10 @@ function sendNetworks(event) {
     const webContents = event.sender;
     const win = BrowserWindow.fromWebContents(webContents);
 
-    makeRequest("ssid").then((ssid_data) => {
-        makeRequest("network_names").then((names_data) => {
-            response = {};
-            response["data"] = JSON.parse(names_data);
-            response["ssid"] = ssid_data;
-            win.webContents.send("network-list", response);
-        });
+    makeRequest("network_names").then((names_data) => {
+        response = {};
+        response["data"] = JSON.parse(names_data);
+        win.webContents.send("network-list", response);
     });
 }
 
