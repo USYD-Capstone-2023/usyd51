@@ -29,7 +29,7 @@ nt = Net_tools(db, lb)
 @app.get("/network/<name>")
 def get_network(name):
 
-    if not db.contains_network(name):
+    if name == None or not db.contains_network(name):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
     devices = db.get_all_devices(name)
