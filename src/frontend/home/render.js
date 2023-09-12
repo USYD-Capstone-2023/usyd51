@@ -1,9 +1,12 @@
 let editMode = false;
 let originalNames = [];
-
+let currentSSID;
 window.electronAPI.requestNetworks();
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    currentSSID = await window.electronAPI.getSSID();
+    document.getElementById("current-network").innerHTML = currentSSID;
+
     // Add methods that can only happen when DOM is loaded in here.
     document.getElementById("new-network-button").onclick = () => {
         window.location.href = "../processing/processing.html";
@@ -61,11 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
 });
 
-// window.electronAPI.recieveDevices((_event, data) => {
-
-// })
-
-function createNetworkBox(filename, name, ssid, index, flashing = False) {
+function createNetworkBox(name, ssid, index) {
     let networkBoxWrapper = document.createElement("div");
     networkBoxWrapper.setAttribute("class", "network-box-wrapper");
     networkBoxWrapper.setAttribute("draggable", "true");
@@ -135,16 +134,17 @@ function createNetworkBox(filename, name, ssid, index, flashing = False) {
     arrowButton.innerHTML = '<i class="fa fa-arrow-right"></i>';
     arrowButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
-        localStorage.setItem("network_reference", filename);
-        window.electronAPI.loadNetwork(filename);
+        console.log(name);
+        localStorage.setItem("network_reference", name);
+        window.electronAPI.loadNetwork(name);
     };
 
     removeButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
-        window.electronAPI.requestRemoveNetwork(filename);
+        window.electronAPI.requestRemoveNetwork(name);
     };
 
-    if (flashing) {
+    if (ssid == currentSSID) {
         let flashingDot = document.createElement("div");
         flashingDot.setAttribute("class", "flashing-dot");
         networkBox.appendChild(flashingDot);
@@ -197,9 +197,6 @@ function editModeToggle() {
 }
 
 window.electronAPI.networkList((_event, response) => {
-    // Update current network at top of page
-    document.getElementById("current-network").innerHTML = response["ssid"];
-
     // Remove all existing wrappers. This is so the list is refreshed when a box is removed.
     let wrappers = document.getElementsByClassName("network-box-wrapper");
     while (wrappers.length != 0) {
@@ -207,15 +204,8 @@ window.electronAPI.networkList((_event, response) => {
     }
     // Split response into parts
     let data = response["data"];
-    let ssid = response["ssid"];
     // Loop through all network ids and create a box for each network containing name and SSID.
     for (let network of Object.keys(data)) {
-        createNetworkBox(
-            data[network]["name"],
-            data[network]["name"],
-            data[network]["ssid"],
-            network,
-            ssid == data[network]["ssid"]
-        );
+        createNetworkBox(data[network]["name"], data[network]["ssid"], network);
     }
 });

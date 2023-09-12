@@ -1,7 +1,6 @@
 # External
 from scapy.all import (
     traceroute,
-    TracerouteResult,
     conf,
     ARP,
     DNSRR,
@@ -13,7 +12,8 @@ from scapy.all import (
     sr1,
     get_if_addr,
     sniff,
-    RandShort,
+    show_interfaces,
+    dev_from_index,
 )
 import nmap
 import netifaces
@@ -54,7 +54,11 @@ class Net_tools:
         self.gateway = self.dhcp_server_info["router"]
         self.subnet_mask = self.dhcp_server_info["subnet_mask"]
         self.domain = self.dhcp_server_info["domain"]
-        self.iface = self.dhcp_server_info["iface"]
+        self.iface = conf.iface
+
+        # Wireguard tunnel
+        # self.iface = dev_from_index(8)
+        # print(f"iface = {self.iface}")
         self.gateway_mac = Net_tools.arp_helper(self.gateway)[1]
         self.network_id = None
 
@@ -87,7 +91,7 @@ class Net_tools:
 
         # Creates a device object for the client device if one doesnt already exist
         if not self.db.contains_mac(self.network_id, self.client_mac):
-            client_device = Device(get_if_addr(conf.iface), self.client_mac)
+            client_device = Device(get_if_addr(self.iface), self.client_mac)
             client_device.hostname = socket.gethostname()
             client_device.mac_vendor = self.mac_table.find_vendor(client_device.mac)
             self.db.add_device(self.network_id, client_device)
@@ -98,7 +102,7 @@ class Net_tools:
             gateway_device.hostname = self.domain
             self.db.add_device(self.network_id, gateway_device)
 
-        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(conf.iface,))
+        DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(self.iface,))
         DNS_sniffer.daemon = True
         DNS_sniffer.start()
 
@@ -138,7 +142,7 @@ class Net_tools:
 
         elif current_system == "Linux":
 
-            return os.popen("iwconfig " + conf.iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
+            return os.popen("iwconfig " + self.iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
         elif current_system == "Windows":
 
@@ -280,14 +284,15 @@ class Net_tools:
 
         ip = args[0]
         gateway = args[1]
+        iface = args[2]
 
         # Remove loops on gateway
         if ip == gateway:
             return []
 
         # Emits UDP packets with incrementing ttl until the target is reached
-        # answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=conf.iface, verbose=False)[0]
-        answers = traceroute(ip, maxttl=10, iface=conf.iface, verbose=False)[0]
+        # answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=self.iface, verbose=False)[0]
+        answers = traceroute(ip, maxttl=10, iface=iface, verbose=False)[0]
         addrs = [gateway]
 
         if ip in answers.get_trace().keys():
@@ -332,7 +337,7 @@ class Net_tools:
             device_addrs.add(device.ip)
             job = Job(
                 fptr=Net_tools.traceroute_helper,
-                args=(device.ip, self.gateway),
+                args=(device.ip, self.gateway, self.iface),
                 ret_ls=returns,
                 ret_id=job_counter,
                 counter_ptr=counter_ptr,
@@ -400,7 +405,7 @@ class Net_tools:
     def vertical_traceroute(self, target_host="8.8.8.8"):
 
         # Run traceroute to google's DNS server
-        traceroute_results = Net_tools.traceroute_helper((target_host, self.gateway))
+        traceroute_results = Net_tools.traceroute_helper((target_host, self.gateway, self.iface))
 
         # Print the traceroute results
         for i in range(len(traceroute_results) - 1):
@@ -632,7 +637,7 @@ class Net_tools:
             if not self.db.contains_mac(self.network_id, mac):
                 device = Device(ip, mac)
                 device.mac_vendor = self.mac_table.find_vendor(mac)
-                device.parent = Net_tools.traceroute_helper((ip, self.gateway))[-1]
+                device.parent = Net_tools.traceroute_helper((ip, self.gateway, self.iface))[-1]
                 self.db.add_device(self.network_id, device)
 
             if DNSRR in pkt:
@@ -712,7 +717,7 @@ class Net_tools:
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
     # ---------------------------------------- WIP -----------------------------------------
 
-    # iface = conf.iface
+    # iface = self.iface
 
     # host_rev = "".join(["%s." % x for x in host.split(".")[::-1]]) + "in-addr.arpa"
 
