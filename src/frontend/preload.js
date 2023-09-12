@@ -46,4 +46,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     // Re set an existing network's name
     trySetNetworkName: (names) => ipcRenderer.invoke("set-network-name", names),
+
+    getSSID: () => ipcRenderer.invoke("get-ssid"),
 });

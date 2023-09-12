@@ -18,16 +18,6 @@ app.on("ready", () => {
     });
 });
 
-function loadNetworkFromData(event, data) {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-    win.loadFile("network_view/index.html");
-    // Wait until dom has loaded to send data
-    win.webContents.once("dom-ready", () =>
-        win.webContents.send("update-data", data)
-    );
-}
-
 async function makeRequest(extender) {
     return new Promise((resolve, reject) => {
         http.get("http://127.0.0.1:5000/" + extender, (resp) => {
@@ -47,6 +37,18 @@ async function makeRequest(extender) {
     });
 }
 
+// Load a network utilising the data given as an argument
+function loadNetworkFromData(event, data) {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+    win.loadFile("network_view/index.html");
+    // Wait until dom has loaded to send data
+    win.webContents.once("dom-ready", () =>
+        win.webContents.send("update-data", data)
+    );
+}
+
+// Generate a new network
 function getNewMap(event, data) {
     // Load new network map from map_network
     let incoming_data = undefined;
@@ -62,10 +64,12 @@ function getNewMap(event, data) {
         });
 }
 
+// Retrieve SSID
 function getSSID() {
     return makeRequest("ssid");
 }
 
+// Rename network (returns true on success and false on failure)
 function renameNetwork(old_name, new_name) {
     const result = makeRequest(
         "rename_network/" + old_name + "," + new_name
@@ -75,6 +79,7 @@ function renameNetwork(old_name, new_name) {
     return result;
 }
 
+// Handle setting a new network name
 ipcMain.handle("set-new-network-name", async (event, arg) => {
     try {
         const SSID = await getSSID();
@@ -86,6 +91,7 @@ ipcMain.handle("set-new-network-name", async (event, arg) => {
     }
 });
 
+// Handle changing an existing network's name
 ipcMain.handle("set-network-name", async (event, arg) => {
     try {
         const result = renameNetwork(arg[0], arg[1]);
@@ -94,6 +100,11 @@ ipcMain.handle("set-network-name", async (event, arg) => {
         console.log("Error");
         return false;
     }
+});
+
+ipcMain.handle("get-ssid", async (event, arg) => {
+    const result = await getSSID().then((ssid) => ssid);
+    return result;
 });
 
 // Gets the progress of the current request from the backend
@@ -106,6 +117,51 @@ function checkRequestProgress(event) {
     });
 }
 
+// Load the home page (and request network list)
+function loadHome(event) {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+    win.loadFile("home/home.html");
+}
+
+// Load a network by name
+function loadNetwork(event, data) {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+    win.loadFile("network_view/index.html");
+    makeRequest("network/" + data).then((network_data) => {
+        response = JSON.parse(network_data);
+
+        // Wait until dom has loaded to send data
+        win.webContents.once("dom-ready", () =>
+            win.webContents.send("update-data", response)
+        );
+    });
+}
+
+// Send a list of networks to the home page (along with ssid)
+function sendNetworks(event) {
+    const webContents = event.sender;
+    const win = BrowserWindow.fromWebContents(webContents);
+
+    makeRequest("ssid").then((ssid_data) => {
+        makeRequest("network_names").then((names_data) => {
+            response = {};
+            response["data"] = JSON.parse(names_data);
+            response["ssid"] = ssid_data;
+            win.webContents.send("network-list", response);
+        });
+    });
+}
+
+// Make a request to remove an existing network
+function requestRemoveNetwork(event, data) {
+    makeRequest("delete_network/" + data).then((data) => {
+        sendNetworks(event);
+    });
+}
+
+// Generates the window
 function createWindow() {
     const win = new BrowserWindow({
         width: 1000,
@@ -133,48 +189,6 @@ function createWindow() {
 
     win.loadFile("home/home.html");
     // win.webContents.openDevTools(); // Uncomment to have dev tools open on startup.
-}
-
-function loadHome(event) {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-    win.loadFile("home/home.html");
-}
-
-function loadNetwork(event, data) {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-    win.loadFile("network_view/index.html");
-    makeRequest("network/").then((data) => {
-        response = JSON.parse(data);
-
-        // win.webContents.send("network-list", response);
-
-        // Wait until dom has loaded to send data
-        win.webContents.once("dom-ready", () =>
-            win.webContents.send("update-data", response)
-        );
-    });
-}
-
-function sendNetworks(event) {
-    const webContents = event.sender;
-    const win = BrowserWindow.fromWebContents(webContents);
-
-    makeRequest("ssid").then((ssid_data) => {
-        makeRequest("network_names").then((names_data) => {
-            response = {};
-            response["data"] = JSON.parse(names_data);
-            response["ssid"] = ssid_data;
-            win.webContents.send("network-list", response);
-        });
-    });
-}
-
-function requestRemoveNetwork(event, data) {
-    makeRequest("delete_network/" + data).then((data) => {
-        sendNetworks(event);
-    });
 }
 
 app.whenReady().then(() => {
