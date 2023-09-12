@@ -12,6 +12,10 @@ const getLoadingBarWidth = (stepNumber, currentProgress) => {
 document.addEventListener("DOMContentLoaded", () => {
     // Add methods that can only happen when DOM is loaded in here.
 
+    window.electronAPI.getSSID().then((ssid) => {
+        document.getElementById("current-network").innerHTML = ssid;
+    });
+
     const loadingBar = document.getElementById("bar-info");
     const barLabel = document.getElementById("bar-label");
     window.electronAPI.getNewNetwork();
