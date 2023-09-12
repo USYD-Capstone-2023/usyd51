@@ -78,6 +78,12 @@ def get_ssid():
     return "error" if ret == None else ret
 
 
+@app.get("/id")
+def get_id():
+
+    return error if nt.network_id == None else nt.network_id
+
+
 @app.get("/rename_network/<network_id>,<new_name>")
 def rename_network(network_id, new_name):
 
