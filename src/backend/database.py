@@ -158,7 +158,7 @@ class SQLiteDB:
             new_device.os_family = response[6]
             new_device.parent = response[7]
 
-            devices[response[1]] = new_device
+            devices[response[1]] = new_device.to_json()
 
         network["devices"] = devices_info
 

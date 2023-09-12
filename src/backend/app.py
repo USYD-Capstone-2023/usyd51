@@ -33,11 +33,6 @@ def get_network(network_id):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
     devices = db.get_all_devices(network_id)
-
-    ret = {}
-    for device in devices.values():
-        ret[device.mac] = device.to_json(); 
-    
     return ret
 
 
@@ -61,7 +56,7 @@ def map_network():
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return get_network(nt.network_id)
+    return db.get_all_devices(nt.network_id)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
@@ -69,7 +64,7 @@ def map_network():
 def os_scan():
 
     nt.add_os_info()
-    return "Scan complete."
+    return get_network(nt.network_id)
 
 
 # Serves the information of the dhcp server
