@@ -43,13 +43,47 @@ close_button.onclick = () => {
 };
 
 let settings_button = document.getElementById("settings_symbol");
+let settings_menu = document.getElementById("settings_menu");
+settings_menu.style.display = "none";
 settings_button.addEventListener("click", function () {
-    if (currentLayout == "cose") {
-        breadthLayout();
+
+    if (settings_menu.style.display == 'none') {
+        settings_menu.style.display = 'block';
+
     } else {
-        coseLayout();
+        settings_menu.style.display = 'none';
     }
 });
+
+let options_title = document.getElementById("options_tab");
+let filters_title = document.getElementById("filters_tab");
+let options_buttons = document.getElementById("options_buttons");
+let filters_buttons = document.getElementById("filters_buttons");
+filters_buttons.style.display = 'none';
+
+options_title.classList.add('settings-selected');
+filters_title.classList.add('settings-unselected');
+options_title.onclick = () => {
+    options_title.classList.add('settings-selected');
+    options_title.classList.remove('settings-unselected');
+
+    filters_title.classList.add('settings-unselected');
+    filters_title.classList.remove('settings-selected');
+
+    options_buttons.style.display = 'flex';
+    filters_buttons.style.display = 'none';
+}
+
+filters_title.onclick = () => {
+    filters_title.classList.add('settings-selected');
+    filters_title.classList.remove('settings-unselected');
+
+    options_title.classList.add('settings-unselected');
+    options_title.classList.remove('settings-selected');
+
+    options_buttons.style.display = 'none';
+    filters_buttons.style.display = 'flex';
+}
 
 let map_button = document.getElementById("map_button");
 let list_button = document.getElementById("list_button");

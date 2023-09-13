@@ -34,6 +34,45 @@
     
     <div id="cy"></div>
 
+    <div id="settings_menu">
+      <div class="settings-titles">
+        <span  id="options_tab">Options</span>
+        <span  id="filters_tab">Filters</span>
+      </div>
+      <div id="options_buttons">
+        <button id="toggleStyle">Toggle Map Style</button>
+      </div>
+      <div id="filters_buttons">
+        
+        <div id="filter_1" class="filter center-flex-vert">
+          <div class="ends-flex">
+            <div class="left-flex grow-2">
+              <span class="filter-label">Filter by:</span>
+              <input id="filter_1_1">
+            </div>
+            <div class="right-flex grow-1">
+              <span class>Include</span>
+            </div>
+          </div>
+          <div class="ends-flex">
+            <div class="left-flex grow-2">
+              <span class="filter-label">Match:</span>
+              <input id="filter_1_2">
+            </div>
+            <div class="right-flex grow-1">
+              <span>Exact</span>
+            </div>
+          </div>
+        </div>
+        
+        <div id="add_filter" class="center-flex">
+          <i class="fa fa-plus"></i>
+          <span id="add_filter_button">Add a filter</span>
+        </div>
+
+      </div>
+    </div>
+
     <div class="pill-container">
       <div class="pill-selected pill-left pill-element" id="map_button">Map</div>
       <div class="pill-unselected pill-element" id="list_button">List</div>
