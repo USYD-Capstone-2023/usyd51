@@ -1,3 +1,65 @@
+let next_filter = 1;
+let active_filters = new Set();
+
+function addFilter() {
+    let new_element = document.createElement("div");
+    let element_num = next_filter;
+    new_element.classList.add('filter');
+    new_element.classList.add('center-flex-vert');
+    new_element.id = `filter_${next_filter}`
+    new_element.innerHTML = `<div class="ends-flex">
+    <div class="left-flex grow-2">
+        <span class="filter-label">Filter by:</span>
+        <input id="filterby_${next_filter}">
+    </div>
+    <div class="ends-flex grow-1">
+        <span class="settings-unselected" id="filtertype_${next_filter}">Include</span>
+        <i class="fa fa-window-close icon-clickable" id="removefilter_${next_filter}"></i>
+    </div>
+    </div>
+    <div class="ends-flex">
+    <div class="left-flex grow-2">
+        <span class="filter-label">Match:</span>
+        <input id="match_${next_filter}">
+    </div>
+    <div class="ends-flex grow-1">
+        <span class="settings-unselected" id="matchtype_${next_filter}">Exact</span>
+    </div>
+    </div>`
+
+    document.getElementById('filters_buttons').insertBefore(new_element,document.getElementById('filters_buttons').lastElementChild);
+    document.getElementById(`removefilter_${next_filter}`).onclick = () => {
+        new_element.remove();
+        active_filters.delete(`${element_num}`);
+    };
+    
+    let filter_type = document.getElementById(`filtertype_${next_filter}`);
+    filter_type.onclick = () => {
+        if (filter_type.innerText == "Include") {
+            filter_type.innerText = "Exclude";
+
+        } else {
+            filter_type.innerText = "Include";
+        }
+    };
+
+    let match_type = document.getElementById(`matchtype_${next_filter}`);
+    match_type.onclick = () => {
+        if (match_type.innerText == "Exact") {
+            match_type.innerText = "Contains";
+
+        } else {
+            match_type.innerText = "Exact";
+        }
+    };
+
+    active_filters.add(`${next_filter}`);
+    next_filter++;
+}
+
+
+
+
 /* Input:
 ports_list: list of port numbers as strings
 tcp_list: list of strings of tcp status on the ports in the same order
@@ -102,3 +164,7 @@ list_button.onclick = () => {
     history_button.className = "pill-unselected pill-right pill-element";
     document.getElementById("cy").style.display = 'none';
 };
+
+document.getElementById("add_filter_button").onclick = () => {
+    addFilter();
+}

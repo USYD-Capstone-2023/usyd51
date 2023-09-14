@@ -75,6 +75,7 @@ header {
     font-family: Inter, sans-serif;
     font-size: 1rem;
     height: 4rem;
+    min-height: 4rem;
     border-top: 0.175rem solid var(--dark-blue);
     margin: 0 1rem 0 1rem;
 }
