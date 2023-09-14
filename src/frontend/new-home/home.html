@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Home Page</title>
+        <link rel="stylesheet" href="home.css" />
+        <link
+            rel="stylesheet"
+            href="../font-awesome-4.7.0/css/font-awesome.min.css"
+        />
+        <script
+            language="javascript"
+            type="text/javascript"
+            src="render.js"
+        ></script>
+    </head>
+    <body>
+        <div id="sidebar">
+            <div id="sidebar-top">
+                <div class="sidebar-button" id="dashboard-button">
+                    <img src="../Assets/home.png" class="sidebar-icon" />
+                </div>
+                <div class="sidebar-button" id="analytics-button">
+                    <img src="../Assets/home.png" class="sidebar-icon" />
+                </div>
+                <div class="sidebar-button" id="networks-button">
+                    <img src="../Assets/home.png" class="sidebar-icon" />
+                </div>
+                <div class="sidebar-button" id="settings-button">
+                    <img src="../Assets/home.png" class="sidebar-icon" />
+                </div>
+                <div class="sidebar-button" id="night-button">
+                    <img src="../Assets/home.png" class="sidebar-icon" />
+                </div>
+            </div>
+            <div id="sidebar-bottom">
+                <div id="exit-button"></div>
+            </div>
+        </div>
+        <div id="dashboard">
+            <div id="dashboard-title">Hello Leo</div>
+            <div id="dashboard-grid">
+                <div id="dashboard-top">
+                    <div class="grid-element" id="active-networks"></div>
+                    <div class="grid-element" id="total-scans"></div>
+                    <div class="grid-element" id="new-devices"></div>
+                    <div class="grid-element" id="uptime"></div>
+                </div>
+                <div id="dashboard-left">
+                    <div class="grid-element" id="all-networks"></div>
+                    <div class="grid-element favourite-network"></div>
+                    <div class="grid-element favourite-network"></div>
+                    <div class="grid-element favourite-network"></div>
+                    <div class="grid-element favourite-network"></div>
+                </div>
+
+                <div id="dashboard-right">
+                    <div class="grid-element" id="dashboard-graph"></div>
+                    <div class="grid-element" id="last-used"></div>
+                    <div class="grid-element" id="create-new-button"></div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
