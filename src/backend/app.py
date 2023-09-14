@@ -33,6 +33,10 @@ def get_network(network_id):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
     devices = db.get_all_devices(network_id)
+
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json()
     return ret
 
 
@@ -56,7 +60,11 @@ def map_network():
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
     nt.add_hostnames()
 
-    return db.get_all_devices(nt.network_id)
+    devices = db.get_all_devices(nt.network_id)
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json()
+    return ret
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
@@ -91,6 +99,19 @@ def get_ssid():
 def get_id():
 
     return error if nt.network_id == None else nt.network_id
+
+
+@app.get("/ports/<network_id>")
+def get_ports(network_id):
+
+    nt.add_ports(network_id)
+
+    devices = db.get_all_devices(network_id)
+
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json()
+    return ret
 
 
 @app.get("/rename_network/<network_id>,<new_name>")

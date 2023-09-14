@@ -123,7 +123,7 @@ class SQLiteDB:
     def get_network(self, network_id):
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
                 FROM devices
                 WHERE network_id = ?;
                 """ 
@@ -145,11 +145,21 @@ class SQLiteDB:
             "name" : network_info[2],
             "ssid" : network_info[3]} 
 
+        devices = self.resp_to_devices(devices)
+        jsons = {}
+        for device in devices.values():
+            jsons[device.mac] = device.to_json()
+
+        network["devices"] = jsons
+        return network
+
+    def resp_to_devices(self, responses):
+
         # { mac : Device }
-        devices_info = {}
+        devices = {}
 
         # Converts all responses into Device objects
-        for response in devices:
+        for response in responses:
             new_device = Device(response[0], response[1])
             new_device.mac_vendor = response[2]
             new_device.hostname = response[3]
@@ -157,13 +167,14 @@ class SQLiteDB:
             new_device.os_vendor = response[5]
             new_device.os_family = response[6]
             new_device.parent = response[7]
+            if len(response[8]) == 0:
+                new_device.ports = []
+            else:
+                new_device.ports = [int(port) for port in response[8].split(",")[:-1]]
 
-            devices[response[1]] = new_device.to_json()
+            devices[response[0]] = new_device
 
-        network["devices"] = devices_info
-
-        return network
-
+        return devices
 
     # Allows users to rename a network and all its data
     def rename_network(self, network_id, new_name):
@@ -186,13 +197,15 @@ class SQLiteDB:
     # Adds a device into the database
     def add_device(self, network_id, device):
 
+        port_string = "".join([str(x) + "," for x in device.ports])
+
         query = """
-                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id, ports)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
 
         params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
-                 device.os_vendor, device.os_family, device.parent, network_id,)
+                 device.os_vendor, device.os_family, device.parent, network_id, port_string)
 
         self.query(query, params)
 
@@ -216,7 +229,7 @@ class SQLiteDB:
     def get_all_devices(self, network_id):
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
                 FROM devices
                 WHERE network_id = ?;
                 """
@@ -225,20 +238,7 @@ class SQLiteDB:
 
         responses = self.query(query, params, res=True)
 
-        # { mac : Device }
-        devices = {}
-
-        # Converts all responses into Device objects
-        for response in responses:
-            new_device = Device(response[0], response[1])
-            new_device.mac_vendor = response[2]
-            new_device.hostname = response[3]
-            new_device.os_type = response[4]
-            new_device.os_vendor = response[5]
-            new_device.os_family = response[6]
-            new_device.parent = response[7]
-
-            devices[response[0]] = new_device
+        devices = self.resp_to_devices(responses)
 
         return devices
 
@@ -247,7 +247,7 @@ class SQLiteDB:
     def get_device(self, network_id, mac):
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
                 FROM devices
                 WHERE network_id = ? AND mac = ?;
                 """
@@ -269,12 +269,18 @@ class SQLiteDB:
         new_device.os_vendor = response[5]
         new_device.os_family = response[6]
         new_device.parent = response[7]
+        if len(response[8]) == 0:
+            new_device.ports = []
+        else:
+            new_device.ports = [int(port) for port in response[8].split(",")[:-1]]
 
         return new_device
 
 
     # Saves an existing device back to the database after it has been changed.
     def save_device(self, network_id, device):
+
+        port_string = "".join([str(x) + "," for x in device.ports])
 
         query = """
                 UPDATE devices
@@ -285,13 +291,14 @@ class SQLiteDB:
                     os_type = ?,
                     os_vendor = ?,
                     os_family = ?,
-                    parent = ?
+                    parent = ?,
+                    ports = ?
                 WHERE network_id = ? AND mac = ?;
                 """
 
         params = (device.mac, device.ip, device.mac_vendor,
                   device.hostname, device.os_type, device.os_vendor,
-                  device.os_family, device.parent, network_id, device.mac,)
+                  device.os_family, device.parent, port_string, network_id, device.mac,)
 
         self.query(query, params)
 
@@ -339,7 +346,7 @@ class SQLiteDB:
                         CREATE TABLE IF NOT EXISTS networks
                             (id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
-                            name TEXT UNIQUE,
+                            name TEXT,
                             ssid TEXT);
                         """
 
@@ -353,6 +360,7 @@ class SQLiteDB:
                             os_vendor TEXT,
                             os_family TEXT,
                             parent TEXT,
+                            ports TEXT,
                             network_id TEXT REFERENCES networks (id),
                             CONSTRAINT id PRIMARY KEY (mac, network_id));
                         """
