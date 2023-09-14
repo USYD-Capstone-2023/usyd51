@@ -124,7 +124,7 @@ class SQLiteDB:
     def get_network(self, network_id):
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, timestamp
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports, timestamp
                 FROM devices
                 WHERE network_id = ?;
                 """ 
@@ -140,20 +140,28 @@ class SQLiteDB:
 
         network_info = self.query(query, params, res=True)[0]
 
-
-        print(network_info)
-
         network = {
             "id" : network_info[0],
             "gateway_mac" : network_info[1],
             "name" : network_info[2],
             "ssid" : network_info[3]} 
 
+        devices = self.resp_to_devices(devices)
+        jsons = {}
+        for device in devices.values():
+            jsons[device.mac] = device.to_json()
+
+        network["devices"] = jsons
+        return network
+
+
+    def resp_to_devices(self, responses):
+
         # { mac : Device }
-        devices_info = {}
+        devices = {}
 
         # Converts all responses into Device objects
-        for response in devices:
+        for response in responses:
             new_device = Device(response[0], response[1])
             new_device.mac_vendor = response[2]
             new_device.hostname = response[3]
@@ -161,13 +169,14 @@ class SQLiteDB:
             new_device.os_vendor = response[5]
             new_device.os_family = response[6]
             new_device.parent = response[7]
-            print(response[8])
+            if len(response[8]) == 0:
+                new_device.ports = []
+            else:
+                new_device.ports = [int(port) for port in response[8].split(",")[:-1]]
 
-            devices_info[response[1]] = new_device.to_json()
+            devices[response[0]] = new_device
 
-        network["devices"] = devices_info
-
-        return network
+        return devices
 
 
     # Allows users to rename a network and all its data
@@ -182,7 +191,7 @@ class SQLiteDB:
                 WHERE id = ?;
                 """
 
-        params = (network_id, old_name,)
+        params = (new_name, network_id,)
 
         self.query(query, params)
         return True
@@ -191,13 +200,15 @@ class SQLiteDB:
     # Adds a device into the database
     def add_device(self, network_id, device, ts):
 
+        port_string = "".join([str(x) + "," for x in device.ports])
+
         query = """
-                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id, timestamp)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id, timestamp, ports)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """
 
         params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
-                 device.os_vendor, device.os_family, device.parent, network_id, ts,)
+                 device.os_vendor, device.os_family, device.parent, network_id, ts, port_string,)
 
         self.query(query, params)
 
@@ -231,12 +242,11 @@ class SQLiteDB:
         if response == None or len(response) == 0:
             return None
 
-        max = datetime.fromtimestamp(response[0][0])
+        max = response[0][0]
         for resp in response:
             dt = datetime.fromtimestamp(resp[0])
-            max = max if max > dt else dt
+            max = max if datetime.fromtimestamp(max) > dt else resp[0]
 
-        print(response)
         return max
 
 
@@ -247,7 +257,7 @@ class SQLiteDB:
             ts = self.get_most_recent_ts(network_id)
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
                 FROM devices
                 WHERE network_id = ? AND timestamp = ?;
                 """
@@ -256,20 +266,7 @@ class SQLiteDB:
 
         responses = self.query(query, params, res=True)
 
-        # { mac : Device }
-        devices = {}
-
-        # Converts all responses into Device objects
-        for response in responses:
-            new_device = Device(response[0], response[1])
-            new_device.mac_vendor = response[2]
-            new_device.hostname = response[3]
-            new_device.os_type = response[4]
-            new_device.os_vendor = response[5]
-            new_device.os_family = response[6]
-            new_device.parent = response[7]
-
-            devices[response[1]] = new_device
+        devices = self.resp_to_devices(responses)
 
         return devices
 
@@ -278,7 +275,7 @@ class SQLiteDB:
     def get_device(self, network_id, mac, ts):
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent
+                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
                 FROM devices
                 WHERE network_id = ? AND mac = ? AND timestamp = ?;
                 """
@@ -300,12 +297,18 @@ class SQLiteDB:
         new_device.os_vendor = response[5]
         new_device.os_family = response[6]
         new_device.parent = response[7]
+        if len(response[8]) == 0:
+            new_device.ports = []
+        else:
+            new_device.ports = [int(port) for port in response[8].split()[:-1]]
 
         return new_device
 
 
     # Saves an existing device back to the database after it has been changed.
     def save_device(self, network_id, device, ts):
+
+        port_string = "".join([str(x) + "," for x in device.ports])
 
         query = """
                 UPDATE devices
@@ -316,13 +319,14 @@ class SQLiteDB:
                     os_type = ?,
                     os_vendor = ?,
                     os_family = ?,
-                    parent = ?
+                    parent = ?,
+                    ports = ?
                 WHERE network_id = ? AND mac = ? AND timestamp = ?;
                 """
 
         params = (device.mac, device.ip, device.mac_vendor,
                   device.hostname, device.os_type, device.os_vendor,
-                  device.os_family, device.parent, network_id, device.mac, ts,)
+                  device.os_family, device.parent, port_string, network_id, device.mac, ts,)
 
         self.query(query, params)
 
@@ -384,6 +388,7 @@ class SQLiteDB:
                             os_vendor TEXT,
                             os_family TEXT,
                             parent TEXT,
+                            ports TEXT,
                             network_id TEXT REFERENCES networks (id),
                             timestamp INTEGER NOT NULL,
                             CONSTRAINT id PRIMARY KEY (mac, network_id, timestamp));

@@ -32,7 +32,13 @@ def get_network(network_id):
     if not db.contains_network(network_id):
         return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
     
-    return db.get_network(network_id)
+    devices = db.get_all_devices(network_id)
+
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json()
+
+    return ret
 
 
 # Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
@@ -82,6 +88,19 @@ def get_ssid():
 def get_id():
 
     return error if nt.network_id == None else nt.network_id
+
+
+@app.get("/ports/<network_id>")
+def get_ports(network_id):
+
+    nt.add_ports(network_id)
+
+    devices = db.get_all_devices(network_id)
+
+    ret = {}
+    for device in devices.values():
+        ret[device.mac] = device.to_json()
+    return ret
 
 
 @app.get("/rename_network/<network_id>,<new_name>")

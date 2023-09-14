@@ -713,32 +713,97 @@ class Net_tools:
         C_ip_range = [[192, 168, 0, 0], [192, 168, 255, 255]]
         ip = ip.split(".")
         ip = [int(x) for x in ip] 
-        #print(ip)
         if ip[0] == 192:
-            #print(196)
             if ip[1] == 168:
-                #print(168)
                 return True
         return False
     
     # ---------------------------------------- PORTS ---------------------------------------------------- #
     
-    def check_port(ip, port):
-        
-        try:
-            # Create a TCP SYN packet to check if the port is open
-            response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+    def check_ports(args):
 
-            if response and response.haslayer(TCP):
-                if response.getlayer(TCP).flags == 0x12:  # TCP SYN-ACK flag
-                    return True #return True if the port is open
-                else:
-                    return False #return false if the port is closed
-            else:
-                return False #return false if the port is closed
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
-    
+        ip = args[0]
+        ports = args[1]
+
+        out = [False] * len(ports)
+        idx = 0
+
+        for port in ports:
+            
+            try:
+                # Create a TCP SYN packet to check if the port is open
+                response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+
+                if response and response.haslayer(TCP):
+                    # TCP SYN-ACK flag
+                    if response.getlayer(TCP).flags == 0x12:  
+                        #return True if the port is open
+                        out[idx] = True
+                        print("open")
+            except Exception as e:
+                print(f"An error occurred: {str(e)}")
+
+            idx += 1
+        return out
+
+
+    def add_ports(self, network_id):
+
+        devices = self.db.get_all_devices(network_id)
+
+        ports = [22, 23, 80, 443]
+
+        # Set loading bar
+        self.lb.set_params("Checking Ports", 40, len(devices.keys()))
+        self.lb.show()
+
+        # Preparing thread job parameters
+        mutex = threading.Lock()
+        cond = threading.Condition(lock=mutex)
+        counter_ptr = [0]
+        returns = [-1] * len(devices.keys())
+
+        # The current job, for referencing the return location for the thread
+        job_counter = 0
+
+        for device in devices.values():
+
+            # Create job and add to threadpool queue for execution
+            job = Job(
+                fptr=Net_tools.check_ports,
+                args=(device.ip, ports),
+                ret_ls=returns,
+                ret_id=job_counter,
+                counter_ptr=counter_ptr,
+                cond=cond,
+            )
+            job_counter += 1
+
+            if not self.threadpool.add_job(job):
+                return "Request size over maximum allowed size %d" % (
+                    self.threadpool.MAX_QUEUE_SIZE
+                )
+
+        # Wait for all jobs to be comleted
+        mutex.acquire()
+        while counter_ptr[0] < len(devices.keys()):
+            cond.wait()
+            self.lb.set_progress(counter_ptr[0])
+            self.lb.show()
+
+        mutex.release()
+
+        # Add returned hostnames to devices, save to database
+        job_counter = 0
+        for device in devices.values():
+            ports_open = []
+            for port_idx in range(len(returns[job_counter])):
+                if returns[job_counter][port_idx]:
+                    ports_open.append(ports[port_idx])
+
+            device.ports = ports_open
+            self.db.save_device(self.network_id, device, self.ts)
+            job_counter += 1
 
     # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful
     # ---------------------------------------- WIP -----------------------------------------
