@@ -37,6 +37,7 @@ def get_network(network_id):
     ret = {}
     for device in devices.values():
         ret[device.mac] = device.to_json()
+
     return ret
 
 
@@ -45,26 +46,14 @@ def get_network(network_id):
 @app.get("/map_network")
 def map_network():
 
-    # Creates a new network in the backend, begins passive scanning and adds to database
-    if not nt.new_network():
-        return {"error" : "Failed to scan network, are you connected to the internet?"}
+    return nt.basic_scan()
 
-    # Adds all active devices on the network to the database
-    nt.get_devices()
-    # Runs a vertical traceroute to the last internal network device
-    nt.vertical_traceroute()
-    # Adds routing information for all devicesin the database
-    nt.add_routes()
-    # Looks up mac vendor for all devices in the database
-    nt.add_mac_vendors()
-    # Performs a reverse DNS lookup on all devices in the current network's table of the database 
-    nt.add_hostnames()
 
-    devices = db.get_all_devices(nt.network_id)
-    ret = {}
-    for device in devices.values():
-        ret[device.mac] = device.to_json()
-    return ret
+# Rescans an existing network
+@app.get("/rescan/<network_id>")
+def rescan_network(network_id):
+
+    return nt.basic_scan(network_id)
 
   
 # Gets the OS information of the given ip address through TCP fingerprinting
