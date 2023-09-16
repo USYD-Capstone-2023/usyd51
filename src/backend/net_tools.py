@@ -747,7 +747,7 @@ class Net_tools:
         return out
 
 
-    def add_ports(self, network_id, tcp=True, udp=True):
+    def add_ports(self, network_id, tcp=True, udp=True, ports=[]):
 
         devices = self.db.get_all_devices(network_id)
 
