@@ -79,7 +79,7 @@ def get_dhcp_server_info():
 def get_current_ssid():
 
     # TODO send to node through FIFO maybe?
-    return nt.get_ssid()
+    return print(nt.get_ssid())
 
 
 if __name__ == "__main__":

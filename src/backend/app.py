@@ -26,6 +26,7 @@ def get_network(network_id):
     return db.get_network(network_id)
 
 
+# Gives all the devices associated with the given network id, as they were in the most recent scan
 @app.get("/network/<network_id>/devices")
 def get_devices(network_id):
 
@@ -35,12 +36,14 @@ def get_devices(network_id):
     return db.get_all_devices(network_id)
 
 
+# Adds a network network to the database, along with its attributes and devices
 @app.put("/network/add")
 def save_network():
 
     network = request.get_json()
-    required = ["network_id", "devices", "timestamp"]
 
+    # Ensures given data is correctly formed
+    required = ["network_id", "devices", "timestamp"]
     for req in required:
         if req not in network.keys():
             return "Malformed network.", 500
@@ -61,6 +64,8 @@ def save_network():
     return "Database encountered an error saving devices", 500
 
 
+# Updates an the most recent scan data of existing network in the database, 
+# without creating a new snapshot in its history
 @app.put("/network/<network_id>/update")
 def update_devices(network_id):
 
@@ -68,8 +73,9 @@ def update_devices(network_id):
         return "No network with ID %d exists in database." % (network_id), 500
     
     network = request.get_json()
-    required = ["network_id", "devices"]
 
+    # Ensures given data is correctly formed
+    required = ["network_id", "devices"]
     for req in required:
         if req not in network.keys():
             return "Malformed network.", 500

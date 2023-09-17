@@ -74,7 +74,7 @@ If an error has occurred
 
 ### Description ###
 
-Allows users to add a device into the database. If the request is sent with an invalid ID number, a unique one is assigned by the database. If the request is sent with an ID that is present in the database, it will be added to that network's history. This endpoint should be used exclusively by the scanning utilities found at ```/src/scanning/scanning.py```.
+Allows users to add a device into the database. If the request is sent with an invalid ID number, a unique one is assigned by the database. If the request is sent with an ID that is present in the database, it will be added to that network's history. This endpoint should be used exclusively by the scanning utilities found at ```/src/scanning/scan_interface.py```.
 
 ### Usage ###
 ```json
@@ -178,10 +178,10 @@ Used to retrieve the DHCP server information of the desired network from the dat
 
 ```json
 {
-        "router"     : default gateway's IP address,
-        "iface"      : default interface,
-        "subnet_mask": network's subnet mask,
-        "domain"     : domain name,
+    "router"     : default gateway's IP address,
+    "iface"      : default interface,
+    "subnet_mask": network's subnet mask,
+    "domain"     : domain name,
 }
 ```
 

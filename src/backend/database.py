@@ -15,7 +15,7 @@ class PostgreSQL_database:
             print("[ERR ] Fatal error occurred while initialising database. Exitting...")
             sys.exit(-1)
 
-
+    # Passes the given query to the database, retrieves result or commits if required
     def query(self, querystring, res=False):
 
         response = None
@@ -70,10 +70,11 @@ class PostgreSQL_database:
         return True
     
     
+    # Saves given devices to database at the given timestamp
     def save_devices(self, network_id, devices, ts):
     
+        # Ensures given data is well formed
         required = ["mac", "ip", "mac_vendor", "os_family", "os_vendor", "os_type", "hostname", "parent", "ports"]
-
         for device in devices.values():
             for req in required:
                 if req not in device.keys():
@@ -239,7 +240,8 @@ class PostgreSQL_database:
 
 
 
-    # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
+    # Checks if a device is in the database. Devices are stored by MAC address,
+    # and thus we check if the db contains the MAC.
     def contains_mac(self, network_id, mac, ts):
         
         query = """
@@ -252,6 +254,7 @@ class PostgreSQL_database:
         return response != None and len(response) > 0 != None
 
 
+    # Retrieves the timestamp of a network's most recent scan
     def get_most_recent_ts(self, network_id):
         
         query = """
