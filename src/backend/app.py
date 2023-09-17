@@ -1,6 +1,5 @@
 # External
 from flask import Flask, request
-import json
 
 # Local
 from database import PostgreSQL_database
