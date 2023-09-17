@@ -32,20 +32,22 @@ from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
+BACKEND_URL = "http://127.0.0.1:5000"
+
 
     # Wireguard tunnel
     # iface = dev_from_index(8) // you need to get this index for ur interface list
     # print(f"iface = {self.iface}")
 
 
-def basic_scan(network_id=-1):
+def scan(network_id, run_trace, run_hostname, run_vertical_trace,
+         run_mac_vendor, run_os, run_ports, ports):
 
     ts = datetime.now().timestamp()
-    mac_table = MAC_table(MAC_TABLE_FP)
     lb = Loading_bar()
     tp = Threadpool(NUM_THREADS)
 
-    def cleanup():
+    def cleanup(*args):
         tp.end()
         print("Finished cleaning up! Server will now shut down.")
 
@@ -61,7 +63,7 @@ def basic_scan(network_id=-1):
     iface = conf.iface
     gateway_mac = arp_helper(gateway, iface)[1]
     ssid = get_ssid(iface)
-    
+
     # Creates a network with default name = ssid
     network = Network(ssid, ssid, ts, dhcp_server_info, gateway_mac, network_id)
 
@@ -81,20 +83,39 @@ def basic_scan(network_id=-1):
 
     devices = network.devices
 
+    # TODO - Update database after each scan so user doesnt have to wait the entire time
+    # Need assigned network id back from db
+
     # Adds all active devices on the network to the database
     get_devices(devices, tp, lb, dhcp_server_info, iface)
+
     # Runs a vertical traceroute to the last internal network device
-    vertical_traceroute(devices, dhcp_server_info, iface)
+    if run_vertical_trace:
+        vertical_traceroute(devices, dhcp_server_info, iface)
+
     # Adds routing information for all devices in the database
-    add_routes(devices, tp, lb, dhcp_server_info, iface)
+    if run_trace:
+        add_routes(devices, tp, lb, dhcp_server_info, iface)
+
     # Looks up mac vendor for all devices in the database
-    add_mac_vendors(devices, lb, mac_table)
+    if run_mac_vendor:
+        mac_table = MAC_table(MAC_TABLE_FP)
+        add_mac_vendors(devices, lb, mac_table)
+        
     # Performs a reverse DNS lookup on all devices in the current network's table of the database 
-    add_hostnames(devices, tp, lb)
+    if run_hostname:
+        add_hostnames(devices, tp, lb)
+
+    if run_os:
+        add_os_info(devices, tp, lb, iface)
+
+    if run_ports:
+        add_ports(devices, tp, lb, iface, ports)
+
     # Ends threadpool and closes threads
     cleanup()
 
-    return network.to_json()
+    requests.put(BACKEND_URL + "/network/add", json=network.to_json())
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
@@ -376,7 +397,7 @@ def vertical_traceroute(devices, dhcp_server_info, iface, target_host="8.8.8.8")
     # Print the traceroute results
     for i in range(len(traceroute_results) - 1):
         ip = traceroute_results[i]
-        if in_class_A(ip) or in_class_B(ip) or in_class_C(ip):
+        if get_ip_class(ip) != None:
 
             mac = arp_helper(ip, iface)[1]
             if mac == None:
@@ -417,21 +438,13 @@ def os_helper(ip):
     return os_info
 
 
-def add_os_info(self):
+def add_os_info(devices, tp, lb, iface):
 
     print("[INFO] Getting OS info...")
 
-    if not self.db.contains_network(self.network_id):
-        return {
-            "error": "Current network is not registered in the database, run /map_network to add this network to the database."
-        }
-
-    # Retrieve network devices from database
-    devices = self.db.get_all_devices(self.network_id)
-
     # Set loading bar
-    self.lb.set_params("Scanned", 40, len(devices.keys()))
-    self.lb.show()
+    lb.set_params("Scanned", 40, len(devices.keys()))
+    lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
@@ -453,17 +466,17 @@ def add_os_info(self):
         )
         job_counter += 1
 
-        if not self.tp.add_job(job):
+        if not tp.add_job(job):
             return "Request size over maximum allowed size %d" % (
-                self.tp.MAX_QUEUE_SIZE
+                tp.MAX_QUEUE_SIZE
             )
 
     # Waits for all jobs to be completed
     mutex.acquire()
     while counter_ptr[0] < len(devices.keys()):
         cond.wait()
-        self.lb.set_progress(counter_ptr[0])
-        self.lb.show()
+        lb.set_progress(counter_ptr[0])
+        lb.show()
 
     mutex.release()
 
@@ -478,7 +491,7 @@ def add_os_info(self):
     print("\n[INFO] OS scan complete!\n")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
-    self.lb.reset()
+    lb.reset()
 
 # ---------------------------------------------- HOSTNAME LOOKUP ---------------------------------------------- #
 
@@ -574,6 +587,11 @@ def get_dhcp_server_info():
         "domain": domain,
     }
 
+def get_gateway_mac(iface=conf.iface):
+
+    dhcp_info = get_dhcp_server_info()
+    return arp_helper(dhcp_info["router"], iface)[1]
+
 # ---------------------------------------------- DNS SNIFFER ---------------------------------------------- #
 
 # Packet sniffing daemon to get hostnames
@@ -618,60 +636,48 @@ def run_wlan_sniffer(self, iface, args):
 
 # ---------------------------------------- IP ----------------------------------------------------- #
         
-def in_class_A(ip):
+def get_ip_class(ip):
 
-    A_ip_range = [[10, 0, 0, 0], [10, 255, 255, 255]]
-    ip = ip.split(".")
-    ip = [int(x) for x in ip] 
-    if ip[0] == 10:
-        return True
-    else:
-        return False
+    def ip_val(ip):
+
+        val = 0
+        exp = 0
+
+        for i in ip.split(".")[::-1]:
+            val += int(i) * pow(256, exp)
+            exp += 1
+        return val
     
+    ip = ip_val(ip)
+
+    if ip >= ip_val("10.0.0.0") and ip <= ip_val("10.255.255.255"):
+        return "A"
     
-def in_class_B(ip):
+    if ip >= ip_val("172.16.0.0") and ip <= ip_val("172.31.255.255"):
+        return "B"
 
-    B_ip_range = [[172,16,0,0], [172, 31, 255, 255]]
-    ip = ip.split(".")
-    ip = [int(x) for x in ip] 
-    if ip[0] == 172:
-        if ip[1] >= 16 and ip[1] <= 31:
-            return True
-    return False
-
-
-def in_class_C(ip):
-
-    C_ip_range = [[192, 168, 0, 0], [192, 168, 255, 255]]
-    ip = ip.split(".")
-    ip = [int(x) for x in ip] 
-    if ip[0] == 192:
-        if ip[1] == 168:
-            return True
-    return False
+    if ip >= ip_val("192.168.0.0") and ip <= ip_val("192.168.255.255"):
+        return "C"
+    
+    return None
 
 # ---------------------------------------- PORTS ---------------------------------------------------- #
 
-def check_ports(args):
-
-    ip = args[0]
-    ports = args[1]
+def check_ports(ip, iface, ports):
 
     out = [False] * len(ports)
     idx = 0
 
     for port in ports:
-        
         try:
             # Create a TCP SYN packet to check if the port is open
-            response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, verbose=False)
+            response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, iface=iface, verbose=False)
 
             if response and response.haslayer(TCP):
                 # TCP SYN-ACK flag
                 if response.getlayer(TCP).flags == 0x12:  
                     #return True if the port is open
                     out[idx] = True
-                    print("open")
         except Exception as e:
             print(f"An error occurred: {str(e)}")
 
@@ -679,15 +685,14 @@ def check_ports(args):
     return out
 
 
-def add_ports(self, network_id, tcp=True, udp=True, ports=[]):
+def add_ports(devices, tp, lb, iface, ports):
 
-    devices = self.db.get_all_devices(network_id)
-
-    ports = [22, 23, 80, 443]
-
+    if ports == []:
+        return
+    
     # Set loading bar
-    self.lb.set_params("Checking Ports", 40, len(devices.keys()))
-    self.lb.show()
+    lb.set_params("Checking Ports", 40, len(devices.keys()))
+    lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
@@ -703,7 +708,7 @@ def add_ports(self, network_id, tcp=True, udp=True, ports=[]):
         # Create job and add to threadpool queue for execution
         job = Job(
             fptr=check_ports,
-            args=(device.ip, ports,),
+            args=(device.ip, iface, ports,),
             ret_ls=returns,
             ret_id=job_counter,
             counter_ptr=counter_ptr,
@@ -711,17 +716,15 @@ def add_ports(self, network_id, tcp=True, udp=True, ports=[]):
         )
         job_counter += 1
 
-        if not self.tp.add_job(job):
-            return "Request size over maximum allowed size %d" % (
-                self.tp.MAX_QUEUE_SIZE
-            )
+        if not tp.add_job(job):
+            return "Request size over maximum allowed size %d" % (tp.MAX_QUEUE_SIZE)
 
     # Wait for all jobs to be comleted
     mutex.acquire()
     while counter_ptr[0] < len(devices.keys()):
         cond.wait()
-        self.lb.set_progress(counter_ptr[0])
-        self.lb.show()
+        lb.set_progress(counter_ptr[0])
+        lb.show()
 
     mutex.release()
 
@@ -734,7 +737,6 @@ def add_ports(self, network_id, tcp=True, udp=True, ports=[]):
                 ports_open.append(ports[port_idx])
 
         device.ports = ports_open
-        self.db.save_device(self.network_id, device, self.ts)
         job_counter += 1
 
 # Active DNS, LLMNR, MDNS requests, cant get these to work at the minute but theyll be useful

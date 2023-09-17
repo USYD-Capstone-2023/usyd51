@@ -152,8 +152,6 @@ class PostgreSQL_database:
             "name" : network_info[2],
             "ssid" : network_info[3]} 
 
-        devices = self.get_all_devices(network_id)
-        network["devices"] = devices
         return network
     
 
@@ -204,6 +202,41 @@ class PostgreSQL_database:
                     ts)
 
         self.query(query)
+
+    
+    # Updates the most recent version of the database to add new data
+    def update_device(self, network_id, device):
+
+        ts = self.get_most_recent_ts(network_id)
+
+        query = """
+                UPDATE devices
+                SET
+                    mac = '%s', 
+                    ip = '%s', 
+                    mac_vendor = '%s', 
+                    hostname = '%s', 
+                    os_type = '%s', 
+                    os_vendor = '%s', 
+                    os_family = '%s', 
+                    parent = '%s', 
+                    ports = '%s',
+                WHERE network_id = %s and timestamp = %s;
+                """ % (
+                    device["mac"], 
+                    device["ip"], 
+                    device["mac_vendor"], 
+                    device["hostname"], 
+                    device["os_type"],
+                    device["os_vendor"], 
+                    device["os_family"], 
+                    device["parent"], 
+                    device["ports"],
+                    network_id, 
+                    ts)
+        
+        self.query(query)
+
 
 
     # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.

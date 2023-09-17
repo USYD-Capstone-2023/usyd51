@@ -27,11 +27,19 @@ def get_network(network_id):
     return db.get_network(network_id)
 
 
+@app.get("/network/<network_id>/devices")
+def get_devices(network_id):
+
+    if not db.contains_network(network_id):
+        return "Network with ID %d is not present in the database." % (network_id), 500
+    
+    return db.get_all_devices(network_id)
+
+
 @app.put("/network/add")
 def save_network():
 
     network = request.get_json()
-
     required = ["network_id", "devices", "timestamp"]
 
     for req in required:
@@ -54,6 +62,28 @@ def save_network():
     return "Database encountered an error saving devices", 500
 
 
+@app.put("/network/<network_id>/update")
+def update_devices(network_id):
+
+    if not db.contains_network(id):
+        return "No network with ID %d exists in database." % (network_id), 500
+    
+    network = request.get_json()
+    required = ["network_id", "devices"]
+
+    for req in required:
+        if req not in network.keys():
+            return "Malformed network.", 500
+            
+    id = network["network_id"]
+    devices = network["devices"]
+    
+    for device in devices:
+        if not db.update_device(network_id, device):
+            return "Database encountered an error saving devices", 500
+    return "Success", 200
+
+
 # Serves the information of the dhcp server
 @app.get("/network/<network_id>/dhcp")
 def get_dhcp_server_info(network_id):
@@ -66,12 +96,6 @@ def get_dhcp_server_info(network_id):
 def get_networks():
 
     return db.get_networks()
-
-
-# @app.get("/network/<network_id>/ssid")
-# def get_ssid(network_id):
-
-#     return db.get_ssid(network_id)
 
 
 @app.get("/network/<network_id>/rename/<new_name>")
