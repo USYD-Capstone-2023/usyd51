@@ -42,7 +42,7 @@ def set_default_settings():
     with open(SETTINGS_FILEPATH, "w") as f:
         f.write(default_settings)
 
-# Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
+# Finds all devices on the network, runs all scans outlined in settings file
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
 def scan_network(network_id=-1):
@@ -97,8 +97,7 @@ if __name__ == "__main__":
 
         set_default_settings()
             
-    # Initialise loading bar, network utilities and mac vendor lookup table
-
+    # Jump table for possible operations
     options = {
         "scan_network" : scan_network,
         "ssid" : get_current_ssid,

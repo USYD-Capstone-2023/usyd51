@@ -97,6 +97,8 @@ def get_networks():
     return db.get_networks()
 
 
+# TODO - These ones are gets just for testing purposes at the minute, so I can test them
+# in browser while the frontend isnt hooked up
 @app.get("/network/<network_id>/rename/<new_name>")
 def rename_network(network_id, new_name):
 

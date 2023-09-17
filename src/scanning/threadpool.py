@@ -16,6 +16,7 @@ class Threadpool:
         
         for i in range(num_threads):
             self.threads.append(threading.Thread(target=self.threadpool_worker))
+            self.threads[i].daemon = True
             self.threads[i].start()
 
     # Terminates the threadpool and ends all threads

@@ -35,11 +35,6 @@ NUM_THREADS = 25
 BACKEND_URL = "http://127.0.0.1:5000"
 
 
-    # Wireguard tunnel
-    # iface = dev_from_index(8) // you need to get this index for ur interface list
-    # print(f"iface = {self.iface}")
-
-
 def scan(network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
 
@@ -60,6 +55,11 @@ def scan(network_id, run_trace, run_hostname, run_vertical_trace,
     dhcp_server_info = get_dhcp_server_info()
     gateway = dhcp_server_info["router"]
     domain = dhcp_server_info["domain"]
+
+    # Wireguard tunnel
+    # show_interfaces()
+    # iface = dev_from_index(63) # you need to get this index for ur interface list
+
     iface = conf.iface
     gateway_mac = arp_helper(gateway, iface)[1]
     ssid = get_ssid(iface)
