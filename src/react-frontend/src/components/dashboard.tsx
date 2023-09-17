@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
 
 const Dashboard = (props: any) => {
-    const [networkListData, updateNetworkListData] = useState([
+    const [networkListData, setNetworkListData] = useState([
         { name: "TestName", id: 0 },
     ]);
 
@@ -16,22 +16,9 @@ const Dashboard = (props: any) => {
                 for (let network of data) {
                     network_list.push({ name: network.name, id: network.id });
                 }
-                networkListData = network_list;
+                setNetworkListData(network_list);
             });
     }, []);
-
-    let network_list: String[] = [];
-    let network_ids: String[] = [];
-
-    fetch("http://127.0.0.1:5000/network_names")
-        .then((res) => res.json())
-        .then((data) => {
-            console.log(data);
-            for (let network of data) {
-                network_list.push(network.name);
-                network_ids.push(network.id);
-            }
-        });
 
     return (
         <div className="w-full flex flex-col justify-center items-center h-full gap-3">
@@ -71,7 +58,10 @@ const Dashboard = (props: any) => {
                                 Networks
                             </h4>
                             {networkListData.map((network, index) => (
-                                <div key={index}>{network.name}</div>
+                                <div key={index}>
+                                    <div>{network.name}</div>
+                                    <Separator />
+                                </div>
                             ))}
                         </div>
                     </ScrollArea>

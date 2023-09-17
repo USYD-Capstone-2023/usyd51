@@ -1,15 +1,6 @@
 // import { useState } from "react";
 import "./App.css";
 
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-
 import Sidebar from "@/components/sidebar";
 import Dashboard from "@/components/dashboard";
 
