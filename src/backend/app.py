@@ -1,5 +1,6 @@
 # External
 from flask import Flask
+from flask_cors import CORS
 
 # Local
 from loading_bar import Loading_bar
@@ -15,6 +16,7 @@ if os.name == "posix" and os.geteuid() != 0:
     quit()
 
 app = Flask(__name__)
+CORS(app)
 
 # Initialises database object
 # Temp login information
