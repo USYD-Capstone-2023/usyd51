@@ -1,5 +1,5 @@
 # External
-from flask import Flask
+from flask import Flask, request
 
 # Local
 from loading_bar import Loading_bar
@@ -101,6 +101,38 @@ def get_ports(network_id):
     for device in devices.values():
         ret[device.mac] = device.to_json()
     return ret
+
+@app.route('/savesettings', methods=['POST'])
+def savesettings():
+    '''
+    assuming save settings are in a JSON format
+    {
+    "TCP":True,
+    "UDP":True, 
+    "ports": [22,23,80,443],
+
+    "DefaultSave": True,
+
+    "attemptPortScan": False,
+    "attemptArp": False,
+    "attemptOS": False,
+    "attemptDNS": False,
+    "attemptTraceroute": True,
+
+    "defaultView": "grid",
+    "defaultNodeColour": "0FF54A",
+    "defaultEdgeColour": "32FFAB",
+    "defaultBackgroundColour": "320000",
+    }
+    '''
+    try:
+        data = request.get_json()  # Get the JSON data from the request
+        print("Received data:", data)
+        return "Settings saved successfully.", 200
+    except Exception as e:
+        print("Error:", str(e))
+        return "Error saving settings.", 500
+
 
 
 @app.get("/rename_network/<network_id>,<new_name>")

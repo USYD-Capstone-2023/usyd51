@@ -5,6 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const winPlatforms = ["win32", "win64", "windows", "wince"];
 const winOS = winPlatforms.indexOf(process.platform.toLowerCase()) != -1;
+
 let flaskProcess;
 
 app.on("ready", () => {
@@ -162,6 +163,30 @@ function requestRemoveNetwork(event, data) {
     });
 }
 
+function sendSavedSettings(event, data){
+    // Send the data to the API endpoint
+    fetch("http://127.0.0.1:5000/savesettings", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(function(response) {
+        if (response.ok) {
+            // Handle a successful response from the API if needed
+            console.log("Settings saved successfully.");
+        } else {
+            // Handle an error response from the API if needed
+            console.error("Error saving settings.");
+        }
+    })
+    .catch(function(error) {
+        // Handle any network or other errors if needed
+        console.error("Network error:", error);
+    });
+}
+
 // Generates the window
 function createWindow() {
     const win = new BrowserWindow({
@@ -214,6 +239,8 @@ app.whenReady().then(() => {
     // Request a network be deleted
     ipcMain.on("request-network-delete", requestRemoveNetwork);
 
+    ipcMain.on("save-settings", sendSavedSettings);
+
     createWindow();
 
     app.on("activate", () => {
@@ -227,3 +254,5 @@ app.on("window-all-closed", () => {
     flaskProcess.kill();
     app.quit();
 });
+
+

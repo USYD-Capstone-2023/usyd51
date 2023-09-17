@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // Update ready button when data is ready to be retrieved
     isReady: (data) => ipcRenderer.on("is-ready", data),
 
+    sendSavedSettings: (data) => ipcRenderer.send("save-settings", data),
+
     // Request to load a network in from file
     loadNetworkFromData: (data) =>
         ipcRenderer.send("load-network-from-data", data),
