@@ -4,21 +4,20 @@ import  sys
 import requests
 
 # Local
-from loading_bar import Loading_bar
 import net_tools as nt
-from threadpool import Threadpool
 
 # Stdlib
 import os
 
 NUM_THREADS = 25
+BACKEND_URL = "http://127.0.0.1:5000"
 
 # Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
 # Serves the main mapping data for the program
 def map_network():
 
-    print(nt.basic_scan())
-
+    network = nt.basic_scan()
+    requests.put(BACKEND_URL + "/network/add", json=network)
 
 
 # Rescans an existing network
@@ -79,16 +78,6 @@ def savesettings():
     except Exception as e:
         print("Error:", str(e))
         return "Error saving settings.", 500
-
-
-# Returns the progress and data of the current loading bar.
-# Polled by frontend to update ui loading bars in electron  
-def get_current_progress():
-
-    if lb.total_value == 0:
-        return {"flag" : False}
-
-    return {"flag" : True, "progress" : lb.counter, "total" : lb.total_value, "label" : lb.label}
 
 
 if __name__ == "__main__":

@@ -59,7 +59,11 @@ def basic_scan(network_id=-1):
     gateway = dhcp_server_info["router"]
     domain = dhcp_server_info["domain"]
     iface = conf.iface
-    network = Network(get_ssid(iface), ts, dhcp_server_info, network_id)
+    gateway_mac = arp_helper(gateway, iface)[1]
+    ssid = get_ssid(iface)
+    
+    # Creates a network with default name = ssid
+    network = Network(ssid, ssid, ts, dhcp_server_info, gateway_mac, network_id)
 
     # DNS_sniffer = threading.Thread(target=self.run_wlan_sniffer, args=(iface,))
     # DNS_sniffer.daemon = True
@@ -71,7 +75,6 @@ def basic_scan(network_id=-1):
     network.add_device(client_device)
 
     # Creates device object to represent the gateway if one doesnt exist already
-    gateway_mac = arp_helper(gateway, iface)[1]
     gateway_device = Device(gateway, gateway_mac)
     gateway_device.hostname = domain
     network.add_device(gateway_device)
@@ -90,7 +93,8 @@ def basic_scan(network_id=-1):
     add_hostnames(devices, tp, lb)
     # Ends threadpool and closes threads
     cleanup()
-    return True
+
+    return network.to_json()
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
