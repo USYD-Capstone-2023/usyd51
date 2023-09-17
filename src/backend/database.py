@@ -155,28 +155,7 @@ class SQLiteDB:
         return network
 
 
-    def resp_to_devices(self, responses):
 
-        # { mac : Device }
-        devices = {}
-
-        # Converts all responses into Device objects
-        for response in responses:
-            new_device = Device(response[0], response[1])
-            new_device.mac_vendor = response[2]
-            new_device.hostname = response[3]
-            new_device.os_type = response[4]
-            new_device.os_vendor = response[5]
-            new_device.os_family = response[6]
-            new_device.parent = response[7]
-            if len(response[8]) == 0:
-                new_device.ports = []
-            else:
-                new_device.ports = [int(port) for port in response[8].split(",")[:-1]]
-
-            devices[response[0]] = new_device
-
-        return devices
 
 
     # Allows users to rename a network and all its data

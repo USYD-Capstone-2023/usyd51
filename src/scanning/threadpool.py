@@ -68,7 +68,7 @@ class Threadpool:
             # Python Queue is threadsafe, so no mutex is required
             job = self.queue.get(block=True, timeout=0)
 
-            job.ret_ls[job.ret_id] = job.fptr(job.args)
+            job.ret_ls[job.ret_id] = job.fptr(*job.args)
             job.cond.acquire()
 
             # Adds to completed job counter, allowing calling thread to know when all jobs are complete
