@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
 
         networkContainer.addEventListener("dragover", initContainer);
-        //this is for the lost space between each box
+        // this is for the lost space between each box
         networkContainer.addEventListener("dragenter", (e) => {
             e.preventDefault();
         });
@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function createNetworkBox(name, ssid, index) {
+
     let networkBoxWrapper = document.createElement("div");
     networkBoxWrapper.setAttribute("class", "network-box-wrapper");
     networkBoxWrapper.setAttribute("draggable", "true");
@@ -93,33 +94,31 @@ function createNetworkBox(name, ssid, index) {
 
     // This deals with if the text box has been edited
     networkName.addEventListener("blur", async () => {
-        if (editMode) {
-            if (originalNames[index] != networkName.innerText) {
-                const result = window.electronAPI
-                    .trySetNetworkName([
-                        originalNames[index],
-                        networkName.innerText,
-                    ])
-                    .then((res) => {
-                        if (res) {
-                            networkName.style.color = "black";
+        if (!editMode || originalNames[index] == networkName.innerText ) { return; }
+        const result = window.electronAPI
+            .trySetNetworkName([
+                index,
+                networkName.innerText,
+            ])
+            .then((res) => {
+                if (!res) {
+                    networkName.innerText = originalNames[index];
+                    networkName.style.color = "#123c6e";
+                    return;
+                }
 
-                            // Update name
-                            const currentName = networkName.innerText;
-                            originalNames[index] = currentName;
+                networkName.style.color = "black";
 
-                            arrowButton.onclick = () => {
-                                // We want to request data from the backend and load the corresponding page.
-                                window.electronAPI.loadNetwork(currentName);
-                            };
-                            return;
-                        } else {
-                            networkName.innerText = originalNames[index];
-                            networkName.style.color = "#123c6e";
-                        }
-                    });
-            }
-        }
+                // Update name
+                const currentName = networkName.innerText;
+                originalNames[index] = currentName;
+
+                arrowButton.onclick = () => {
+                    // We want to request data from the backend and load the corresponding page.
+                    window.electronAPI.loadNetwork(index);
+                };
+                
+            });
     });
 
     networkInfo.appendChild(networkName);
@@ -135,15 +134,15 @@ function createNetworkBox(name, ssid, index) {
     arrowButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
         console.log(name);
-        localStorage.setItem("network_reference", name);
-        window.electronAPI.loadNetwork(name);
+        window.electronAPI.loadNetwork(index);
     };
 
     removeButton.onclick = () => {
         // We want to request data from the backend and load the corresponding page.
-        window.electronAPI.requestRemoveNetwork(name);
+        window.electronAPI.requestRemoveNetwork(index);
     };
 
+    // connected network dot
     if (ssid == currentSSID) {
         let flashingDot = document.createElement("div");
         flashingDot.setAttribute("class", "flashing-dot");
@@ -183,8 +182,11 @@ function editModeToggle() {
             originalNames.push(networkNames[i].innerHTML);
         } else {
             networkNames[i].contentEditable = "false";
+
+            // Clicked edit button directly after editing, would cause failure so this is here
             if (networkNames[i].innerHTML != originalNames[i]) {
-                // Network name has been changed. Attempt to save it.
+                var e = new Event("blur");
+                window.dispatchEvent(e);
             }
         }
     }

@@ -70,10 +70,14 @@ function getSSID() {
     return makeRequest("ssid");
 }
 
+function getNetworkID() {
+    return makeRequest("id");
+}
+
 // Rename network (returns true on success and false on failure)
-function renameNetwork(old_name, new_name) {
+function renameNetwork(id, new_name) {
     const result = makeRequest(
-        "rename_network/" + old_name + "," + new_name
+        "rename_network/" + id + "," + new_name
     ).then((data) => {
         return data == "success";
     });
@@ -83,8 +87,8 @@ function renameNetwork(old_name, new_name) {
 // Handle setting a new network name
 ipcMain.handle("set-new-network-name", async (event, arg) => {
     try {
-        const SSID = await getSSID();
-        const result = renameNetwork(SSID, arg);
+        const networkID = await getNetworkID();
+        const result = renameNetwork(networkID, arg);
         return result;
     } catch (error) {
         console.log("Error");
