@@ -9,13 +9,17 @@ var cy = cytoscape({
         {
             selector: "node",
             style: {
-                "background-color": "#666",
+                "shape" : "rectangle",
+                "background-image" : "icons/comp.png",
+                "background-fit" : "cover",
+                "background-opacity": "0",
             },
         },
         {
             selector: "node:selected",
             style: {
                 "background-color": "blue",
+                "background-opacity": "0.2",
             },
         },
         {
@@ -64,7 +68,7 @@ function loadData(data) {
     let nodes = cy.nodes();
     for (let node of nodes) {
         let parent = cy.getElementById(node.data("parentIP"));
-        if (parent.data("id")) {
+        if (parent.data("id") && (parent.data("id") !=  node.data("id"))) {
             cy.add({
                 group: "edges",
                 data: {
@@ -72,7 +76,12 @@ function loadData(data) {
                     target: node.data("id"),
                 },
             });
-            parent.style("background-color", "orange");
+            parent.style({
+                "background-image" : "icons/router.png",
+                "background-fit" : "cover",
+                "background-opacity": "0",
+            });
+                       
             parent.data("isParent", true);
         }
     }
@@ -113,7 +122,7 @@ function coseLayout() {
 function updateInfoBox(nodeData) {
     //THIS NEEDS TO BE UPDATE WHEN WE HAVE THE PROPER JSONS
     document.getElementById("info_panel_container").style.display = 'flex';
-    document.getElementById("node_type").textContent = "Device";
+    document.getElementById("node_type").textContent = nodeData.isParent ? "Router" : "Device";
     document.getElementById("node_hostname").textContent = nodeData.hostname;
     document.getElementById("node_IP").textContent = nodeData.id;
     document.getElementById("node_MAC").textContent = nodeData.mac;

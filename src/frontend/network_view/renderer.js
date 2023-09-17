@@ -1,3 +1,97 @@
+let next_filter = 1;
+let active_filters = new Set();
+
+function addFilter() {
+    let new_element = document.createElement("div");
+    let element_num = next_filter;
+    new_element.classList.add('filter');
+    new_element.classList.add('center-flex-vert');
+    new_element.id = `filter_${next_filter}`
+    new_element.innerHTML = `<div class="ends-flex">
+    <div class="left-flex grow-2">
+        <span class="filter-label">Filter by:</span>
+        <input id="filterby_${next_filter}">
+    </div>
+    <div class="ends-flex grow-1">
+        <span class="settings-unselected" id="filtertype_${next_filter}">Include</span>
+        <i class="fa fa-window-close icon-clickable" id="removefilter_${next_filter}"></i>
+    </div>
+    </div>
+    <div class="ends-flex">
+    <div class="left-flex grow-2">
+        <span class="filter-label">Match:</span>
+        <input id="match_${next_filter}">
+    </div>
+    <div class="ends-flex grow-1">
+        <span class="settings-unselected" id="matchtype_${next_filter}">Exact</span>
+    </div>
+    </div>`
+
+    document.getElementById('filters_buttons').insertBefore(new_element,document.getElementById('filters_buttons').lastElementChild);
+    document.getElementById(`removefilter_${next_filter}`).onclick = () => {
+        new_element.remove();
+        active_filters.delete(`${element_num}`);
+    };
+    
+    let filter_type = document.getElementById(`filtertype_${next_filter}`);
+    filter_type.onclick = () => {
+        if (filter_type.innerText == "Include") {
+            filter_type.innerText = "Exclude";
+
+        } else {
+            filter_type.innerText = "Include";
+        }
+    };
+
+    let match_type = document.getElementById(`matchtype_${next_filter}`);
+    match_type.onclick = () => {
+        if (match_type.innerText == "Exact") {
+            match_type.innerText = "Contains";
+
+        } else {
+            match_type.innerText = "Exact";
+        }
+    };
+
+    active_filters.add(`${next_filter}`);
+    next_filter++;
+}
+
+
+
+
+/* Input:
+ports_list: list of port numbers as strings
+tcp_list: list of strings of tcp status on the ports in the same order
+udp_list: list of strings of udp status on the ports in the same order
+*/
+function fillPortTable(ports_list, tcp_list, udp_list) {
+    let port_col = document.getElementById('port_numbers');
+    let tcp_col = document.getElementById('tcp_status');
+    let udp_col = document.getElementById('udp_status');
+
+    port_col.innerHTML = '<span class="port-title">Port #</span>';
+    tcp_col.innerHTML = '<span class="port-title">TCP</span>';
+    udp_col.innerHTML = '<span class="port-title">UDP</span>';
+
+    for (index = 0; index < ports_list.length; index++) {
+        let new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = ports_list[index];
+        port_col.appendChild(new_element);
+
+        new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = tcp_list[index];
+        tcp_col.appendChild(new_element);
+
+        new_element = document.createElement("span");
+        new_element.className = 'port-row';
+        new_element.innerText = udp_list[index];
+        udp_col.appendChild(new_element);
+    }
+}
+
 let info_panel = document.getElementById("info_panel_container");
 
 let back_button = document.getElementById("back_button");
@@ -11,13 +105,47 @@ close_button.onclick = () => {
 };
 
 let settings_button = document.getElementById("settings_symbol");
+let settings_menu = document.getElementById("settings_menu");
+settings_menu.style.display = "none";
 settings_button.addEventListener("click", function () {
-    if (currentLayout == "cose") {
-        breadthLayout();
+
+    if (settings_menu.style.display == 'none') {
+        settings_menu.style.display = 'block';
+
     } else {
-        coseLayout();
+        settings_menu.style.display = 'none';
     }
 });
+
+let options_title = document.getElementById("options_tab");
+let filters_title = document.getElementById("filters_tab");
+let options_buttons = document.getElementById("options_buttons");
+let filters_buttons = document.getElementById("filters_buttons");
+filters_buttons.style.display = 'none';
+
+options_title.classList.add('settings-selected');
+filters_title.classList.add('settings-unselected');
+options_title.onclick = () => {
+    options_title.classList.add('settings-selected');
+    options_title.classList.remove('settings-unselected');
+
+    filters_title.classList.add('settings-unselected');
+    filters_title.classList.remove('settings-selected');
+
+    options_buttons.style.display = 'flex';
+    filters_buttons.style.display = 'none';
+}
+
+filters_title.onclick = () => {
+    filters_title.classList.add('settings-selected');
+    filters_title.classList.remove('settings-unselected');
+
+    options_title.classList.add('settings-unselected');
+    options_title.classList.remove('settings-selected');
+
+    options_buttons.style.display = 'none';
+    filters_buttons.style.display = 'flex';
+}
 
 let map_button = document.getElementById("map_button");
 let list_button = document.getElementById("list_button");
@@ -36,3 +164,7 @@ list_button.onclick = () => {
     history_button.className = "pill-unselected pill-right pill-element";
     document.getElementById("cy").style.display = 'none';
 };
+
+document.getElementById("add_filter_button").onclick = () => {
+    addFilter();
+}
