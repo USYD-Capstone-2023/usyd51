@@ -27,6 +27,9 @@ class MAC_table:
     # Resolves the vendor of a device based on its mac address
     def find_vendor(self, mac_address):
 
+        if mac_address == None:
+            return "unknown"
+
         oui = "".join([x for x in mac_address.split(":")[:3]]).upper()
         if oui in self.mac_table.keys():
             return self.mac_table[oui]
