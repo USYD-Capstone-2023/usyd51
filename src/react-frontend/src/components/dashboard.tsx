@@ -33,7 +33,7 @@ const Dashboard = (props: any) => {
     ]);
 
     useEffect(() => {
-        fetch("http://127.0.0.1:5000/network_names")
+        fetch("http://127.0.0.1:5000/networks")
             .then((res) => res.json())
             .then((data) => {
                 let network_list = [];
