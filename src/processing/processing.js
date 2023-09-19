@@ -5,6 +5,7 @@ const loadingBarTotalSteps = 3;
 
 let newNetworkDefaultName;
 
+
 const getLoadingBarWidth = (stepNumber, currentProgress) => {
     return 100 * ((currentProgress + stepNumber) / loadingBarTotalSteps);
 };
@@ -91,6 +92,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     pollProgress();
+
+    document.getElementById("settings-Form").addEventListener("submit", function(event) {
+        event.preventDefault(); // Prevent the default form submission
+    
+        // Get the input value
+        var ports = document.getElementById("ports").value;
+    
+        // Create a JSON object with the data
+        var data = {
+            "ports": ports
+        };
+    
+        window.electronAPI.sendSavedSettings(data);
+    });
 });
 
 // function ready(event){
