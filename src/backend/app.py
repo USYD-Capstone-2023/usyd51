@@ -1,5 +1,5 @@
 # External
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 # Local
 from database import PostgreSQL_database
@@ -122,3 +122,37 @@ def delete_network(network_id):
         return "Network with id %d not present in database." % (network_id), 500
     
     return "Success", 200
+
+
+@app.get("/settings/<user_id>")
+def get_settings(user_id):
+
+    settings = db.get_settings(user_id)
+    return settings
+
+
+@app.put("/settings/<user_id>/set")
+def set_settings(user_id):
+
+    # TODO Temporary, set settings currently is insert, need to add update 
+    if db.contains_settings(user_id):
+        print("contained")
+        return "Success", 200
+
+    settings = request.get_json()
+    require = ["TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
+               "run_mac_vendor", "run_trace", "run_vertical_trace", "defaultView",
+               "defaultNodeColour", "defaultEdgeColour", "defaultBackgroundColour"]
+
+    for req in require:
+        if req not in settings.keys():
+            print("err")
+            return "Malformed settings file.", 500
+
+    if db.set_settings(user_id, settings):
+        return "Database error.", 500
+
+    return "Success", 200
+
+# @app.get("/users/create/<user_id>")
+# def create_user:    

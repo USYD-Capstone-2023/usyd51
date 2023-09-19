@@ -35,21 +35,11 @@ NUM_THREADS = 25
 BACKEND_URL = "http://127.0.0.1:5000"
 
 
-def scan(network_id, run_trace, run_hostname, run_vertical_trace,
+def scan(lb, network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
 
     ts = datetime.now().timestamp()
-    lb = Loading_bar()
     tp = Threadpool(NUM_THREADS)
-
-    def cleanup(*args):
-        tp.end()
-        print("Finished cleaning up! Server will now shut down.")
-
-    # Set signal handler to gracefully terminate threadpool on shutdown
-    signal.signal(signal.SIGTERM, cleanup)
-    signal.signal(signal.SIGINT, cleanup)
-
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
@@ -113,8 +103,7 @@ def scan(network_id, run_trace, run_hostname, run_vertical_trace,
         add_ports(devices, tp, lb, iface, ports)
 
     # Ends threadpool and closes threads
-    cleanup()
-
+    tp.end()
     requests.put(BACKEND_URL + "/network/add", json=network.to_json())
 
 

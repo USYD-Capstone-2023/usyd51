@@ -176,7 +176,7 @@ class PostgreSQL_database:
     def add_device(self, network_id, device, ts):
 
         query = """
-                INSERT INTO devices(
+                INSERT INTO devices (
                     mac, 
                     ip, 
                     mac_vendor, 
@@ -324,6 +324,82 @@ class PostgreSQL_database:
         return next + 1
 
 
+    def get_settings(self, user_id):
+
+        query = """
+                SELECT *
+                FROM settings
+                WHERE user_id = '%s';
+                """ % (user_id)
+
+        response = self.query(query, res=True)
+        if len(response) == 0:
+            return None
+
+        keys = ["user_id", "TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
+                "run_mac_vendor", "run_trace", "run_vertical_trace", "defaultView",
+                "defaultNodeColour", "defaultEdgeColour", "defaultBackgroundColour"]
+
+        out = {}
+        for i in range(len(keys)):
+            out[keys[i]] = response[0][i]
+
+        return out
+
+
+    def set_settings(self, user_id, settings):
+
+        query = """
+                INSERT INTO settings (
+                    user_id,
+                    TCP,
+                    UDP, 
+                    ports,
+                    run_ports,
+                    run_os,
+                    run_hostname,
+                    run_mac_vendor,
+                    run_trace,
+                    run_vertical_trace,
+                    defaultView,
+                    defaultNodeColour,
+                    defaultEdgeColour,
+                    defaultBackgroundColour)
+                VALUES (%s, %s, %s, '%s', %s, %s, %s, %s, %s, %s, '%s', '%s', '%s', '%s');
+                """ % (
+                    user_id,
+                    settings["TCP"],
+                    settings["UDP"], 
+                    settings["ports"],
+                    settings["run_ports"],
+                    settings["run_os"],
+                    settings["run_hostname"],
+                    settings["run_mac_vendor"],
+                    settings["run_trace"],
+                    settings["run_vertical_trace"],
+                    settings["defaultView"],
+                    settings["defaultNodeColour"],
+                    settings["defaultEdgeColour"],
+                    settings["defaultBackgroundColour"]
+                    )
+
+        self.query(query)
+
+        return True
+
+
+    def contains_settings(self, user_id):
+
+        query = """
+                SELECT 1
+                FROM settings
+                WHERE user_id = %s;
+                """ % (user_id)
+
+        response = self.query(query, res=True)
+        return response != None and len(response) > 0 != None
+
+
     # Setup tables if it doesn't exist
     # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
@@ -343,6 +419,27 @@ class PostgreSQL_database:
                             name TEXT,
                             ssid TEXT);
                         """
+
+
+        query_settings = """
+                        CREATE TABLE IF NOT EXISTS settings
+                            (user_id INTEGER PRIMARY KEY,
+                            TCP BOOLEAN NOT NULL,
+                            UDP BOOLEAN NOT NULL, 
+                            ports TEXT NOT NULL,
+                            run_ports BOOLEAN NOT NULL,
+                            run_os BOOLEAN NOT NULL,
+                            run_hostname BOOLEAN NOT NULL,
+                            run_mac_vendor BOOLEAN NOT NULL,
+                            run_trace BOOLEAN NOT NULL,
+                            run_vertical_trace BOOLEAN NOT NULL,
+                            defaultView TEXT NOT NULL,
+                            defaultNodeColour TEXT NOT NULL,
+                            defaultEdgeColour TEXT NOT NULL,
+                            defaultBackgroundColour TEXT NOT NULL
+                            )
+                        """
+
 
         query_devices = """
                         CREATE TABLE IF NOT EXISTS devices
@@ -402,6 +499,7 @@ class PostgreSQL_database:
         # self.query(query_users)
         self.query(query_networks)
         self.query(query_devices)
+        self.query(query_settings)
         # self.query(query_layer3s)
         # self.query(query_wirelessaps)
         self.query(query_alive)
