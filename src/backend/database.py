@@ -205,7 +205,7 @@ class PostgreSQL_database:
         self.query(query)
 
     
-    # Updates the most recent version of the database to add new data
+    # Updates the most recent version of a device to add new data
     def update_device(self, network_id, device):
 
         ts = self.get_most_recent_ts(network_id)
@@ -404,7 +404,7 @@ class PostgreSQL_database:
                     defaultView = '%s',
                     defaultNodeColour = '%s',
                     defaultEdgeColour = '%s',
-                    defaultBackgroundColour = %s,
+                    defaultBackgroundColour = %s
                 WHERE user_id = %s;
                 """ % (
                     settings["TCP"],
