@@ -1,14 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Link } from "react-router-dom";
 
 const Sidebar = (props: any) => {
     return (
         <div className="flex justify-between align-center flex-col w-1/8 bg-gray-500 opacity-75 rounded-xl">
             <div className="flex flex-col justify-start items-center">
-                <Button>Home</Button>
+                <Link to="/">
+                    <Button>Home</Button>
+                </Link>
+                <Link to="/listView">
+                    <Button>Networks</Button>
+                </Link>
+                <Link to="/Settings">
+                    <Button>Settings</Button>
+                </Link>
+
                 <Button>Analytics</Button>
-                <Button>Networks</Button>
-                <Button>Settings</Button>
                 <Button>Night Mode</Button>
             </div>
             <div className="flex flex-col justify-end items-center py-5">

@@ -1,17 +1,29 @@
 // import { useState } from "react";
 import "./App.css";
 
-import Sidebar from "@/components/sidebar";
-import Dashboard from "@/components/dashboard";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Home from "./pages/Home";
+import Settings from "./pages/Settings";
+import NetworkView from "./pages/NetworkView";
+import ListView from "./pages/ListView";
 
 function App() {
     // const [count, setCount] = useState(0);
 
     return (
-        <div className="flex w-full h-full">
-            <Sidebar />
-            <Dashboard />
-        </div>
+        <BrowserRouter>
+            <Routes>
+                <Route path="/">
+                    <Route index element={<Home />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="listView" element={<ListView />} />
+                    <Route
+                        path="networkView/:networkID"
+                        element={<NetworkView />}
+                    />
+                </Route>
+            </Routes>
+        </BrowserRouter>
     );
 }
 
