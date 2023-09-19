@@ -44,7 +44,7 @@ def scan_network(network_id=-1):
 
     lb = Loading_bar()
 
-    res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+    res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
     settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
 
     settings = json.loads(settings)

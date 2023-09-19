@@ -347,9 +347,11 @@ class PostgreSQL_database:
         return out
 
 
-    def set_settings(self, user_id, settings):
+    # Updates an existing entry in the settings table
+    def update_settings(self, user_id, settings):
 
-        query = """
+        if not self.contains_settings(user_id):
+            query = """
                 INSERT INTO settings (
                     user_id,
                     TCP,
@@ -381,6 +383,43 @@ class PostgreSQL_database:
                     settings["defaultNodeColour"],
                     settings["defaultEdgeColour"],
                     settings["defaultBackgroundColour"]
+                    )
+
+            self.query(query)
+            return True
+
+        query = """
+                UPDATE settings
+                SET
+                    TCP = %s,
+                    UDP = %s, 
+                    ports = '%s',
+                    run_ports = %s,
+                    run_os = %s,
+                    run_hostname = %s,
+                    run_mac_vendor = %s,
+                    run_trace = %s,
+                    run_vertical_trace = %s,
+                    defaultView = '%s',
+                    defaultNodeColour = '%s',
+                    defaultEdgeColour = '%s',
+                    defaultBackgroundColour = %s,
+                WHERE user_id = %s;
+                """ % (
+                    settings["TCP"],
+                    settings["UDP"], 
+                    settings["ports"],
+                    settings["run_ports"],
+                    settings["run_os"],
+                    settings["run_hostname"],
+                    settings["run_mac_vendor"],
+                    settings["run_trace"],
+                    settings["run_vertical_trace"],
+                    settings["defaultView"],
+                    settings["defaultNodeColour"],
+                    settings["defaultEdgeColour"],
+                    settings["defaultBackgroundColour"],
+                    user_id
                     )
 
         self.query(query)
