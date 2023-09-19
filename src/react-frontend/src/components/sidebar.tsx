@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const Sidebar = (props: any) => {
     return (
-        <div className="flex justify-between align-center flex-col w-1/8 bg-gray-500 opacity-75 rounded-xl">
+        <div className="flex justify-between items-center flex-col w-1/8 bg-gray-500 opacity-75 rounded-xl">
             <div className="flex flex-col justify-start items-center">
                 <Link to="/">
                     <Button>Home</Button>
