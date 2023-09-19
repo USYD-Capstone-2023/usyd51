@@ -494,6 +494,5 @@ class PostgreSQL_database:
         self.query(init_networks)
         self.query(init_devices)
         self.query(init_settings)
-        self.query(init_alive)
 
         return True

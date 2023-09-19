@@ -39,7 +39,7 @@ default_settings = {
 # otherwise will create a new network in the db
 
 # TODO, this should be PUT, currently get to run in browser
-@app.get("/scan")
+@app.get("/scan/<network_id>")
 def scan_network(network_id=-1):
 
     lb = Loading_bar()
