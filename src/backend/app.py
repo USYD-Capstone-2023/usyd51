@@ -1,5 +1,5 @@
 # External
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 # Local
 from database import PostgreSQL_database
@@ -17,7 +17,7 @@ password = "root"
 db = PostgreSQL_database(database, user, password)
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
-@app.get("/network/<network_id>")
+@app.get("/networks/<network_id>")
 def get_network(network_id):
 
     if not db.contains_network(network_id):
@@ -27,7 +27,7 @@ def get_network(network_id):
 
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
-@app.get("/network/<network_id>/devices")
+@app.get("/networks/<network_id>/devices")
 def get_devices(network_id):
 
     if not db.contains_network(network_id):
@@ -37,7 +37,7 @@ def get_devices(network_id):
 
 
 # Adds a network network to the database, along with its attributes and devices
-@app.put("/network/add")
+@app.put("/networks/add")
 def save_network():
 
     network = request.get_json()
@@ -66,7 +66,7 @@ def save_network():
 
 # Updates an the most recent scan data of existing network in the database, 
 # without creating a new snapshot in its history
-@app.put("/network/<network_id>/update")
+@app.put("/networks/<network_id>/update")
 def update_devices(network_id):
 
     if not db.contains_network(id):
@@ -89,14 +89,6 @@ def update_devices(network_id):
     return "Success", 200
 
 
-# Serves the information of the dhcp server
-@app.get("/network/<network_id>/dhcp")
-def get_dhcp_server_info(network_id):
-
-    # TODO
-    return db.get_dhcp_info(network_id)
-
-
 @app.get("/networks")
 def get_networks():
 
@@ -105,7 +97,7 @@ def get_networks():
 
 # TODO - These ones are gets just for testing purposes at the minute, so I can test them
 # in browser while the frontend isnt hooked up
-@app.get("/network/<network_id>/rename/<new_name>")
+@app.get("/networks/<network_id>/rename/<new_name>")
 def rename_network(network_id, new_name):
 
     if not db.rename_network(network_id, new_name):
@@ -115,10 +107,38 @@ def rename_network(network_id, new_name):
 
 
 # Deletes a network and all related devices from the database
-@app.get("/network/<network_id>/delete")
+@app.get("/networks/<network_id>/delete")
 def delete_network(network_id):
 
     if not db.delete_network(network_id):
         return "Network with id %d not present in database." % (network_id), 500
     
+    return "Success", 200
+
+
+# Retrieves a users settings json from the database
+@app.get("/settings/<user_id>")
+def get_settings(user_id):
+
+    settings = db.get_settings(user_id)
+    return settings
+
+
+# Sets a users settings in the database
+@app.put("/settings/<user_id>/update")
+def set_settings(user_id):
+
+    settings = request.get_json()
+    require = ["TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
+               "run_mac_vendor", "run_trace", "run_vertical_trace", "defaultView",
+               "defaultNodeColour", "defaultEdgeColour", "defaultBackgroundColour"]
+
+    for req in require:
+        if req not in settings.keys():
+            print("err")
+            return "Malformed settings file.", 500
+
+    if db.update_settings(user_id, settings):
+        return "Database error.", 500
+
     return "Success", 200

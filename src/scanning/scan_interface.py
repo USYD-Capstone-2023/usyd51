@@ -2,6 +2,10 @@ import  sys
 
 # External
 import requests
+from flask import Flask
+from loading_bar import Loading_bar
+
+app = Flask(__name__)
 
 # Local
 import net_tools as nt
@@ -9,49 +13,41 @@ import net_tools as nt
 # Stdlib
 import os, json
 
-SETTINGS_FILEPATH = "./settings.json"
-
-# TODO send loading bar info to node over FIFO
+DB_SERVER_URL = "http://127.0.0.1:5000"
 
 
-if os.name == "nt":
-    SETTINGS_FILEPATH = SETTINGS_FILEPATH.replace("/", "\\")
-
-
-def set_default_settings():
-
-    default_settings = """
-{
-    "TCP":true,
-    "UDP":true, 
+default_settings = {
+    "TCP" : True,
+    "UDP" : True, 
     "ports": [22,23,80,443],
-
-    "run_ports": false,
-    "run_os": false,
-    "run_hostname": true,
-    "run_mac_vendor": true,
-    "run_trace": true,
-    "run_vertical_trace": true,
-
+    "run_ports": False,
+    "run_os": False,
+    "run_hostname": True,
+    "run_mac_vendor": True,
+    "run_trace": True,
+    "run_vertical_trace": True,
     "defaultView": "grid",
     "defaultNodeColour": "0FF54A",
     "defaultEdgeColour": "32FFAB",
     "defaultBackgroundColour": "320000"
-}"""
+}
 
-    with open(SETTINGS_FILEPATH, "w") as f:
-        f.write(default_settings)
 
-# Finds all devices on the network, runs all scans outlined in settings file
+
+# Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
+
+# TODO, this should be PUT, currently get to run in browser
+@app.get("/scan/<network_id>")
 def scan_network(network_id=-1):
 
-    settings_json = ""
-    with open(SETTINGS_FILEPATH, "r") as f:
-        settings_json = f.read()
+    lb = Loading_bar()
 
-    settings = json.loads(settings_json)
+    res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
+    settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
+
+    settings = json.loads(settings)
 
     require = ["run_trace", "run_hostname", "run_vertical_trace", "run_mac_vendor",
                "run_os", "run_ports", "ports"]
@@ -66,47 +62,28 @@ def scan_network(network_id=-1):
         
         args.append(settings[req])
 
+    nt.scan(lb, network_id, *args)
 
-    nt.scan(network_id, *args)
+
+@app.get("/scan/progress")
+def get_progress():
+
+    return -1
+
 
 # Serves the information of the dhcp server
+@app.get("/dhcp")
 def get_dhcp_server_info():
 
-    # TODO send to node through FIFO maybe?
-    return print(nt.get_dhcp_server_info())
+    return nt.get_dhcp_server_info(), 200
 
 
+@app.get("/ssid")
 def get_current_ssid():
 
-    # TODO send to node through FIFO maybe?
-    return print(nt.get_ssid())
+    return nt.get_ssid(), 200
 
 
 if __name__ == "__main__":
 
-    if len(sys.argv) == 1:
-        print("Must provide scan type as an argument. Exitting.")
-        sys.exit(-1)
-
-    # Ensures that the user has root perms uf run on posix system.
-    if os.name == "posix" and os.geteuid() != 0: 
-        print("Root permissions are required for this program to run.")
-        quit()
-
-    if not os.path.exists(SETTINGS_FILEPATH):
-
-        set_default_settings()
-            
-    # Jump table for possible operations
-    options = {
-        "scan_network" : scan_network,
-        "ssid" : get_current_ssid,
-        "dhcp" : get_dhcp_server_info
-    }
-
-    if sys.argv[1] not in options.keys():
-        print("[ERR ] Provided operation is not valid: %s" % (sys.argv[1]))
-        sys.exit(-1)
-
-    options[sys.argv[1]](*sys.argv[2:])
-
+    app.run(port=5001)
