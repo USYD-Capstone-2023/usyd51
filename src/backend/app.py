@@ -116,6 +116,7 @@ def delete_network(network_id):
     return "Success", 200
 
 
+# Retrieves a users settings json from the database
 @app.get("/settings/<user_id>")
 def get_settings(user_id):
 
@@ -123,6 +124,7 @@ def get_settings(user_id):
     return settings
 
 
+# Sets a users settings in the database
 @app.put("/settings/<user_id>/update")
 def set_settings(user_id):
 

@@ -10,7 +10,7 @@ Retrieves the basic, defining information of a specific network from the databas
 
 ### Usage ###
 ```python
-"GET /network/<network_id>"
+"GET /networks/<network_id>"
 ```
 
 ### Return Format ##
@@ -40,7 +40,7 @@ Retrieves all devices associated with a network from the most recent scan in the
 
 ### Usage ###
 ```python
-"GET /network/<network_id>/devices"
+"GET /networks/<network_id>/devices"
 ```
 
 ### Return Format ###
@@ -78,7 +78,7 @@ Allows users to add a device into the database. If the request is sent with an i
 
 ### Usage ###
 ```json
-"PUT /network/add"
+"PUT /networks/add"
 json = 
 {
     "network_id"  : unique network id,
@@ -125,7 +125,7 @@ Updates the devices associated with the most recent scan on the given network, w
 ### Usage ###
 
 ```json
-"PUT /network/<network_id>/update"
+"PUT /networks/<network_id>/update"
 json = 
 {
     "network_id"  : unique network id,
@@ -171,7 +171,7 @@ Used to retrieve the DHCP server information of the desired network from the dat
 
 ### Usage ###
 ```json
-"GET /network/<network_id>/dhcp"
+"GET /networks/<network_id>/dhcp"
 ```
 
 ### Return Format ###
@@ -185,7 +185,7 @@ Used to retrieve the DHCP server information of the desired network from the dat
 }
 ```
 
-## Get All Network's Info ##
+## Get All Networks' Info ##
 
 ### Description ###
 
@@ -219,7 +219,7 @@ AT THE MINUTE THIS IS IMPLEMENTED AS A *GET* REQUEST FOR EASE OF TESTING, WILL B
 
 ### Usage ###
 ```json
-GET "/network/<network_id>/rename/<new_name>"
+GET "/networks/<network_id>/rename/<new_name>"
 ```
 
 ### Return Format ###
@@ -240,8 +240,8 @@ Allows the deletion of a network corresponding to its unique ID number.
 AT THE MINUTE THIS IS IMPLEMENTED AS A *GET* REQUEST FOR EASE OF TESTING, WILL BE A PUT REQUEST ONCE THE FRONTEND IS IMPLEMENTED.
 
 ### Usage ###
-```python
-"/network/<network_id>/delete"
+```json
+"/networks/<network_id>/delete"
 ```
 
 ### Return Format ###
@@ -252,4 +252,78 @@ AT THE MINUTE THIS IS IMPLEMENTED AS A *GET* REQUEST FOR EASE OF TESTING, WILL B
 or
 
 "Network with id %d not present in database." % (network_id), 500
+```
+
+## Get Settings ##
+
+### Description ###
+
+Gets the JSON string of the settings selected and saved for the current user.
+
+### Usage ###
+
+```json
+"GET /settings/<user_id>"
+```
+
+### Return Format ###
+
+```json
+{
+    "user_id" : (int) user ID,
+    "TCP" : (bool)Run TCP port scans?,
+    "UDP" : (bool) Run UDP port scans?,
+    "ports" : (string) "[ports, to, scan]",
+    "run_ports" : (bool) Run port scan?,
+    "run_os" : (bool) Run OS scan?,
+    "run_hostname" : (bool) Run hostname lookup?,
+    "run_mac_vendor" : (bool) Run mac vendor lookup?,
+    "run_trace" : (bool) Run traceroute?,
+    "run_vertical_trace" : (bool) Run vertical traceroute?,
+    "defaultView" : (string) View style,
+    "defaultNodeColour" : (string) Node colour,
+    "defaultEdgeColour" : (string) edge colour,
+    "defaultBackgroundColour" : (string) background colour
+}
+```
+
+## Update/Set Settings ##
+
+### Description ###
+
+Sets the user's scan settings and UI preferences.
+
+### Usage ###
+
+```json
+"PUT /settings/<user_id>/set"
+json={
+    "TCP" : (bool)Run TCP port scans?,
+    "UDP" : (bool) Run UDP port scans?,
+    "ports" : (string) "[ports, to, scan]",
+    "run_ports" : (bool) Run port scan?,
+    "run_os" : (bool) Run OS scan?,
+    "run_hostname" : (bool) Run hostname lookup?,
+    "run_mac_vendor" : (bool) Run mac vendor lookup?,
+    "run_trace" : (bool) Run traceroute?,
+    "run_vertical_trace" : (bool) Run vertical traceroute?,
+    "defaultView" : (string) View style,
+    "defaultNodeColour" : (string) Node colour,
+    "defaultEdgeColour" : (string) edge colour,
+    "defaultBackgroundColour" : (string) background colour
+    }
+```
+
+### Return Format ###
+
+```json
+"Malformed settings file.", 500
+
+or
+
+"Database error.", 500
+
+or
+
+"Success", 200
 ```

@@ -324,6 +324,7 @@ class PostgreSQL_database:
         return next + 1
 
 
+    # Retrieves a user's settings from database
     def get_settings(self, user_id):
 
         query = """
@@ -443,15 +444,7 @@ class PostgreSQL_database:
     # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
 
-        # Main Tables
-        # query_users = """CREATE TABLE IF NOT EXISTS users
-        #                 (id TEXT PRIMARY KEY NOT NULL,
-        #                 email TEXT NOT NULL,
-        #                 password TEXT NOT NULL,
-        #                 company TEXT NOT NULL);
-        #                 """
-
-        query_networks = """
+        init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
                             (id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
@@ -460,7 +453,7 @@ class PostgreSQL_database:
                         """
 
 
-        query_settings = """
+        init_settings = """
                         CREATE TABLE IF NOT EXISTS settings
                             (user_id INTEGER PRIMARY KEY,
                             TCP BOOLEAN NOT NULL,
@@ -480,7 +473,7 @@ class PostgreSQL_database:
                         """
 
 
-        query_devices = """
+        init_devices = """
                         CREATE TABLE IF NOT EXISTS devices
                             (mac TEXT NOT NULL,
                             ip TEXT NOT NULL,
@@ -496,52 +489,11 @@ class PostgreSQL_database:
                             CONSTRAINT id PRIMARY KEY (mac, network_id, timestamp));
                         """
 
-        # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s
-        #                 (id SERIAL PRIMARY KEY NOT NULL,
-        #                 ip TEXT NOT NULL,
-        #                 hostname TEXT,
-        #                 human_name TEXT,
-        #                 num_ports NUMBER,
-        #                 ports FOREIGN KEY (id) REFERENCES layer3_ports,
-        #                 vendor TEXT);
-        #                 """
 
-        # query_wirelessaps = """CREATE TABLE IF NOT EXISTS wirelessaps
-        #                 (id SERIAL PRIMARY KEY NOT NULL,
-        #                 ip TEXT NOT NULL,
-        #                 hostname TEXT,
-        #                 human_name TEXT,
-        #                 devices FOREIGN KEY (id) REFERENCES wireless_devices,
-        #                 port FOREIGN KEY (id) REFERENCES layer3,
-        #                 vendor TEXT);
-        #                 """
-        # Join tables
-        query_alive = """
-                    CREATE TABLE IF NOT EXISTS alive
-                        (id SERIAL PRIMARY KEY NOT NULL,
-                        ip TEXT NOT NULL,
-                        mac TEXT NOT NULL,
-                        first_seen TIMESTAMP,
-                        last_check TIMESTAMP,
-                        last_online TIMESTAMP);
-                    """
-
-        # query_layer3_ports = """CREATE TABLE IF NOT EXISTS layer3_ports
-        #             (id SERIAL PRIMARY KEY NOT NULL,
-        #             port_name TEXT NOT NULL,
-        #             mac TEXT NOT NULL,
-        #             layer3 FORIEGN KEY (id) REFERENCES layer3s,
-        #             device FORIEGN KEY (id) REFERENCES devices;
-        #             """
-
-        # run all the database queries
-        # self.query(query_users)
-        self.query(query_networks)
-        self.query(query_devices)
-        self.query(query_settings)
-        # self.query(query_layer3s)
-        # self.query(query_wirelessaps)
-        self.query(query_alive)
-        # self.query(query_layer3_ports)
+        # self.query(init_users)
+        self.query(init_networks)
+        self.query(init_devices)
+        self.query(init_settings)
+        self.query(init_alive)
 
         return True
