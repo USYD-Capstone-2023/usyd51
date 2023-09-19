@@ -6,6 +6,7 @@ from flask_cors import CORS
 from database import PostgreSQL_database
 
 app = Flask(__name__)
+CORS(app)
 
 # Db login info
 # TODO add user system, with permissions and logins etc
