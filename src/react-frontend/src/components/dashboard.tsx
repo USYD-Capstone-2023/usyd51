@@ -62,7 +62,7 @@ const Dashboard = (props: any) => {
                 <div className="w-1/3  bg-gray-200 opacity-80 rounded-xl">
                     <ScrollArea>
                         <div>
-                            <h1 className="mb-4 text-xxl font-medium leading-none text-gray-500">
+                            <h1 className="mb-4 text-2xl font-medium leading-none text-gray-500 p-8">
                                 Networks
                             </h1>
                             <div className="flex justify-center items-center gap-3 flex-col p-2">
@@ -77,10 +77,17 @@ const Dashboard = (props: any) => {
                     </ScrollArea>
                 </div>
                 <div className="flex flex-col justify-between items-center w-2/3 gap-10 pb-8">
-                    <DashboardChart />
+                    <div className="h-full w-full bg-white rounded-xl">
+                        <div className="h-1/8 text-gray-400 font-medium text-2xl p-8 text-left">
+                            Home Network
+                        </div>
+                        <div className="flex justify-center items-center h-5/6 w-full">
+                            <DashboardChart />
+                        </div>
+                    </div>
                     <Card
                         onClick={createNewNetwork}
-                        className="drop-shadow-md hover:drop-shadow-xl"
+                        className="bg-gray-300 drop-shadow-md hover:drop-shadow-xl"
                     >
                         <CardHeader>
                             <CardTitle>Create New Network</CardTitle>
