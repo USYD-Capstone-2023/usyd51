@@ -1,35 +1,32 @@
-import sqlite3, sys
+import psycopg2, sys
 
-from device import Device
 from datetime import datetime
 
-class SQLiteDB:
+class PostgreSQL_database:
 
-    def __init__(self, database):
+    def __init__(self, database, user, password):
 
-        self.connection = None
-        self.cursor = None
         self.db = database
+        self.user = user
+        self.password = password
 
         if not self.init_tables():
 
             print("[ERR ] Fatal error occurred while initialising database. Exitting...")
             sys.exit(-1)
 
-
-    def query(self, querystring, params=(), res=False):
+    # Passes the given query to the database, retrieves result or commits if required
+    def query(self, querystring, res=False):
 
         response = None
         conn = None
         try:
-            ## Open Database Connection
-            conn = sqlite3.connect(self.db)
-
+            # Open Database Connection
+            conn = psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost")
             # Create Cursor Object
             cur = conn.cursor()
-
             # Run query
-            cur.execute(querystring, params)
+            cur.execute(querystring)
 
             # Check Response
             if res:
@@ -38,8 +35,8 @@ class SQLiteDB:
                 # Commit Query
                 conn.commit()
 
-        except sqlite3.Error as error:
-            print(error)
+        except Exception as e:
+            print(e)
             print(querystring)
 
         finally:
@@ -51,21 +48,42 @@ class SQLiteDB:
 
 
     # Adds a network to the database if it doesnt already exist.
-    def register_network(self, id, gateway_mac, ssid, name):
+    def register_network(self, network):
 
-        print("[INFO] Registering new network...")
+        # Ensures network format is correct
+        required = ["network_id", "ssid", "gateway_mac", "name"]
+
+        for req in required:
+            if req not in network.keys():
+                return False
 
         query = """
                 INSERT INTO networks (id, gateway_mac, name, ssid)
-                VALUES (?, ?, ?, ?);
-                """
+                VALUES (%s, '%s', '%s', '%s');
+                """  % (
+                    network["network_id"],
+                    network["gateway_mac"],
+                    network["name"],
+                    network["ssid"])
         
-        params = (id, gateway_mac, name, ssid,)
-
-        self.query(query, params)
+        self.query(query)
+        return True
+    
+    
+    # Saves given devices to database at the given timestamp
+    def save_devices(self, network_id, devices, ts):
+    
+        # Ensures given data is well formed
+        required = ["mac", "ip", "mac_vendor", "os_family", "os_vendor", "os_type", "hostname", "parent", "ports"]
+        for device in devices.values():
+            for req in required:
+                if req not in device.keys():
+                    return False
+                
+            self.add_device(network_id, device, ts)
 
         return True
-
+    
 
     # Deletes a network from the database
     def delete_network(self, network_id):
@@ -74,20 +92,19 @@ class SQLiteDB:
             return False
 
         query = """
-                DELETE FROM networks
-                WHERE id = ?;
-                """
+                DELETE FROM devices
+                WHERE network_id = %s;
+                """ % (network_id)
 
-        params = (network_id,)
-
-        self.query(query, params)
+        self.query(query)
 
         query = """
-                DELETE FROM devices
-                WHERE network_id = ?;
-                """
+                DELETE FROM networks
+                WHERE id = %s;
+                """ % (network_id)
 
-        self.query(query, params)
+        self.query(query)
+
         return True
 
 
@@ -97,22 +114,20 @@ class SQLiteDB:
         query = """
                 SELECT 1
                 FROM networks
-                WHERE id = ?;
-                """
+                WHERE id = %s;
+                """ % (network_id)
 
-        params = (network_id,)
-
-        response = self.query(query, params, res=True)
+        response = self.query(query, res=True)
 
         return response != None and len(response) > 0
 
 
     # Returns a list of all networks
-    def get_network_names(self):
+    def get_networks(self):
 
         query = """
                 SELECT id, gateway_mac, name, ssid
-                FROM networks
+                FROM networks;
                 """
 
         response = self.query(query, res=True)
@@ -123,22 +138,14 @@ class SQLiteDB:
     # Returns all devices associated with a specific network
     def get_network(self, network_id):
 
-        query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports, timestamp
-                FROM devices
-                WHERE network_id = ?;
-                """ 
-        params = (network_id,)
-
-        devices = self.query(query, params, res=True)
 
         query = """
                 SELECT id, gateway_mac, name, ssid
                 FROM networks
-                WHERE id = ?;
-                """ 
+                WHERE id = %s;
+                """ % (network_id)
 
-        network_info = self.query(query, params, res=True)[0]
+        network_info = self.query(query, res=True)[0]
 
         network = {
             "id" : network_info[0],
@@ -146,38 +153,8 @@ class SQLiteDB:
             "name" : network_info[2],
             "ssid" : network_info[3]} 
 
-        devices = self.resp_to_devices(devices)
-        jsons = {}
-        for device in devices.values():
-            jsons[device.mac] = device.to_json()
-
-        network["devices"] = jsons
         return network
-
-
-    def resp_to_devices(self, responses):
-
-        # { mac : Device }
-        devices = {}
-
-        # Converts all responses into Device objects
-        for response in responses:
-            new_device = Device(response[0], response[1])
-            new_device.mac_vendor = response[2]
-            new_device.hostname = response[3]
-            new_device.os_type = response[4]
-            new_device.os_vendor = response[5]
-            new_device.os_family = response[6]
-            new_device.parent = response[7]
-            if len(response[8]) == 0:
-                new_device.ports = []
-            else:
-                new_device.ports = [int(port) for port in response[8].split(",")[:-1]]
-
-            devices[response[0]] = new_device
-
-        return devices
-
+    
 
     # Allows users to rename a network and all its data
     def rename_network(self, network_id, new_name):
@@ -187,57 +164,106 @@ class SQLiteDB:
 
         query = """
                 UPDATE networks
-                SET name = ?
-                WHERE id = ?;
-                """
+                SET name = '%s'
+                WHERE id = %s;
+                """ % (new_name, network_id)
 
-        params = (new_name, network_id,)
-
-        self.query(query, params)
+        self.query(query)
         return True
 
 
     # Adds a device into the database
     def add_device(self, network_id, device, ts):
 
-        port_string = "".join([str(x) + "," for x in device.ports])
+        query = """
+                INSERT INTO devices(
+                    mac, 
+                    ip, 
+                    mac_vendor, 
+                    hostname, 
+                    os_type, 
+                    os_vendor, 
+                    os_family, 
+                    parent, 
+                    ports,
+                    network_id, 
+                    timestamp)
+                VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s);
+                """ % (
+                    device["mac"], 
+                    device["ip"], 
+                    device["mac_vendor"], 
+                    device["hostname"], 
+                    device["os_type"],
+                    device["os_vendor"], 
+                    device["os_family"], 
+                    device["parent"], 
+                    device["ports"],
+                    network_id, 
+                    ts)
+
+        self.query(query)
+
+    
+    # Updates the most recent version of the database to add new data
+    def update_device(self, network_id, device):
+
+        ts = self.get_most_recent_ts(network_id)
 
         query = """
-                INSERT INTO devices(mac, ip, mac_vendor, hostname, os_type, os_vendor, os_family, parent, network_id, timestamp, ports)
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """
+                UPDATE devices
+                SET
+                    mac = '%s', 
+                    ip = '%s', 
+                    mac_vendor = '%s', 
+                    hostname = '%s', 
+                    os_type = '%s', 
+                    os_vendor = '%s', 
+                    os_family = '%s', 
+                    parent = '%s', 
+                    ports = '%s',
+                WHERE network_id = %s and timestamp = %s;
+                """ % (
+                    device["mac"], 
+                    device["ip"], 
+                    device["mac_vendor"], 
+                    device["hostname"], 
+                    device["os_type"],
+                    device["os_vendor"], 
+                    device["os_family"], 
+                    device["parent"], 
+                    device["ports"],
+                    network_id, 
+                    ts)
+        
+        self.query(query)
 
-        params = (device.mac, device.ip, device.mac_vendor, device.hostname, device.os_type,
-                 device.os_vendor, device.os_family, device.parent, network_id, ts, port_string,)
-
-        self.query(query, params)
 
 
-    # Checks if a device is in the database. Devices are stored by MAC address, and thus we check if the db contains the MAC.
+    # Checks if a device is in the database. Devices are stored by MAC address,
+    # and thus we check if the db contains the MAC.
     def contains_mac(self, network_id, mac, ts):
         
         query = """
                 SELECT 1
                 FROM devices 
-                WHERE mac = ? AND network_id = ? AND timestamp = ?;
-                """
+                WHERE mac = '%s' AND network_id = %s AND timestamp = %s;
+                """ % (mac, network_id, ts)
 
-        params = (mac, network_id, ts,)
-
-        response = self.query(query, params, res=True)
+        response = self.query(query, res=True)
         return response != None and len(response) > 0 != None
 
+
+    # Retrieves the timestamp of a network's most recent scan
     def get_most_recent_ts(self, network_id):
         
         query = """
                 SELECT DISTINCT timestamp
                 FROM devices
-                WHERE network_id = ?;
-                """
+                WHERE network_id = %s;
+                """ % (network_id)
 
-        params = (network_id,)
-
-        response = self.query(query, params, res=True)
+        response = self.query(query, res=True)
 
         if response == None or len(response) == 0:
             return None
@@ -257,78 +283,28 @@ class SQLiteDB:
             ts = self.get_most_recent_ts(network_id)
 
         query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
+                SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
                 FROM devices
-                WHERE network_id = ? AND timestamp = ?;
-                """
+                WHERE network_id = %s AND timestamp = %s;
+                """ % (network_id, ts)
 
-        params = (network_id, ts,)
-
-        responses = self.query(query, params, res=True)
-
-        devices = self.resp_to_devices(responses)
+        responses = self.query(query, res=True)
+        
+        devices = []
+        
+        for device in responses:
+            devices.append(
+                {"mac" : device[0], 
+                "ip" : device[1], 
+                "mac_vendor" : device[2], 
+                "os_family" : device[3], 
+                "os_vendor" : device[4], 
+                "os_type" : device[5], 
+                "hostname" : device[6], 
+                "parent" : device[7], 
+                "ports" : device[8]})
 
         return devices
-
-
-    # Retrieves a device from the database by a combination of it's MAC address and the gateway's MAC address
-    def get_device(self, network_id, mac, ts):
-
-        query = """
-                SELECT ip, mac, mac_vendor, hostname, os_type, os_vendor, os_family, parent, ports
-                FROM devices
-                WHERE network_id = ? AND mac = ? AND timestamp = ?;
-                """
-            
-        params = (network_id, mac, ts,)
-
-        response = self.query(query, params, res=True)
-
-        if len(response) == 0 or len(response[0]) < 8:
-            return None
-
-        response = response[0]
-
-        # Creates Device object from response
-        new_device = Device(response[0], response[1])
-        new_device.mac_vendor = response[2]
-        new_device.hostname = response[3]
-        new_device.os_type = response[4]
-        new_device.os_vendor = response[5]
-        new_device.os_family = response[6]
-        new_device.parent = response[7]
-        if len(response[8]) == 0:
-            new_device.ports = []
-        else:
-            new_device.ports = [int(port) for port in response[8].split()[:-1]]
-
-        return new_device
-
-
-    # Saves an existing device back to the database after it has been changed.
-    def save_device(self, network_id, device, ts):
-
-        port_string = "".join([str(x) + "," for x in device.ports])
-
-        query = """
-                UPDATE devices
-                SET mac = ?,
-                    ip = ?,
-                    mac_vendor = ?,
-                    hostname = ?,
-                    os_type = ?,
-                    os_vendor = ?,
-                    os_family = ?,
-                    parent = ?,
-                    ports = ?
-                WHERE network_id = ? AND mac = ? AND timestamp = ?;
-                """
-
-        params = (device.mac, device.ip, device.mac_vendor,
-                  device.hostname, device.os_type, device.os_vendor,
-                  device.os_family, device.parent, port_string, network_id, device.mac, ts,)
-
-        self.query(query, params)
 
 
     # Gets the next available unique network id
@@ -351,16 +327,6 @@ class SQLiteDB:
     # Setup tables if it doesn't exist
     # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
-
-
-        try:
-
-            conn = sqlite3.connect(self.db)
-        
-        except sqlite3.Error as e:
-
-            print(e)
-            return False
 
         # Main Tables
         # query_users = """CREATE TABLE IF NOT EXISTS users
@@ -389,7 +355,7 @@ class SQLiteDB:
                             os_family TEXT,
                             parent TEXT,
                             ports TEXT,
-                            network_id TEXT REFERENCES networks (id),
+                            network_id INTEGER REFERENCES networks (id),
                             timestamp INTEGER NOT NULL,
                             CONSTRAINT id PRIMARY KEY (mac, network_id, timestamp));
                         """

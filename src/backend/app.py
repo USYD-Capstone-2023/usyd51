@@ -3,165 +3,117 @@ from flask import Flask
 from flask_cors import CORS
 
 # Local
-from loading_bar import Loading_bar
-from net_tools import *
-from database import SQLiteDB
-
-# Stdlib
-import os
-
-# Ensures that the user has root perms uf run on posix system.
-if os.name == "posix" and os.geteuid() != 0: 
-    print("Root permissions are required for this program to run.")
-    quit()
+from database import PostgreSQL_database
 
 app = Flask(__name__)
 CORS(app)
 
+# Db login info
+# TODO add user system, with permissions and logins etc
+database = "networks"
+user = "postgres"
+password = "root"
+
 # Initialises database object
 # Temp login information
-db = SQLiteDB("networks.db")
-
-# Initialise loading bar, network utilities and mac vendor lookup table
-lb = Loading_bar()
-nt = Net_tools(db, lb)
+db = PostgreSQL_database(database, user, password)
 
 
 # Gives all the information about the current network that is stored in the database, does not re-run scans
 @app.get("/network/<network_id>")
 def get_network(network_id):
-
     if not db.contains_network(network_id):
-        return {"error" : "Current network is not registered in the database, run /map_network to add this network to the database."}
-    
-    devices = db.get_all_devices(network_id)
+        return "Network with ID %d is not present in the database." % (network_id), 500
 
-    ret = {}
-    for device in devices.values():
-        ret[device.mac] = device.to_json()
-
-    return ret
+    return db.get_network(network_id)
 
 
-# Finds all devices on the network, traces routes to all of them, resolves mac vendors and hostnames.
-# Serves the main mapping data for the program
-@app.get("/map_network")
-def map_network():
+# Gives all the devices associated with the given network id, as they were in the most recent scan
+@app.get("/network/<network_id>/devices")
+def get_devices(network_id):
+    if not db.contains_network(network_id):
+        return "Network with ID %d is not present in the database." % (network_id), 500
 
-    return nt.basic_scan()
+    return db.get_all_devices(network_id)
 
 
-# Rescans an existing network
-@app.get("/rescan/<network_id>")
-def rescan_network(network_id):
+# Adds a network network to the database, along with its attributes and devices
+@app.put("/network/add")
+def save_network():
+    network = request.get_json()
 
-    return nt.basic_scan(network_id)
+    # Ensures given data is correctly formed
+    required = ["network_id", "devices", "timestamp"]
+    for req in required:
+        if req not in network.keys():
+            return "Malformed network.", 500
 
-  
-# Gets the OS information of the given ip address through TCP fingerprinting
-@app.get("/os_info")
-def os_scan():
+    id = network["network_id"]
+    devices = network["devices"]
+    ts = network["timestamp"]
 
-    nt.add_os_info()
-    return get_network(nt.network_id)
+    # Registers a new network with ssid as its name if the given id doesnt exist or is invalid
+    if id == -1 or not db.contains_network(id):
+        id = db.get_next_network_id()
+        network["network_id"] = id
+        if not db.register_network(network):
+            return "Database encountered an error registering new network", 500
+
+    if db.save_devices(id, devices, ts):
+        return "Success", 200
+    return "Database encountered an error saving devices", 500
+
+
+# Updates an the most recent scan data of existing network in the database,
+# without creating a new snapshot in its history
+@app.put("/network/<network_id>/update")
+def update_devices(network_id):
+    if not db.contains_network(id):
+        return "No network with ID %d exists in database." % (network_id), 500
+
+    network = request.get_json()
+
+    # Ensures given data is correctly formed
+    required = ["network_id", "devices"]
+    for req in required:
+        if req not in network.keys():
+            return "Malformed network.", 500
+
+    id = network["network_id"]
+    devices = network["devices"]
+
+    for device in devices:
+        if not db.update_device(network_id, device):
+            return "Database encountered an error saving devices", 500
+    return "Success", 200
 
 
 # Serves the information of the dhcp server
-@app.get("/dhcp_info")
-def get_dhcp_server_info():
-
-    return nt.dhcp_server_info
-
-
-@app.get("/network_names")
-def get_network_names():
-
-    return db.get_network_names()
+@app.get("/network/<network_id>/dhcp")
+def get_dhcp_server_info(network_id):
+    # TODO
+    return db.get_dhcp_info(network_id)
 
 
-@app.get("/ssid")
-def get_ssid():
-
-    ret = nt.get_ssid()
-    return "error" if ret == None else ret
+@app.get("/networks")
+def get_networks():
+    return db.get_networks()
 
 
-@app.get("/id")
-def get_id():
-
-    return error if nt.network_id == None else nt.network_id
-
-
-@app.get("/ports/<network_id>")
-def get_ports(network_id):
-
-    nt.add_ports(network_id)
-
-    devices = db.get_all_devices(network_id)
-
-    ret = {}
-    for device in devices.values():
-        ret[device.mac] = device.to_json()
-    return ret
-
-@app.route('/savesettings', methods=['POST'])
-def savesettings():
-    '''
-    assuming save settings are in a JSON format
-    {
-    "TCP":True,
-    "UDP":True, 
-    "ports": [22,23,80,443],
-
-    "DefaultSave": True,
-
-    "attemptPortScan": False,
-    "attemptArp": False,
-    "attemptOS": False,
-    "attemptDNS": False,
-    "attemptTraceroute": True,
-
-    "defaultView": "grid",
-    "defaultNodeColour": "0FF54A",
-    "defaultEdgeColour": "32FFAB",
-    "defaultBackgroundColour": "320000",
-    }
-    '''
-    try:
-        data = request.get_json()  # Get the JSON data from the request
-        print("Received data:", data)
-        return "Settings saved successfully.", 200
-    except Exception as e:
-        print("Error:", str(e))
-        return "Error saving settings.", 500
-
-
-
-@app.get("/rename_network/<network_id>,<new_name>")
+# TODO - These ones are gets just for testing purposes at the minute, so I can test them
+# in browser while the frontend isnt hooked up
+@app.get("/network/<network_id>/rename/<new_name>")
 def rename_network(network_id, new_name):
+    if not db.rename_network(network_id, new_name):
+        return "Network with id %d not present in database." % (network_id), 500
 
-    if db.rename_network(network_id, new_name):
-        return "success"
-    
-    return "error"
-
-
-# Returns the progress and data of the current loading bar.
-# Polled by frontend to update ui loading bars in electron  
-@app.get("/request_progress")
-def get_current_progress():
-
-    if lb.total_value == 0:
-        return {"flag" : False}
-
-    return {"flag" : True, "progress" : lb.counter, "total" : lb.total_value, "label" : lb.label}
+    return "Success", 200
 
 
 # Deletes a network and all related devices from the database
-@app.get("/delete_network/<network_id>")
+@app.get("/network/<network_id>/delete")
 def delete_network(network_id):
+    if not db.delete_network(network_id):
+        return "Network with id %d not present in database." % (network_id), 500
 
-    if db.delete_network(network_id):
-        return "Successfully deleted network"
-
-    return "Could not find entered network..."
+    return "Success", 200

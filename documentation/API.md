@@ -1,184 +1,255 @@
 # API Spec #
 
-## Map Network ##
+This reference sheet demonstrates the usage and return formats of all endpoints used in the flask database server found at ```/src/backend/app.py```. If running locally, this system can be run with ```sudo flask run``` granted that postgreSQL is setup on your system.
 
-Scans for all information required to map the network, including device IP addresses, MAC addresses, each device's parent node, MAC vendor, hostname, aswell as the defining information for the network (id, name, ssid, gateway mac).
-Registers data in the database with the network's SSID as the default name
+## Network Information ##
 
-Usage: ```/map_network```
+### Description ###
 
-Return format:
+Retrieves the basic, defining information of a specific network from the database.
+
+### Usage ###
 ```python
-{
-    "id" : network id,
-    "gateway_mac" : gateway router mac,
-    "name" : network name,
-    "ssid" : network ssid,
-    "devices" : {
-        device_mac : {
-
-            "hostname" : device_hostname,
-            "ip" : device_ip,
-            "mac" : device_mac_address,
-            "mac_vendor" : device_mac_vendor,
-            "os_family" : os_family,
-            "os_type" : os_type,
-            "os_vendor" : os_vendor,
-            "parent" : parent_nodes_ip
-        }, ...
-    }
-}
-
-or
-
-{"error" : "Failed to scan network, are you connected to the internet?"}
-
-```
-All values default to "unknown" if they haven't been found.
-
-## Rename Network ##
-
-Renames a network to the desired name.
-
-Usage: ```/rename_network/<network_id>,<new name>```
-
-Return format:
-```python
-"success"
-or
-"error"
-
+"GET /network/<network_id>"
 ```
 
-## Get Network No Update ##
+### Return Format ##
 
-Returns all network information required to map the network from the database, does not run new scans but can contain new information from passive scanning.
-
-Usage: ```/network/<network_id>```
-
-Return format:
-```python
+```json
 {
-    device_mac : {
+    "id"          : unique network id,
+    "gateway_mac" : MAC address of the network's gateway,
+    "name"        : the network's human name,
+    "ssid"        : the network's SSID
+} 
+```
 
-        "hostname" : device_hostname,
-        "ip" : device_ip,
-        "mac" : device_mac_address,
-        "mac_vendor" : device_mac_vendor,
-        "os_family" : os_family,
-        "os_type" : os_type,
-        "os_vendor" : os_vendor,
-        "parent" : parent_nodes_ip
+or 
+
+```json
+"Network with ID %d is not present in the database.", 500
+
+If an error has occurred
+```
+
+## Network Devices ##
+
+### Description ###
+
+Retrieves all devices associated with a network from the most recent scan in the database.
+
+### Usage ###
+```python
+"GET /network/<network_id>/devices"
+```
+
+### Return Format ###
+
+```json
+[
+    {
+        "mac"        : the device's MAC address, 
+        "ip"         : the device's IP address, 
+        "mac_vendor" : the vendor that produced the device's network interface, 
+        "os_family"  : the family of operating systems the device belongs to, 
+        "os_vendor"  : the manufacturer of the device's OS, 
+        "os_type"    : the type of OS the device runs, 
+        "hostname"   : the device's name, 
+        "parent"     : the IP of the device's parent node in the routing tree, 
+        "ports"      : the ports that are scanned and open on the device
     }, ...
+]
 
-}
+```
 
 or
 
+```json
+"Network with ID %d is not present in the database.", 500
+
+If an error has occurred
+```
+
+## Add a Network ##
+
+### Description ###
+
+Allows users to add a device into the database. If the request is sent with an invalid ID number, a unique one is assigned by the database. If the request is sent with an ID that is present in the database, it will be added to that network's history. This endpoint should be used exclusively by the scanning utilities found at ```/src/scanning/scan_interface.py```.
+
+### Usage ###
+```json
+"PUT /network/add"
+json = 
 {
-    "error" : "Current network is not registered in the database, run /map_network to add this network to the database."
+    "network_id"  : unique network id,
+    "gateway_mac" : MAC address of the network's gateway,
+    "name"        : the network's human name,
+    "ssid"        : the network's SSID,
+    "timestamp"   : the time the scan was taken,
+    "devices"     : [
+                    {
+                        "mac"        : the device's MAC address, 
+                        "ip"         : the device's IP address, 
+                        "mac_vendor" : the vendor that produced the device's network interface, 
+                        "os_family"  : the family of operating systems the device belongs to, 
+                        "os_vendor"  : the manufacturer of the device's OS, 
+                        "os_type"    : the type of OS the device runs, 
+                        "hostname"   : the device's name, 
+                        "parent"     : the IP of the device's parent node in the routing tree, 
+                        "ports"      : the ports that are scanned and open on the device
+                    }, ...
+                    ]
 }
 ```
 
-## OS Scan ##
+### Return Format ###
 
-Uses TCP fingerprinting to determine the most likely operating system for each device on the currently connected network.
-Data is saved to database, then all device info is returned.
+```json
+"Success", 200
 
-Usage: ```/os_info```
+or
 
-Return format:
-```python
+"Database encountered an error registering new network", 500
+
+or
+
+"Database encountered an error saving devices", 500
+```
+
+## Update Existing Network ##
+
+### Description ###
+
+Updates the devices associated with the most recent scan on the given network, without creating a new scan snapshot. This is used when running different scans at different times, so that we can have, for example os information scanned in the background and added as required.
+
+### Usage ###
+
+```json
+"PUT /network/<network_id>/update"
+json = 
 {
-    "id" : network id,
-    "gateway_mac" : gateway router mac,
-    "name" : network name,
-    "ssid" : network ssid,
-    "devices" : {
-        device_mac : {
-
-            "hostname" : device_hostname,
-            "ip" : device_ip,
-            "mac" : device_mac_address,
-            "mac_vendor" : device_mac_vendor,
-            "os_family" : os_family,
-            "os_type" : os_type,
-            "os_vendor" : os_vendor,
-            "parent" : parent_nodes_ip
-        }, ...
-    }
+    "network_id"  : unique network id,
+    "devices"     : [
+                    {
+                        "mac"        : the device's MAC address, 
+                        "ip"         : the device's IP address, 
+                        "mac_vendor" : the vendor that produced the device's network interface, 
+                        "os_family"  : the family of operating systems the device belongs to, 
+                        "os_vendor"  : the manufacturer of the device's OS, 
+                        "os_type"    : the type of OS the device runs, 
+                        "hostname"   : the device's name, 
+                        "parent"     : the IP of the device's parent node in the routing tree, 
+                        "ports"      : the ports that are scanned and open on the device
+                    }, ...
+                    ]
 }
 ```
 
-## DHCP Server Info ##
+### Return Format ###
 
-Returns the information of the DHCP server for the current connection.
+```json
+"Success", 200
 
-Usage: ```/dhcp_info```
+or
 
-Return format:
-```python
+"No network with ID %d exists in database.", 500
+
+or
+
+"Malformed network.", 500
+
+or 
+
+"Database encountered an error saving devices", 500
+```
+
+## Get Network DHCP Info ##
+
+### Description ###
+
+Used to retrieve the DHCP server information of the desired network from the database. THIS IS CURRENTLY NOT USED OR IMPLEMENTED PROPERLY, WILL IMPLEMENT IF REQUIRED.
+
+### Usage ###
+```json
+"GET /network/<network_id>/dhcp"
+```
+
+### Return Format ###
+
+```json
 {
-    "domain" : router_hostname,
-    "iface" : network_interface,
-    "router" : router_ip,
-    "subnet_mask" : subnet_mask
+    "router"     : default gateway's IP address,
+    "iface"      : default interface,
+    "subnet_mask": network's subnet mask,
+    "domain"     : domain name,
 }
 ```
 
-## Request Progress ##
+## Get All Network's Info ##
 
-Gets the current progress information of the backend loading bar, used to synchronise with a frontend loading bar. CURRENTLY ONLY WORKS IF ONE REQUEST IS ISSUED AT A TIME!
+### Description ###
 
-Usage: ```/request_progress```
+Retrieves the basic, defining information about all networks currently stored in the database. Used to create menus showing all networks.
 
-Return format:
-```python
-{
-    "flag" : is the loading bar in use?,
-    "progress" : number of units completed,
-    "total" : total number of units,
-    "label" : loading bar text
-}
+### Usage ###
+```json
+GET "/networks"
 ```
 
-## Delete Network ##
+### Return Format ###
 
-Deletes a network from the database based on the network's gateway's MAC address
+```json
+[
 
-Usage: ```/delete_network/<network_id>```
-
-Return format:
-```python
-    "Successfully deleted network"
-    or
-    "Could not find entered network..."
+    {
+        "id"          : unique network id,
+        "gateway_mac" : MAC address of the network's gateway,
+        "name"        : the network's human name,
+        "ssid"        : the network's SSID
+    }, ...
+]
 ```
 
-## SSID ##
+## Rename a Network ##
 
-Gets the SSID of the current network.
+### Description ###
 
-Usage: ```/ssid```
+Allows renaming of an existing network and its associated data. 
+AT THE MINUTE THIS IS IMPLEMENTED AS A *GET* REQUEST FOR EASE OF TESTING, WILL BE A PUT REQUEST ONCE THE FRONTEND IS IMPLEMENTED.
 
-Return format:
-```python
-    <ssid>
+### Usage ###
+```json
+GET "/network/<network_id>/rename/<new_name>"
 ```
 
-## Network Names ##
+### Return Format ###
 
-Gets the name, ssid, id and name of each network in the database.
+```json
+"Success", 200
 
-Usage: ```/network_names```
+or
 
-Return format:
-```python
-{
-    "id" : id,
-    "gateway_mac" : gateway_mac,
-    "name" : name,
-    "ssid" : ssid,
-}
+"Network with id %d not present in database.", 500
 ```
 
+## Delete a Network ##
+
+### Description ###
+
+Allows the deletion of a network corresponding to its unique ID number.
+AT THE MINUTE THIS IS IMPLEMENTED AS A *GET* REQUEST FOR EASE OF TESTING, WILL BE A PUT REQUEST ONCE THE FRONTEND IS IMPLEMENTED.
+
+### Usage ###
+```python
+"/network/<network_id>/delete"
+```
+
+### Return Format ###
+
+```json
+"Success", 200
+
+or
+
+"Network with id %d not present in database." % (network_id), 500
+```
