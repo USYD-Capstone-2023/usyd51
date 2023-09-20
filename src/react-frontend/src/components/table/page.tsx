@@ -7,12 +7,32 @@ async function fetchData(): Promise<Payment[]> {
   // Simulate an API call or fetch data from your source
   return [
     {
-      id: "728ed52f",
-      amount: 100,
-      status: "pending",
-      email: "m@example.com",
+      id: "0",
+      networkName: "Home Network",
+      ssid: "NETGEAR86",
+      devices: 124,
+      status: "ONLINE",
+      lastScanned: new Date("2023-09-17"),
+      encrypted: true,
     },
-    // ...
+    {
+      id: "1",
+      networkName: "Office Downstairs",
+      ssid: "TPG_4208",
+      devices: 28,
+      status: "ONLINE",
+      lastScanned: new Date("2023-09-17"),
+      encrypted: true,
+    },
+    {
+      id: "2",
+      networkName: "Office Upstairs",
+      ssid: "TPG_4209",
+      devices: 192,
+      status: "INACTIVE",
+      lastScanned: new Date("2023-09-17"),
+      encrypted: true,
+    },
   ];
 }
 
@@ -30,9 +50,23 @@ export default function DemoPage() {
       });
   }, []);
 
+   // Function to format the date as "dd/mm/yyyy"
+   function formatDate(date: Date): string {
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
   return (
     <div className="container mx-auto py-10">
-      <DataTable columns={columns} data={data} />
+      <DataTable 
+        columns={columns} 
+        data={data.map((item) => ({
+          ...item,
+          // Format the date before rendering
+          lastScanned: formatDate(item.lastScanned),
+        }))} />
     </div>
   );
 }
