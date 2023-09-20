@@ -9,7 +9,7 @@ const Sidebar = (props: any) => {
                 <Link to="/">
                     <Button className="py-10 text-gray-900 shadow-none">Home</Button>
                 </Link>
-                <Link to="/listView">
+                <Link to="/ListView">
                     <Button className="py-10 text-gray-900 shadow-none">Networks</Button>
                 </Link>
                 <Link to="/Settings">
