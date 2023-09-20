@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Payment, columns } from "./columns";
 import { DataTable } from "./data-table";
 
@@ -59,7 +59,7 @@ export default function DemoPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 text-gray-900">
       <DataTable 
         columns={columns} 
         data={data.map((item) => ({
