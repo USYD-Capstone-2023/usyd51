@@ -29,7 +29,7 @@ const Sidebar = (props: any) => {
                     <AvatarImage src="https://github.com/shadcn.png" />
                     <AvatarFallback>LD</AvatarFallback>
                 </Avatar>
-                <Button className="py-10"><LogOut></LogOut></Button>
+                <Button className="py-10 text-gray-900 shadow-none"><LogOut></LogOut></Button>
             </div>
         </div>
     );
