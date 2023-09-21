@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import NetworkView from "./pages/NetworkView";
 import ListView from "./pages/ListView";
+import NewNetwork from "./pages/NewNetwork";
 
 function App() {
     // const [count, setCount] = useState(0);
@@ -20,6 +21,10 @@ function App() {
                     <Route
                         path="networkView/:networkID"
                         element={<NetworkView />}
+                    />
+                    <Route
+                        path="newNetwork/"
+                        element={<NewNetwork />}
                     />
                 </Route>
             </Routes>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     LineChart,
     Line,
@@ -14,13 +14,27 @@ import {
 
 const DashboardChart = () => {
     const [data, setData] = useState([
-        { name: "Page A", uv: 400, pv: 2400, amt: 2400 },
-        { name: "Page B", uv: 500, pv: 2400, amt: 2400 },
-        { name: "Page C", uv: 350, pv: 2400, amt: 2400 },
-        { name: "Page C", uv: 310, pv: 2400, amt: 2400 },
-        { name: "Page C", uv: 320, pv: 2400, amt: 2400 },
-        { name: "Page C", uv: 350, pv: 2400, amt: 2400 },
+        { time: "Page A", uv: 400, pv: 2400, amt: 2400 },
     ]);
+
+    useEffect(() => {
+        fetch("http://127.0.0.1:5000/networks/0/snapshots").then(res => res.json()).then((data) => {
+            data.forEach((element: any) => {
+                const date = new Date(element.timestampr*1000);
+                console.log(element.timestamp);
+                const hours = date.getHours().toString().padStart(2,'0');
+                const minutes = date.getMinutes().toString().padStart(2,'0');
+                element.time = hours + ":" + minutes;
+            })
+            setData(data);
+        })
+    }, [])
+
+
+
+
+
+
     return (
         <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data}>
@@ -43,7 +57,7 @@ const DashboardChart = () => {
 
                 <Area
                     type="monotone"
-                    dataKey="uv"
+                    dataKey="n_alive"
                     stroke="#efefef"
                     fill="url(#colorUv)"
                     opacity={1}
@@ -58,7 +72,7 @@ const DashboardChart = () => {
                 />
 
                 <XAxis
-                    dataKey="name"
+                    dataKey="time"
                     label={{
                         value: "Timestamp",
                         position: "insideBottom",
@@ -67,7 +81,7 @@ const DashboardChart = () => {
                 />
                 <Line
                     type="monotone"
-                    dataKey="uv"
+                    dataKey="n_alive"
                     stroke="#efefef"
                     fill="#8884d8"
                 />
