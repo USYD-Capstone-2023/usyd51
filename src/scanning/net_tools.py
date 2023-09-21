@@ -663,27 +663,44 @@ def get_ip_class(ip):
 
 # ---------------------------------------- PORTS ---------------------------------------------------- #
 
-def check_ports(ip, iface, ports):
+def check_ports(ip, iface, ports, udp=False, tcp=True):
 
-    out = [False] * len(ports)
-    idx = 0
+    outTCP = [False] * len(ports)
+    idxTCP = 0
 
-    for port in ports:
-        try:
-            # Create a TCP SYN packet to check if the port is open
-            response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, iface=iface, verbose=False)
 
-            if response and response.haslayer(TCP):
-                # TCP SYN-ACK flag
-                if response.getlayer(TCP).flags == 0x12:  
-                    #return True if the port is open
-                    out[idx] = True
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
 
-        idx += 1
-    return out
+    if tcp:
+        for port in ports:
+            try:
+                # Create a TCP SYN packet to check if the port is open
+                response = sr1(IP(dst=ip) / TCP(dport=port, flags="S"), timeout=1, iface=iface, verbose=False)
 
+                if response and response.haslayer(TCP):
+                    # TCP SYN-ACK flag
+                    if response.getlayer(TCP).flags == 0x12:  
+                        #return True if the port is open
+                        outTCP[idxTCP] = True
+            except Exception as e:
+                print(f"An error occurred: {str(e)}")
+
+            idxTCP += 1
+
+    outUDP = [False] * len(ports)
+    idxUDP = 0
+
+    if udp:
+        for port in ports:
+            try:
+                response = sr1(IP(dst=ip) / UDP(dport=port, flags="S"), timeout=1, iface=iface, verbose=False)
+                if response and response.haslayer(UDP):
+                # If we receive a UDP packet, consider the port open
+                    outUDP[idxUDP] = True
+                    print(port)
+            except Exception as e:
+                print(f"An error occurred: {str(e)}")
+            idxUDP += 1
+    return outTCP
 
 def add_ports(devices, tp, lb, iface, ports):
 
