@@ -62,7 +62,9 @@ def scan_network(network_id=-1):
         
         args.append(settings[req])
 
-    nt.scan(lb, network_id, *args)
+    network = nt.scan(lb, network_id, *args)
+    requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+
 
 
 @app.get("/scan/progress")

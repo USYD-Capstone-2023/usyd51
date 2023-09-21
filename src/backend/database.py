@@ -82,6 +82,28 @@ class PostgreSQL_database:
                 
             self.add_device(network_id, device, ts)
 
+        if not self.contains_snapshot(network_id, ts):
+
+            query = """
+                    INSERT INTO snapshots (
+                        network_id,
+                        timestamp,
+                        n_alive)
+                    VALUES(%s, %s, %d);
+                    """ % (network_id, ts, len(devices.keys()))
+
+            self.query(query)
+
+        else:
+
+            query = """
+                    UPDATE snapshots
+                    SET
+                        n_alive = %d
+                    """ % (len(devices.keys()))
+
+            self.query(query)
+
         return True
     
 
@@ -208,7 +230,7 @@ class PostgreSQL_database:
     # Updates the most recent version of a device to add new data
     def update_device(self, network_id, device):
 
-        ts = self.get_most_recent_ts(network_id)
+        ts = self.get_most_revent_timestamp(network_id)
 
         query = """
                 UPDATE devices
@@ -251,11 +273,11 @@ class PostgreSQL_database:
                 """ % (mac, network_id, ts)
 
         response = self.query(query, res=True)
-        return response != None and len(response) > 0 != None
+        return response != None and len(response) > 0
 
 
     # Retrieves the timestamp of a network's most recent scan
-    def get_most_recent_ts(self, network_id):
+    def get_most_revent_timestamp(self, network_id):
         
         query = """
                 SELECT DISTINCT timestamp
@@ -275,12 +297,24 @@ class PostgreSQL_database:
 
         return max
 
+    
+    def contains_snapshot(self, network_id, ts):
+
+        query = """
+                SELECT 1
+                FROM snapshots
+                WHERE timestamp = %s AND network_id = %s;
+                """ % (ts, network_id)
+
+        response = self.query(query, res=True)
+        return response != None and len(response) > 0
+
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, network_id, ts=None):
 
         if ts == None:
-            ts = self.get_most_recent_ts(network_id)
+            ts = self.get_most_revent_timestamp(network_id)
 
         query = """
                 SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
@@ -305,6 +339,31 @@ class PostgreSQL_database:
                 "ports" : device[8]})
 
         return devices
+
+    
+    # Returns an array of all timestamp-device_count pairs for a certain database.
+    # There is a pair corresponding to each individual time a scan has been conducted.
+    def get_snapshots(self, network_id):
+
+        query = """
+                SELECT timestamp, n_alive
+                FROM snapshots
+                WHERE network_id = %s;
+                """ % (network_id)
+
+        responses = self.query(query, res=True)
+
+        out = []
+        if responses == None:
+            return out 
+
+        for response in responses:
+            r_dict = {}
+            r_dict["timestamp"] = response[0]
+            r_dict["n_alive"] = response[1]
+            out.append(r_dict)
+
+        return out
 
 
     # Gets the next available unique network id
@@ -485,8 +544,15 @@ class PostgreSQL_database:
                             parent TEXT,
                             ports TEXT,
                             network_id INTEGER REFERENCES networks (id),
-                            timestamp INTEGER NOT NULL,
+                            timestamp INTEGER REFERENCES snapshots (timestamp),
                             CONSTRAINT id PRIMARY KEY (mac, network_id, timestamp));
+                        """
+
+        init_snapshots = """
+                        CREATE TABLE IF NOT EXISTS snapshots
+                            (network_id INTEGER REFERENCES networks (id),
+                            timestamp INTEGER NOT NULL,
+                            n_alive INTEGER NOT NULL);
                         """
 
 
@@ -494,5 +560,6 @@ class PostgreSQL_database:
         self.query(init_networks)
         self.query(init_devices)
         self.query(init_settings)
+        self.query(init_snapshots)
 
         return True

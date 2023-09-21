@@ -32,7 +32,6 @@ from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 25
-BACKEND_URL = "http://127.0.0.1:5000"
 
 
 def scan(lb, network_id, run_trace, run_hostname, run_vertical_trace,
@@ -104,7 +103,8 @@ def scan(lb, network_id, run_trace, run_hostname, run_vertical_trace,
 
     # Ends threadpool and closes threads
     tp.end()
-    requests.put(BACKEND_URL + "/network/add", json=network.to_json())
+
+    return network
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
