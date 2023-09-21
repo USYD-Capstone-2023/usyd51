@@ -38,7 +38,7 @@ async function fetchData(): Promise<Payment[]> {
   ];
 }
 
-export default function DemoPage() {
+export default function Table() {
   const [data, setData] = useState<Payment[]>([]);
 
   useEffect(() => {
