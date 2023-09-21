@@ -3,10 +3,12 @@ import  sys
 # External
 import requests
 from flask import Flask
+from flask_cors import CORS 
 from loading_bar import Loading_bar
 from threadpool import Threadpool
 
 app = Flask(__name__)
+CORS(app)
 
 # Local
 import net_tools as nt
