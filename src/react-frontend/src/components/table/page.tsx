@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Payment, columns } from "./columns";
 import { DataTable } from "./data-table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 // Mock async data fetching function
 async function fetchData(): Promise<Payment[]> {
@@ -59,14 +61,23 @@ export default function DemoPage() {
   }
 
   return (
-    <div className="container mx-auto py-10 text-gray-900">
-      <DataTable 
-        columns={columns} 
-        data={data.map((item) => ({
-          ...item,
-          // Format the date before rendering
-          lastScanned: formatDate(item.lastScanned),
-        }))} />
+    <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
+      <ScrollArea className="h-full w-full rounded-xl">
+      <Card className="w-full">
+        <CardHeader>
+            <CardTitle className="text-left text-2xl">All Networks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable 
+            columns={columns} 
+            data={data.map((item) => ({
+              ...item,
+              // Format the date before rendering
+              lastScanned: formatDate(item.lastScanned),
+            }))} />
+          </CardContent>
+        </Card>
+        </ScrollArea>
     </div>
   );
 }
