@@ -82,6 +82,28 @@ class PostgreSQL_database:
                 
             self.add_device(network_id, device, ts)
 
+        if not self.contains_snapshot(network_id, ts):
+
+            query = """
+                    INSERT INTO snapshots (
+                        network_id,
+                        timestamp,
+                        n_alive)
+                    VALUES(%s, %s, %d);
+                    """ % (network_id, ts, len(devices.keys()))
+
+            self.query(query)
+
+        else:
+
+            query = """
+                    UPDATE snapshots
+                    SET
+                        n_alive = %d
+                    """ % (len(devices.keys()))
+
+            self.query(query)
+
         return True
     
 
@@ -176,7 +198,7 @@ class PostgreSQL_database:
     def add_device(self, network_id, device, ts):
 
         query = """
-                INSERT INTO devices(
+                INSERT INTO devices (
                     mac, 
                     ip, 
                     mac_vendor, 
@@ -205,10 +227,10 @@ class PostgreSQL_database:
         self.query(query)
 
     
-    # Updates the most recent version of the database to add new data
+    # Updates the most recent version of a device to add new data
     def update_device(self, network_id, device):
 
-        ts = self.get_most_recent_ts(network_id)
+        ts = self.get_most_revent_timestamp(network_id)
 
         query = """
                 UPDATE devices
@@ -251,11 +273,11 @@ class PostgreSQL_database:
                 """ % (mac, network_id, ts)
 
         response = self.query(query, res=True)
-        return response != None and len(response) > 0 != None
+        return response != None and len(response) > 0
 
 
     # Retrieves the timestamp of a network's most recent scan
-    def get_most_recent_ts(self, network_id):
+    def get_most_revent_timestamp(self, network_id):
         
         query = """
                 SELECT DISTINCT timestamp
@@ -275,12 +297,24 @@ class PostgreSQL_database:
 
         return max
 
+    
+    def contains_snapshot(self, network_id, ts):
+
+        query = """
+                SELECT 1
+                FROM snapshots
+                WHERE timestamp = %s AND network_id = %s;
+                """ % (ts, network_id)
+
+        response = self.query(query, res=True)
+        return response != None and len(response) > 0
+
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, network_id, ts=None):
 
         if ts == None:
-            ts = self.get_most_recent_ts(network_id)
+            ts = self.get_most_revent_timestamp(network_id)
 
         query = """
                 SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
@@ -306,6 +340,31 @@ class PostgreSQL_database:
 
         return devices
 
+    
+    # Returns an array of all timestamp-device_count pairs for a certain database.
+    # There is a pair corresponding to each individual time a scan has been conducted.
+    def get_snapshots(self, network_id):
+
+        query = """
+                SELECT timestamp, n_alive
+                FROM snapshots
+                WHERE network_id = %s;
+                """ % (network_id)
+
+        responses = self.query(query, res=True)
+
+        out = []
+        if responses == None:
+            return out 
+
+        for response in responses:
+            r_dict = {}
+            r_dict["timestamp"] = response[0]
+            r_dict["n_alive"] = response[1]
+            out.append(r_dict)
+
+        return out
+
 
     # Gets the next available unique network id
     def get_next_network_id(self):
@@ -324,19 +383,127 @@ class PostgreSQL_database:
         return next + 1
 
 
+    # Retrieves a user's settings from database
+    def get_settings(self, user_id):
+
+        query = """
+                SELECT *
+                FROM settings
+                WHERE user_id = '%s';
+                """ % (user_id)
+
+        response = self.query(query, res=True)
+        if len(response) == 0:
+            return None
+
+        keys = ["user_id", "TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
+                "run_mac_vendor", "run_trace", "run_vertical_trace", "defaultView",
+                "defaultNodeColour", "defaultEdgeColour", "defaultBackgroundColour"]
+
+        out = {}
+        for i in range(len(keys)):
+            out[keys[i]] = response[0][i]
+
+        return out
+
+
+    # Updates an existing entry in the settings table
+    def update_settings(self, user_id, settings):
+
+        if not self.contains_settings(user_id):
+            query = """
+                INSERT INTO settings (
+                    user_id,
+                    TCP,
+                    UDP, 
+                    ports,
+                    run_ports,
+                    run_os,
+                    run_hostname,
+                    run_mac_vendor,
+                    run_trace,
+                    run_vertical_trace,
+                    defaultView,
+                    defaultNodeColour,
+                    defaultEdgeColour,
+                    defaultBackgroundColour)
+                VALUES (%s, %s, %s, '%s', %s, %s, %s, %s, %s, %s, '%s', '%s', '%s', '%s');
+                """ % (
+                    user_id,
+                    settings["TCP"],
+                    settings["UDP"], 
+                    settings["ports"],
+                    settings["run_ports"],
+                    settings["run_os"],
+                    settings["run_hostname"],
+                    settings["run_mac_vendor"],
+                    settings["run_trace"],
+                    settings["run_vertical_trace"],
+                    settings["defaultView"],
+                    settings["defaultNodeColour"],
+                    settings["defaultEdgeColour"],
+                    settings["defaultBackgroundColour"]
+                    )
+
+            self.query(query)
+            return True
+
+        query = """
+                UPDATE settings
+                SET
+                    TCP = %s,
+                    UDP = %s, 
+                    ports = '%s',
+                    run_ports = %s,
+                    run_os = %s,
+                    run_hostname = %s,
+                    run_mac_vendor = %s,
+                    run_trace = %s,
+                    run_vertical_trace = %s,
+                    defaultView = '%s',
+                    defaultNodeColour = '%s',
+                    defaultEdgeColour = '%s',
+                    defaultBackgroundColour = %s
+                WHERE user_id = %s;
+                """ % (
+                    settings["TCP"],
+                    settings["UDP"], 
+                    settings["ports"],
+                    settings["run_ports"],
+                    settings["run_os"],
+                    settings["run_hostname"],
+                    settings["run_mac_vendor"],
+                    settings["run_trace"],
+                    settings["run_vertical_trace"],
+                    settings["defaultView"],
+                    settings["defaultNodeColour"],
+                    settings["defaultEdgeColour"],
+                    settings["defaultBackgroundColour"],
+                    user_id
+                    )
+
+        self.query(query)
+
+        return True
+
+
+    def contains_settings(self, user_id):
+
+        query = """
+                SELECT 1
+                FROM settings
+                WHERE user_id = %s;
+                """ % (user_id)
+
+        response = self.query(query, res=True)
+        return response != None and len(response) > 0 != None
+
+
     # Setup tables if it doesn't exist
     # Currently using rouster MAC as PK for networks, need to find something much better
     def init_tables(self):
 
-        # Main Tables
-        # query_users = """CREATE TABLE IF NOT EXISTS users
-        #                 (id TEXT PRIMARY KEY NOT NULL,
-        #                 email TEXT NOT NULL,
-        #                 password TEXT NOT NULL,
-        #                 company TEXT NOT NULL);
-        #                 """
-
-        query_networks = """
+        init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
                             (id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
@@ -344,7 +511,28 @@ class PostgreSQL_database:
                             ssid TEXT);
                         """
 
-        query_devices = """
+
+        init_settings = """
+                        CREATE TABLE IF NOT EXISTS settings
+                            (user_id INTEGER PRIMARY KEY,
+                            TCP BOOLEAN NOT NULL,
+                            UDP BOOLEAN NOT NULL, 
+                            ports TEXT NOT NULL,
+                            run_ports BOOLEAN NOT NULL,
+                            run_os BOOLEAN NOT NULL,
+                            run_hostname BOOLEAN NOT NULL,
+                            run_mac_vendor BOOLEAN NOT NULL,
+                            run_trace BOOLEAN NOT NULL,
+                            run_vertical_trace BOOLEAN NOT NULL,
+                            defaultView TEXT NOT NULL,
+                            defaultNodeColour TEXT NOT NULL,
+                            defaultEdgeColour TEXT NOT NULL,
+                            defaultBackgroundColour TEXT NOT NULL
+                            )
+                        """
+
+
+        init_devices = """
                         CREATE TABLE IF NOT EXISTS devices
                             (mac TEXT NOT NULL,
                             ip TEXT NOT NULL,
@@ -356,55 +544,22 @@ class PostgreSQL_database:
                             parent TEXT,
                             ports TEXT,
                             network_id INTEGER REFERENCES networks (id),
-                            timestamp INTEGER NOT NULL,
+                            timestamp INTEGER REFERENCES snapshots (timestamp),
                             CONSTRAINT id PRIMARY KEY (mac, network_id, timestamp));
                         """
 
-        # query_layer3s = """CREATE TABLE IF NOT EXISTS layer3s
-        #                 (id SERIAL PRIMARY KEY NOT NULL,
-        #                 ip TEXT NOT NULL,
-        #                 hostname TEXT,
-        #                 human_name TEXT,
-        #                 num_ports NUMBER,
-        #                 ports FOREIGN KEY (id) REFERENCES layer3_ports,
-        #                 vendor TEXT);
-        #                 """
+        init_snapshots = """
+                        CREATE TABLE IF NOT EXISTS snapshots
+                            (network_id INTEGER REFERENCES networks (id),
+                            timestamp INTEGER NOT NULL,
+                            n_alive INTEGER NOT NULL);
+                        """
 
-        # query_wirelessaps = """CREATE TABLE IF NOT EXISTS wirelessaps
-        #                 (id SERIAL PRIMARY KEY NOT NULL,
-        #                 ip TEXT NOT NULL,
-        #                 hostname TEXT,
-        #                 human_name TEXT,
-        #                 devices FOREIGN KEY (id) REFERENCES wireless_devices,
-        #                 port FOREIGN KEY (id) REFERENCES layer3,
-        #                 vendor TEXT);
-        #                 """
-        # Join tables
-        query_alive = """
-                    CREATE TABLE IF NOT EXISTS alive
-                        (id SERIAL PRIMARY KEY NOT NULL,
-                        ip TEXT NOT NULL,
-                        mac TEXT NOT NULL,
-                        first_seen TIMESTAMP,
-                        last_check TIMESTAMP,
-                        last_online TIMESTAMP);
-                    """
 
-        # query_layer3_ports = """CREATE TABLE IF NOT EXISTS layer3_ports
-        #             (id SERIAL PRIMARY KEY NOT NULL,
-        #             port_name TEXT NOT NULL,
-        #             mac TEXT NOT NULL,
-        #             layer3 FORIEGN KEY (id) REFERENCES layer3s,
-        #             device FORIEGN KEY (id) REFERENCES devices;
-        #             """
-
-        # run all the database queries
-        # self.query(query_users)
-        self.query(query_networks)
-        self.query(query_devices)
-        # self.query(query_layer3s)
-        # self.query(query_wirelessaps)
-        self.query(query_alive)
-        # self.query(query_layer3_ports)
+        # self.query(init_users)
+        self.query(init_networks)
+        self.query(init_devices)
+        self.query(init_settings)
+        self.query(init_snapshots)
 
         return True
