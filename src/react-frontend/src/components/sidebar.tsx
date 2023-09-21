@@ -18,7 +18,6 @@ const Sidebar = (props: any) => {
                 </Link>
 
                 <Button className="py-10 shadow-none">Analytics</Button>
-                <Button className="py-10 shadow-none">Night Mode</Button>
                 <DarkMode></DarkMode>
             </div>
             <div className="flex flex-col justify-end items-center py-5">
