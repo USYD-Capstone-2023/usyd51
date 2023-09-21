@@ -20,8 +20,7 @@ const DashboardChart = () => {
     useEffect(() => {
         fetch("http://127.0.0.1:5000/networks/0/snapshots").then(res => res.json()).then((data) => {
             data.forEach((element: any) => {
-                const date = new Date(element.timestampr*1000);
-                console.log(element.timestamp);
+                const date = new Date(element.timestamp*1000);
                 const hours = date.getHours().toString().padStart(2,'0');
                 const minutes = date.getMinutes().toString().padStart(2,'0');
                 element.time = hours + ":" + minutes;
