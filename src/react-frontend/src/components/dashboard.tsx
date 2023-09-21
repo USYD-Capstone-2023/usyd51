@@ -26,7 +26,7 @@ const CustomCard = (props: any) => {
 const NetworkButton = (props: any) => {
     const { name, id } = props;
     return <Link to={'/networkView/' + id}>
-        <Card className="bg-gray-500 hover:drop-shadow-xl">{name}</Card>;
+        <Card className="bg-gray-500 hover:drop-shadow-xl">{name}</Card>
     </Link>
 };
 
@@ -65,14 +65,15 @@ const Dashboard = (props: any) => {
                 <div className="w-1/3  bg-gray-200 opacity-80 rounded-xl">
                     <ScrollArea>
                         <div>
-                            <h1 className="mb-4 text-2xl font-medium leading-none text-gray-500 p-8">
+                            <h1 className="text-2xl font-medium leading-none text-gray-500 py-4 px-8">
                                 Networks
+                                <Separator />
                             </h1>
-                            <div className="flex justify-center items-center gap-3 flex-col p-2">
+                            <div className="flex justify-center items-center gap-3 flex-col px-8">
                                 {networkListData.map((network, index) => (
                                     <div className="w-full" key={index}>
                                         <NetworkButton name={network.name} id={network.id} />
-                                        <Separator />
+                                        
                                     </div>
                                 ))}
                             </div>
