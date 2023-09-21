@@ -56,7 +56,6 @@ def scan_network(network_id=-1):
     for req in require:
         if req not in settings.keys():
             print("[ERR ] Malformed settings file, missing required field: %s. Reverting to default settings file." % (req))
-            set_default_settings()
             scan_network(network_id)
             return
         
@@ -64,7 +63,7 @@ def scan_network(network_id=-1):
 
     network = nt.scan(lb, network_id, *args)
     requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
-
+    return network_id
 
 
 @app.get("/scan/progress")
