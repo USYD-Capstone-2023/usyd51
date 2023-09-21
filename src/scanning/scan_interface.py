@@ -4,6 +4,7 @@ import  sys
 import requests
 from flask import Flask
 from loading_bar import Loading_bar
+from threadpool import Threadpool
 
 app = Flask(__name__)
 
@@ -13,6 +14,7 @@ import net_tools as nt
 # Stdlib
 import os, json
 
+NUM_THREADS = 50
 DB_SERVER_URL = "http://127.0.0.1:5000"
 
 
@@ -32,7 +34,8 @@ default_settings = {
     "defaultBackgroundColour": "320000"
 }
 
-
+tp = Threadpool(NUM_THREADS)
+lb = Loading_bar()
 
 # Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
@@ -41,8 +44,6 @@ default_settings = {
 # TODO, this should be PUT, currently get to run in browser
 @app.get("/scan/<network_id>")
 def scan_network(network_id=-1):
-
-    lb = Loading_bar()
 
     res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
     settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
@@ -62,13 +63,13 @@ def scan_network(network_id=-1):
         
         args.append(settings[req])
 
-    nt.scan(lb, network_id, *args)
+    nt.scan(lb, tp, network_id, *args)
 
 
 @app.get("/scan/progress")
 def get_progress():
 
-    return -1
+    return lb.get_progress()
 
 
 # Serves the information of the dhcp server

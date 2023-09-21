@@ -18,7 +18,6 @@ from scapy.all import (
 import nmap, netifaces, requests
 
 # Local
-from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
 from loading_bar import Loading_bar
@@ -31,15 +30,13 @@ import socket, threading, sys, signal, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 25
 BACKEND_URL = "http://127.0.0.1:5000"
 
 
-def scan(lb, network_id, run_trace, run_hostname, run_vertical_trace,
+def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
 
     ts = datetime.now().timestamp()
-    tp = Threadpool(NUM_THREADS)
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
@@ -102,8 +99,6 @@ def scan(lb, network_id, run_trace, run_hostname, run_vertical_trace,
     if run_ports:
         add_ports(devices, tp, lb, iface, ports)
 
-    # Ends threadpool and closes threads
-    tp.end()
     requests.put(BACKEND_URL + "/network/add", json=network.to_json())
 
 
