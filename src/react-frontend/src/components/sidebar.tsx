@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { DarkMode } from "@/components/DarkModeButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
-import { LayoutDashboard, Network, Cog, BarChart2, LogOut} from "lucide-react"
+import { LayoutDashboard, Network, Cog, BarChart2, LogOut, UserCircle} from "lucide-react"
 
 const Sidebar = (props: any) => {
     return (
@@ -24,11 +24,7 @@ const Sidebar = (props: any) => {
                 <DarkMode></DarkMode>
             </div>
             <div className="flex flex-col justify-end items-center py-5">
-                <Avatar className="mb-6">
-                    {/* choose a better default */}
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback>LD</AvatarFallback>
-                </Avatar>
+                <Button className="py-10 text-gray-900 shadow-none"><UserCircle></UserCircle></Button>
                 <Button className="py-10 text-gray-900 shadow-none"><LogOut></LogOut></Button>
             </div>
         </div>
