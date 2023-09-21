@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
+import { Heart, Search, Plus, Clock } from "lucide-react"
 
 const CustomCard = (props: any) => {
     const { title, subtitle } = props;
     return (
         <Card className="bg-gray-300 w-full h-full flex justify-center items-center">
-            <div>Icon</div>
             <div className="flex flex-col items-left justify-left w-3/5">
                 <CardTitle className="text-gray-500 justify-left text-xl text-left">
                     {title}
