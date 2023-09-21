@@ -15,6 +15,7 @@ from scapy.all import (
     # show_interfaces,
     # dev_from_index,
 )
+
 import nmap, netifaces, requests
 
 # Local
@@ -30,8 +31,7 @@ import socket, threading, sys, signal, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-BACKEND_URL = "http://127.0.0.1:5000"
-
+NUM_THREADS = 25
 
 def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
@@ -99,7 +99,7 @@ def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
     if run_ports:
         add_ports(devices, tp, lb, iface, ports)
 
-    requests.put(BACKEND_URL + "/network/add", json=network.to_json())
+    return network
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
