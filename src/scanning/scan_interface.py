@@ -64,6 +64,8 @@ def scan_network(network_id=-1):
     network = nt.scan(lb, tp, network_id, *args)
     requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
 
+    return "success", 200
+
 
 @app.get("/scan/progress")
 def get_progress():

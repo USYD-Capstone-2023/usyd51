@@ -21,22 +21,21 @@ import nmap, netifaces, requests
 # Local
 from job import Job
 from MAC_table import MAC_table
-from loading_bar import Loading_bar
 from device import Device
 from network import Network
 
 # Stdlib
 from platform import system
-import socket, threading, sys, signal, subprocess, os
+import socket, threading, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 25
+NUM_THREADS = 50
 
 def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
 
-    ts = datetime.now().timestamp()
+    ts = int(datetime.now().timestamp())
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
