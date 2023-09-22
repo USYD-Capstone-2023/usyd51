@@ -8,6 +8,22 @@ from database import PostgreSQL_database
 app = Flask(__name__)
 CORS(app)
 
+# Standard return codes:
+# Not implemented yet, gonna be happening in database.py soon xoxo 😘
+
+# -Success- #
+# "Success.", 200
+
+# -Error- #
+# "Network with ID %s is not present in the database.", 500
+# "Provided network information is malformed.", 500
+# "Encountered error saving network information.", 500
+# "Encountered error saving device information.", 500
+# "Provded settings information is malformed.", 500
+# "There is no snapshot of network %s taken at time %s.", 500
+# "User with ID %s is not present in the database.", 500
+
+
 # Db login info
 # TODO add user system, with permissions and logins etc
 database = "networks"

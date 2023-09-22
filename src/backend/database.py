@@ -165,12 +165,14 @@ class PostgreSQL_database:
 
         response = self.query(query, (), res=True)
 
-        return [{"id" : x[0], "gateway_mac": x[1], "name": x[2], "ssid": x[3]} for x in response]
+        if response == None:
+            return []
+
+        return [{"id" : x[0], "gateway_mac": x[1], "name": x[2], "ssid": x[3], "n_alive" : len(self.get_all_devices(x[0]))} for x in response]
 
 
     # Returns all devices associated with a specific network
     def get_network(self, network_id):
-
 
         query = """
                 SELECT id, gateway_mac, name, ssid
@@ -185,7 +187,8 @@ class PostgreSQL_database:
         network = {"id" : network_info[0],
                    "gateway_mac" : network_info[1],
                    "name" : network_info[2],
-                   "ssid" : network_info[3]} 
+                   "ssid" : network_info[3],
+                   "n_alive" : len(self.get_all_devices(network_id))} 
 
         return network
     
@@ -245,7 +248,7 @@ class PostgreSQL_database:
     # Updates the most recent version of a device to add new data
     def update_device(self, network_id, device):
 
-        ts = self.get_most_revent_timestamp(network_id)
+        ts = self.get_most_recent_timestamp(network_id)
 
         query = """
                 UPDATE devices
@@ -277,7 +280,6 @@ class PostgreSQL_database:
         self.query(query, params)
 
 
-
     # Checks if a device is in the database. Devices are stored by MAC address,
     # and thus we check if the db contains the MAC.
     def contains_mac(self, network_id, mac, ts):
@@ -295,7 +297,7 @@ class PostgreSQL_database:
 
 
     # Retrieves the timestamp of a network's most recent scan
-    def get_most_revent_timestamp(self, network_id):
+    def get_most_recent_timestamp(self, network_id):
         
         query = """
                 SELECT DISTINCT timestamp
@@ -336,7 +338,7 @@ class PostgreSQL_database:
     def get_all_devices(self, network_id, ts=None):
 
         if ts == None:
-            ts = self.get_most_revent_timestamp(network_id)
+            ts = self.get_most_recent_timestamp(network_id)
 
         query = """
                 SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
