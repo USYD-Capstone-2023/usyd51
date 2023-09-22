@@ -16,7 +16,7 @@ class PostgreSQL_database:
             sys.exit(-1)
 
     # Passes the given query to the database, retrieves result or commits if required
-    def query(self, querystring, res=False):
+    def query(self, query, params, res=False):
 
         response = None
         conn = None
@@ -26,7 +26,7 @@ class PostgreSQL_database:
             # Create Cursor Object
             cur = conn.cursor()
             # Run query
-            cur.execute(querystring)
+            cur.execute(query, params)
 
             # Check Response
             if res:
@@ -37,7 +37,7 @@ class PostgreSQL_database:
 
         except Exception as e:
             print(e)
-            print(querystring)
+            print(query % (params))
 
         finally:
             if conn:
@@ -59,14 +59,15 @@ class PostgreSQL_database:
 
         query = """
                 INSERT INTO networks (id, gateway_mac, name, ssid)
-                VALUES (%s, '%s', '%s', '%s');
-                """  % (
-                    network["network_id"],
-                    network["gateway_mac"],
-                    network["name"],
-                    network["ssid"])
+                VALUES (%s, %s, %s, %s);
+                """
         
-        self.query(query)
+        params = (network["network_id"],
+                  network["gateway_mac"],
+                  network["name"],
+                  network["ssid"],)
+        
+        self.query(query, params)
         return True
     
     
@@ -89,20 +90,26 @@ class PostgreSQL_database:
                         network_id,
                         timestamp,
                         n_alive)
-                    VALUES(%s, %s, %d);
-                    """ % (network_id, ts, len(devices.keys()))
+                    VALUES(%s, %s, %s);
+                    """
+            
+            params = (network_id,
+                      ts,
+                      len(devices.keys()),)
 
-            self.query(query)
+            self.query(query, params)
 
         else:
 
             query = """
                     UPDATE snapshots
                     SET
-                        n_alive = %d
-                    """ % (len(devices.keys()))
+                        n_alive = %s;
+                    """
+            
+            params = (len(devices.keys()),)
 
-            self.query(query)
+            self.query(query, params)
 
         return True
     
@@ -116,16 +123,18 @@ class PostgreSQL_database:
         query = """
                 DELETE FROM devices
                 WHERE network_id = %s;
-                """ % (network_id)
+                """
+        
+        params = (network_id,)
 
-        self.query(query)
+        self.query(query, params)
 
         query = """
                 DELETE FROM networks
                 WHERE id = %s;
-                """ % (network_id)
+                """
 
-        self.query(query)
+        self.query(query, params)
 
         return True
 
@@ -137,9 +146,11 @@ class PostgreSQL_database:
                 SELECT 1
                 FROM networks
                 WHERE id = %s;
-                """ % (network_id)
+                """
+        
+        params = (network_id,)
 
-        response = self.query(query, res=True)
+        response = self.query(query, params, res=True)
 
         return response != None and len(response) > 0
 
@@ -152,7 +163,7 @@ class PostgreSQL_database:
                 FROM networks;
                 """
 
-        response = self.query(query, res=True)
+        response = self.query(query, (), res=True)
 
         return [{"id" : x[0], "gateway_mac": x[1], "name": x[2], "ssid": x[3]} for x in response]
 
@@ -165,15 +176,16 @@ class PostgreSQL_database:
                 SELECT id, gateway_mac, name, ssid
                 FROM networks
                 WHERE id = %s;
-                """ % (network_id)
+                """
+        
+        params = (network_id,)
 
-        network_info = self.query(query, res=True)[0]
+        network_info = self.query(query, params, res=True)[0]
 
-        network = {
-            "id" : network_info[0],
-            "gateway_mac" : network_info[1],
-            "name" : network_info[2],
-            "ssid" : network_info[3]} 
+        network = {"id" : network_info[0],
+                   "gateway_mac" : network_info[1],
+                   "name" : network_info[2],
+                   "ssid" : network_info[3]} 
 
         return network
     
@@ -186,11 +198,13 @@ class PostgreSQL_database:
 
         query = """
                 UPDATE networks
-                SET name = '%s'
+                SET name = %s
                 WHERE id = %s;
-                """ % (new_name, network_id)
+                """
+        
+        params = (new_name, network_id,)
 
-        self.query(query)
+        self.query(query, params)
         return True
 
 
@@ -210,21 +224,22 @@ class PostgreSQL_database:
                     ports,
                     network_id, 
                     timestamp)
-                VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s);
-                """ % (
-                    device["mac"], 
-                    device["ip"], 
-                    device["mac_vendor"], 
-                    device["hostname"], 
-                    device["os_type"],
-                    device["os_vendor"], 
-                    device["os_family"], 
-                    device["parent"], 
-                    device["ports"],
-                    network_id, 
-                    ts)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """
+        
+        params = (device["mac"], 
+                  device["ip"], 
+                  device["mac_vendor"], 
+                  device["hostname"], 
+                  device["os_type"],
+                  device["os_vendor"], 
+                  device["os_family"], 
+                  device["parent"], 
+                  device["ports"],
+                  network_id, 
+                  ts,)
 
-        self.query(query)
+        self.query(query, params)
 
     
     # Updates the most recent version of a device to add new data
@@ -235,30 +250,31 @@ class PostgreSQL_database:
         query = """
                 UPDATE devices
                 SET
-                    mac = '%s', 
-                    ip = '%s', 
-                    mac_vendor = '%s', 
-                    hostname = '%s', 
-                    os_type = '%s', 
-                    os_vendor = '%s', 
-                    os_family = '%s', 
-                    parent = '%s', 
-                    ports = '%s',
+                    mac = %s, 
+                    ip = %s, 
+                    mac_vendor = %s, 
+                    hostname = %s, 
+                    os_type = %s, 
+                    os_vendor = %s, 
+                    os_family = %s, 
+                    parent = %s, 
+                    ports = %s,
                 WHERE network_id = %s and timestamp = %s;
-                """ % (
-                    device["mac"], 
-                    device["ip"], 
-                    device["mac_vendor"], 
-                    device["hostname"], 
-                    device["os_type"],
-                    device["os_vendor"], 
-                    device["os_family"], 
-                    device["parent"], 
-                    device["ports"],
-                    network_id, 
-                    ts)
+                """
         
-        self.query(query)
+        params = (device["mac"], 
+                  device["ip"], 
+                  device["mac_vendor"], 
+                  device["hostname"], 
+                  device["os_type"],
+                  device["os_vendor"], 
+                  device["os_family"], 
+                  device["parent"], 
+                  device["ports"],
+                  network_id, 
+                  ts,)
+        
+        self.query(query, params)
 
 
 
@@ -269,10 +285,12 @@ class PostgreSQL_database:
         query = """
                 SELECT 1
                 FROM devices 
-                WHERE mac = '%s' AND network_id = %s AND timestamp = %s;
-                """ % (mac, network_id, ts)
+                WHERE mac = %s AND network_id = %s AND timestamp = %s;
+                """
+        
+        params = (mac, network_id, ts,)
 
-        response = self.query(query, res=True)
+        response = self.query(query, params, res=True)
         return response != None and len(response) > 0
 
 
@@ -283,9 +301,11 @@ class PostgreSQL_database:
                 SELECT DISTINCT timestamp
                 FROM devices
                 WHERE network_id = %s;
-                """ % (network_id)
+                """
+        
+        params = (network_id,)
 
-        response = self.query(query, res=True)
+        response = self.query(query, params, res=True)
 
         if response == None or len(response) == 0:
             return None
@@ -304,9 +324,11 @@ class PostgreSQL_database:
                 SELECT 1
                 FROM snapshots
                 WHERE timestamp = %s AND network_id = %s;
-                """ % (ts, network_id)
+                """
+        
+        params = (ts, network_id,)
 
-        response = self.query(query, res=True)
+        response = self.query(query, params, res=True)
         return response != None and len(response) > 0
 
 
@@ -320,9 +342,11 @@ class PostgreSQL_database:
                 SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
                 FROM devices
                 WHERE network_id = %s AND timestamp = %s;
-                """ % (network_id, ts)
+                """
+        
+        params = (network_id, ts,)
 
-        responses = self.query(query, res=True)
+        responses = self.query(query, params, res=True)
         
         devices = []
         
@@ -349,9 +373,11 @@ class PostgreSQL_database:
                 SELECT timestamp, n_alive
                 FROM snapshots
                 WHERE network_id = %s;
-                """ % (network_id)
+                """
+        
+        params = (network_id,)
 
-        responses = self.query(query, res=True)
+        responses = self.query(query, params, res=True)
 
         out = []
         if responses == None:
@@ -374,7 +400,7 @@ class PostgreSQL_database:
                 FROM networks
                 """
 
-        response = self.query(query, res=True)
+        response = self.query(query, (), res=True)
 
         next = -1
         for r in response:
@@ -389,11 +415,13 @@ class PostgreSQL_database:
         query = """
                 SELECT *
                 FROM settings
-                WHERE user_id = '%s';
-                """ % (user_id)
+                WHERE user_id = %s;
+                """
+        
+        params = (user_id,)
 
-        response = self.query(query, res=True)
-        if len(response) == 0:
+        response = self.query(query, params, res=True)
+        if not response or len(response) == 0:
             return None
 
         keys = ["user_id", "TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
@@ -427,25 +455,25 @@ class PostgreSQL_database:
                     defaultNodeColour,
                     defaultEdgeColour,
                     defaultBackgroundColour)
-                VALUES (%s, %s, %s, '%s', %s, %s, %s, %s, %s, %s, '%s', '%s', '%s', '%s');
-                """ % (
-                    user_id,
-                    settings["TCP"],
-                    settings["UDP"], 
-                    settings["ports"],
-                    settings["run_ports"],
-                    settings["run_os"],
-                    settings["run_hostname"],
-                    settings["run_mac_vendor"],
-                    settings["run_trace"],
-                    settings["run_vertical_trace"],
-                    settings["defaultView"],
-                    settings["defaultNodeColour"],
-                    settings["defaultEdgeColour"],
-                    settings["defaultBackgroundColour"]
-                    )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """
+            
+            params = (user_id,
+                      settings["TCP"],
+                      settings["UDP"], 
+                      settings["ports"],
+                      settings["run_ports"],
+                      settings["run_os"],
+                      settings["run_hostname"],
+                      settings["run_mac_vendor"],
+                      settings["run_trace"],
+                      settings["run_vertical_trace"],
+                      settings["defaultView"],
+                      settings["defaultNodeColour"],
+                      settings["defaultEdgeColour"],
+                      settings["defaultBackgroundColour"],)
 
-            self.query(query)
+            self.query(query, params)
             return True
 
         query = """
@@ -453,36 +481,36 @@ class PostgreSQL_database:
                 SET
                     TCP = %s,
                     UDP = %s, 
-                    ports = '%s',
+                    ports = %s,
                     run_ports = %s,
                     run_os = %s,
                     run_hostname = %s,
                     run_mac_vendor = %s,
                     run_trace = %s,
                     run_vertical_trace = %s,
-                    defaultView = '%s',
-                    defaultNodeColour = '%s',
-                    defaultEdgeColour = '%s',
+                    defaultView = %s,
+                    defaultNodeColour = %s,
+                    defaultEdgeColour = %s,
                     defaultBackgroundColour = %s
                 WHERE user_id = %s;
-                """ % (
-                    settings["TCP"],
-                    settings["UDP"], 
-                    settings["ports"],
-                    settings["run_ports"],
-                    settings["run_os"],
-                    settings["run_hostname"],
-                    settings["run_mac_vendor"],
-                    settings["run_trace"],
-                    settings["run_vertical_trace"],
-                    settings["defaultView"],
-                    settings["defaultNodeColour"],
-                    settings["defaultEdgeColour"],
-                    settings["defaultBackgroundColour"],
-                    user_id
-                    )
+                """
+        
+        params = (settings["TCP"],
+                  settings["UDP"], 
+                  settings["ports"],
+                  settings["run_ports"],
+                  settings["run_os"],
+                  settings["run_hostname"],
+                  settings["run_mac_vendor"],
+                  settings["run_trace"],
+                  settings["run_vertical_trace"],
+                  settings["defaultView"],
+                  settings["defaultNodeColour"],
+                  settings["defaultEdgeColour"],
+                  settings["defaultBackgroundColour"],
+                  user_id,)
 
-        self.query(query)
+        self.query(query, params)
 
         return True
 
@@ -493,9 +521,11 @@ class PostgreSQL_database:
                 SELECT 1
                 FROM settings
                 WHERE user_id = %s;
-                """ % (user_id)
+                """
+        
+        params = (user_id,)
 
-        response = self.query(query, res=True)
+        response = self.query(query, params, res=True)
         return response != None and len(response) > 0 != None
 
 
@@ -557,9 +587,9 @@ class PostgreSQL_database:
 
 
         # self.query(init_users)
-        self.query(init_networks)
-        self.query(init_devices)
-        self.query(init_settings)
-        self.query(init_snapshots)
+        self.query(init_networks, ())
+        self.query(init_devices, ())
+        self.query(init_settings, ())
+        self.query(init_snapshots, ())
 
         return True

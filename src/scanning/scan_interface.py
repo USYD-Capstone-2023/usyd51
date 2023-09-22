@@ -43,11 +43,11 @@ lb = Loading_bar()
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
 
-# TODO, this should be PUT, currently get to run in browser
+# TODO, this should be POST, currently get to run in browser
 @app.get("/scan/<network_id>")
 def scan_network(network_id=-1):
 
-    res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
+    requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
     settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
 
     settings = json.loads(settings)
@@ -59,7 +59,6 @@ def scan_network(network_id=-1):
     for req in require:
         if req not in settings.keys():
             print("[ERR ] Malformed settings file, missing required field: %s. Reverting to default settings file." % (req))
-            set_default_settings()
             scan_network(network_id)
             return
         

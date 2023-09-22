@@ -1,5 +1,5 @@
 # External
-from flask import Flask, request, CORS
+from flask import Flask, request
 from flask_cors import CORS 
 
 # Local
@@ -146,7 +146,7 @@ def set_settings(user_id):
         if req not in settings.keys():
             return "Malformed settings file.", 500
 
-    if db.update_settings(user_id, settings):
+    if not db.update_settings(user_id, settings):
         return "Database error.", 500
 
     return "Success", 200
