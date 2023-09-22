@@ -1,5 +1,3 @@
-import  sys
-
 # External
 import requests
 from flask import Flask
@@ -7,18 +5,18 @@ from flask_cors import CORS
 from loading_bar import Loading_bar
 from threadpool import Threadpool
 
-app = Flask(__name__)
-CORS(app)
-
 # Local
 import net_tools as nt
 
 # Stdlib
-import os, json
+import json
+
 
 NUM_THREADS = 50
 DB_SERVER_URL = "http://127.0.0.1:5000"
 
+app = Flask(__name__)
+CORS(app)
 
 default_settings = {
     "TCP" : True,
@@ -42,7 +40,6 @@ lb = Loading_bar()
 # Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
-
 # TODO, this should be POST, currently get to run in browser
 @app.get("/scan/<network_id>")
 def scan_network(network_id=-1):

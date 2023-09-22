@@ -119,7 +119,6 @@ def update_devices(network_id):
     return "Success", 200
 
 
-
 # TODO - These ones are GETS just for testing purposes at the minute, so I can test them
 # in browser while the frontend isnt hooked up, will be POST
 @app.get("/networks/<network_id>/rename/<new_name>")

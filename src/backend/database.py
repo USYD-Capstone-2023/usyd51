@@ -120,13 +120,20 @@ class PostgreSQL_database:
         if not self.contains_network(network_id):
             return False
 
+        params = (network_id,)
+
         query = """
                 DELETE FROM devices
                 WHERE network_id = %s;
                 """
         
-        params = (network_id,)
+        self.query(query, params)
 
+        query = """
+                DELETE FROM snapshots
+                WHERE network_id = %s;
+                """
+        
         self.query(query, params)
 
         query = """
