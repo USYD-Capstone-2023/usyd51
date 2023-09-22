@@ -51,7 +51,7 @@ class PostgreSQL_database:
     def register_network(self, network):
 
         # Ensures network format is correct
-        required = ["network_id", "ssid", "gateway_mac", "name"]
+        required = ["id", "ssid", "gateway_mac", "name"]
 
         for req in required:
             if req not in network.keys():
@@ -61,7 +61,7 @@ class PostgreSQL_database:
                 INSERT INTO networks (id, gateway_mac, name, ssid)
                 VALUES (%s, '%s', '%s', '%s');
                 """  % (
-                    network["network_id"],
+                    network["id"],
                     network["gateway_mac"],
                     network["name"],
                     network["ssid"])
