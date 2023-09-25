@@ -22,7 +22,7 @@ default_settings = {
     "TCP" : True,
     "UDP" : True, 
     "ports": [22,23,80,443],
-    "run_ports": False,
+    "run_ports": True,
     "run_os": False,
     "run_hostname": True,
     "run_mac_vendor": True,
@@ -42,12 +42,24 @@ lb = Loading_bar()
 # otherwise will create a new network in the db
 # TODO, this should be POST, currently get to run in browser
 @app.get("/scan/<network_id>")
-def scan_network(network_id=-1):
+def scan_network(network_id):
 
-    requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
-    settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
+    if network_id.isnumeric() or (network_id[0] == '-' and network_id[1:].isnumeric()):
+        network_id = int(network_id)
+    else:
+        return "Invalid network ID", 500 
+    
+    print(network_id)
 
-    settings = json.loads(settings)
+    res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+    if res.status_code != 200:
+        return res.content, res.status_code
+    
+    res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+    if res.status_code != 200:
+            return res.content, res.status_code
+    
+    settings = json.loads(res.content.decode("utf-8"))
 
     require = ["run_trace", "run_hostname", "run_vertical_trace", "run_mac_vendor",
                "run_os", "run_ports", "ports"]
@@ -62,7 +74,9 @@ def scan_network(network_id=-1):
         args.append(settings[req])
 
     network = nt.scan(lb, tp, network_id, *args)
-    requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    if res.status_code != 200:
+            return res.content, res.status_code
 
     return "success", 200
 
@@ -70,7 +84,7 @@ def scan_network(network_id=-1):
 @app.get("/scan/progress")
 def get_progress():
 
-    return lb.get_progress()
+    return lb.get_progress(), 200
 
 
 # Serves the information of the dhcp server
