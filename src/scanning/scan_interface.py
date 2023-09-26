@@ -1,26 +1,28 @@
-import  sys
-
 # External
 import requests
 from flask import Flask
+from flask_cors import CORS 
 from loading_bar import Loading_bar
-
-app = Flask(__name__)
+from threadpool import Threadpool
 
 # Local
 import net_tools as nt
 
 # Stdlib
-import os, json
+import json
 
+
+NUM_THREADS = 50
 DB_SERVER_URL = "http://127.0.0.1:5000"
 
+app = Flask(__name__)
+CORS(app)
 
 default_settings = {
     "TCP" : True,
     "UDP" : True, 
     "ports": [22,23,80,443],
-    "run_ports": False,
+    "run_ports": True,
     "run_os": False,
     "run_hostname": True,
     "run_mac_vendor": True,
@@ -32,22 +34,32 @@ default_settings = {
     "defaultBackgroundColour": "320000"
 }
 
-
+tp = Threadpool(NUM_THREADS)
+lb = Loading_bar()
 
 # Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
-
-# TODO, this should be PUT, currently get to run in browser
+# TODO, this should be POST, currently get to run in browser
 @app.get("/scan/<network_id>")
-def scan_network(network_id=-1):
+def scan_network(network_id):
 
-    lb = Loading_bar()
+    if network_id.isnumeric() or (network_id[0] == '-' and network_id[1:].isnumeric()):
+        network_id = int(network_id)
+    else:
+        return "Invalid network ID", 500 
+    
+    print(network_id)
 
-    res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
-    settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
-
-    settings = json.loads(settings)
+    res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+    if res.status_code != 200:
+        return res.content, res.status_code
+    
+    res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+    if res.status_code != 200:
+            return res.content, res.status_code
+    
+    settings = json.loads(res.content.decode("utf-8"))
 
     require = ["run_trace", "run_hostname", "run_vertical_trace", "run_mac_vendor",
                "run_os", "run_ports", "ports"]
@@ -56,21 +68,23 @@ def scan_network(network_id=-1):
     for req in require:
         if req not in settings.keys():
             print("[ERR ] Malformed settings file, missing required field: %s. Reverting to default settings file." % (req))
-            set_default_settings()
             scan_network(network_id)
             return
         
         args.append(settings[req])
 
-    network = nt.scan(lb, network_id, *args)
-    requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    network = nt.scan(lb, tp, network_id, *args)
+    res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    if res.status_code != 200:
+            return res.content, res.status_code
 
+    return "success", 200
 
 
 @app.get("/scan/progress")
 def get_progress():
 
-    return -1
+    return lb.get_progress(), 200
 
 
 # Serves the information of the dhcp server

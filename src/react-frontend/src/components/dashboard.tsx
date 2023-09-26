@@ -4,12 +4,13 @@ import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
+import { Link } from "react-router-dom";
+import { Heart, Search, Plus, Clock } from "lucide-react"
 
 const CustomCard = (props: any) => {
     const { title, subtitle } = props;
     return (
         <Card className="bg-gray-300 w-full h-full flex justify-center items-center">
-            <div>Icon</div>
             <div className="flex flex-col items-left justify-left w-3/5">
                 <CardTitle className="text-gray-500 justify-left text-xl text-left">
                     {title}
@@ -23,8 +24,10 @@ const CustomCard = (props: any) => {
 };
 
 const NetworkButton = (props: any) => {
-    const { name } = props;
-    return <Card className="bg-gray-500 hover:drop-shadow-xl">{name}</Card>;
+    const { name, id } = props;
+    return <Link to={'/networkView/' + id}>
+        <Card className="bg-gray-500 hover:drop-shadow-xl">{name}</Card>
+    </Link>
 };
 
 const Dashboard = (props: any) => {
@@ -62,14 +65,15 @@ const Dashboard = (props: any) => {
                 <div className="w-1/3  bg-gray-200 opacity-80 rounded-xl">
                     <ScrollArea>
                         <div>
-                            <h1 className="mb-4 text-2xl font-medium leading-none text-gray-500 p-8">
+                            <h1 className="text-2xl font-medium leading-none text-gray-500 py-4 px-8">
                                 Networks
+                                <Separator />
                             </h1>
-                            <div className="flex justify-center items-center gap-3 flex-col p-2">
+                            <div className="flex justify-center items-center gap-3 flex-col px-8">
                                 {networkListData.map((network, index) => (
                                     <div className="w-full" key={index}>
-                                        <NetworkButton name={network.name} />
-                                        <Separator />
+                                        <NetworkButton name={network.name} id={network.id} />
+                                        
                                     </div>
                                 ))}
                             </div>
@@ -81,7 +85,7 @@ const Dashboard = (props: any) => {
                         <div className="h-1/8 text-gray-400 font-medium text-2xl p-8 text-left">
                             Home Network
                         </div>
-                        <div className="flex justify-center items-center h-5/6 w-full">
+                        <div className="flex justify-center items-center h-5/6 w-full p-3">
                             <DashboardChart />
                         </div>
                     </div>
@@ -89,9 +93,12 @@ const Dashboard = (props: any) => {
                         onClick={createNewNetwork}
                         className="bg-gray-300 drop-shadow-md hover:drop-shadow-xl"
                     >
+                        <Link to="/newNetwork">
                         <CardHeader>
                             <CardTitle>Create New Network</CardTitle>
                         </CardHeader>
+                        </Link>
+                        
                     </Card>
                 </div>
             </div>

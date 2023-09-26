@@ -3,11 +3,6 @@ import SettingsMenu from "@/components/settingsmenu";
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from 'react';
 
-
-
-
-
-
 const Settings = () => {
 
     const [ settingsData, setSettingsData ] = useState(
