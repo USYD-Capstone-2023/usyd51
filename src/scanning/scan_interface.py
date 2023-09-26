@@ -9,11 +9,27 @@ from threadpool import Threadpool
 import net_tools as nt
 
 # Stdlib
-import json
-
+import json, sys
 
 NUM_THREADS = 50
-DB_SERVER_URL = "http://127.0.0.1:5000"
+
+if len(sys.argv) < 2:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
+if sys.argv[1] == "remote":
+    # Remote
+    DB_SERVER_URL = "http://192.168.12.104:5000"
+
+elif sys.argv[1] == "local":
+    # Local
+    DB_SERVER_URL = "http://127.0.0.1:5000"
+
+else:
+
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
 
 app = Flask(__name__)
 CORS(app)
