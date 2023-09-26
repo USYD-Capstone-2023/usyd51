@@ -1,12 +1,29 @@
 # External
 from flask import Flask, request
 from flask_cors import CORS 
+import sys
 
 # Local
 from database import PostgreSQL_database
 
 app = Flask(__name__)
 CORS(app)
+
+if len(sys.argv) < 2:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
+if sys.argv[1] == "remote":
+    # Remote
+    DB_SERVER_ADDR = "192.168.12.104"
+
+elif sys.argv[1] == "local":
+    # Local
+    DB_SERVER_ADDR = "127.0.0.1"
+
+else:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
 
 
 # Db login info
@@ -123,3 +140,7 @@ def get_snapshots(network_id):
 def get_snapshot(network_id, timestamp):
     
     return db.get_all_devices(network_id, timestamp)
+
+
+if __name__ == "__main__":
+    app.run(host=DB_SERVER_ADDR, port=5000)
