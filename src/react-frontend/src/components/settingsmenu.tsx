@@ -15,12 +15,14 @@ const SettingsSwitch = (props: any) => {
             <Label>{props.switchName}</Label>
             <Label className="text-xs">{props.desc}</Label>
         </div>
-        <Switch />
+        <Switch checked={props.c} onCheckedChange={props.onc}/>
     </div>
     );
 }
 
 const SettingsMenu = (props: any) => {
+
+    const [udpSetting, setUDP ] = useState(true);
 
     return (
         <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3">
@@ -37,7 +39,7 @@ const SettingsMenu = (props: any) => {
                             </CardHeader>
                             <CardContent>
                                 <div className="flex justify-start items-center flex-wrap">
-                                    <SettingsSwitch switchName="TCP" desc="Assistive text"/>
+                                    <SettingsSwitch switchName="TCP" desc="Assistive text" c={udpSetting} onc={setUDP} />
                                     <SettingsSwitch switchName="UDP"/>
                                     <SettingsSwitch switchName="UDP"/>
                                     <SettingsSwitch switchName="UDP"/>
