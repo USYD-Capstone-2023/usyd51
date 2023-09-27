@@ -1,12 +1,30 @@
 # External
-from flask import Flask, request, CORS
+from flask import Flask, request
 from flask_cors import CORS 
+import sys
 
 # Local
 from database import PostgreSQL_database
 
 app = Flask(__name__)
 CORS(app)
+
+if len(sys.argv) < 2:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
+if sys.argv[1] == "remote":
+    # Remote
+    DB_SERVER_ADDR = "192.168.12.104"
+
+elif sys.argv[1] == "local":
+    # Local
+    DB_SERVER_ADDR = "127.0.0.1"
+
+else:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
 
 # Db login info
 # TODO add user system, with permissions and logins etc
@@ -33,18 +51,12 @@ def get_networks():
 @app.get("/networks/<network_id>")
 def get_network(network_id):
 
-    if not db.contains_network(network_id):
-        return "Network with ID %s is not present in the database." % (network_id), 500
-    
     return db.get_network(network_id)
 
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
 @app.get("/networks/<network_id>/devices")
 def get_devices(network_id):
-
-    if not db.contains_network(network_id):
-        return "Network with ID %s is not present in the database." % (network_id), 500
     
     return db.get_all_devices(network_id)
 
@@ -54,54 +66,36 @@ def get_devices(network_id):
 def save_network():
 
     network = request.get_json()
-
-    # Ensures given data is correctly formed
-    required = ["network_id", "devices", "timestamp"]
-    for req in required:
-        if req not in network.keys():
-            return "Malformed network.", 500
-            
-    id = network["network_id"]
-    devices = network["devices"]
-    ts = network["timestamp"]
-
-    # Registers a new network with ssid as its name if the given id doesnt exist or is invalid
-    if id == -1 or not db.contains_network(id):
-        id = db.get_next_network_id()
-        network["network_id"] = id
-        if not db.register_network(network):
-            return "Database encountered an error registering new network", 500
-    
-    if db.save_devices(id, devices, ts):
-        return "Success", 200
-    return "Database encountered an error saving devices", 500
+    return db.save_network(network)
 
 
 # Updates the most recent scan data of an existing network in the database, 
 # without creating a new snapshot in its history
-@app.put("/networks/<network_id>/update")
-def update_devices(network_id):
 
-    if not db.contains_network(id):
-        return "No network with ID %s exists in database." % (network_id), 500
+# NOT IMPLEMENTED CURRENTLY, WANT TO CLARIFY OPERATION FIRST 
+
+# @app.put("/networks/<network_id>/update")
+# def update_devices(network_id):
+
+#     if not db.contains_network(id):
+#         return "No network with ID %s exists in database." % (network_id), 500
     
-    network = request.get_json()
+#     network = request.get_json()
 
-    # Ensures given data is correctly formed
-    required = ["network_id", "devices"]
-    for req in required:
-        if req not in network.keys():
-            return "Malformed network.", 500
+#     # Ensures given data is correctly formed
+#     required = ["network_id", "devices"]
+#     for req in required:
+#         if req not in network.keys():
+#             return "Malformed network.", 500
             
-    id = network["network_id"]
-    devices = network["devices"]
+#     id = network["network_id"]
+#     devices = network["devices"]
     
-    for device in devices:
-        if not db.update_device(network_id, device):
-            return "Database encountered an error saving devices", 500
+#     for device in devices:
+#         if not db.update_device(network_id, device):
+#             return "Database encountered an error saving devices", 500
 
-    return "Success", 200
-
+#     return "Success", 200
 
 
 # TODO - These ones are GETS just for testing purposes at the minute, so I can test them
@@ -109,55 +103,34 @@ def update_devices(network_id):
 @app.get("/networks/<network_id>/rename/<new_name>")
 def rename_network(network_id, new_name):
 
-    if not db.rename_network(network_id, new_name):
-        return "Network with id %s not present in database." % (network_id), 500
-    
-    return "Success", 200
+    return db.rename_network(network_id, new_name)
 
 
 # Deletes a network and all related devices from the database
 @app.get("/networks/<network_id>/delete")
 def delete_network(network_id):
 
-    if not db.delete_network(network_id):
-        return "Network with id %s not present in database." % (network_id), 500
-    
-    return "Success", 200
+    return db.delete_network(network_id)
 
 
 # Retrieves a users settings json from the database
 @app.get("/settings/<user_id>")
 def get_settings(user_id):
 
-    # TODO - need to check user exists 
     return db.get_settings(user_id)
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
-@app.put("/settings/<user_id>/update")
+@app.put("/settings/<user_id>/set")
 def set_settings(user_id):
 
     settings = request.get_json()
-    require = ["TCP", "UDP", "ports", "run_ports", "run_os", "run_hostname", 
-               "run_mac_vendor", "run_trace", "run_vertical_trace", "defaultView",
-               "defaultNodeColour", "defaultEdgeColour", "defaultBackgroundColour"]
-
-    for req in require:
-        if req not in settings.keys():
-            return "Malformed settings file.", 500
-
-    if db.update_settings(user_id, settings):
-        return "Database error.", 500
-
-    return "Success", 200
+    return db.set_settings(user_id, settings)
 
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
 @app.get("/networks/<network_id>/snapshots")
 def get_snapshots(network_id):
-
-    if not db.contains_network(network_id):
-        return "Network with ID %s is not present in the database." % (network_id), 500
 
     return db.get_snapshots(network_id)
 
@@ -165,11 +138,9 @@ def get_snapshots(network_id):
 # Retrieves a specific snapshot of a network at a point in time
 @app.get("/networks/<network_id>/snapshots/<timestamp>")
 def get_snapshot(network_id, timestamp):
-
-    if not db.contains_network(network_id):
-        return "Network with ID %s is not present in the database." % (network_id), 500
-
-    if not db.contains_snapshot(network_id, timestamp):
-        return "There is no snapshot of network %s taken at time %s" % (network_id, timestamp), 500
     
     return db.get_all_devices(network_id, timestamp)
+
+
+if __name__ == "__main__":
+    app.run(host=DB_SERVER_ADDR, port=5000)

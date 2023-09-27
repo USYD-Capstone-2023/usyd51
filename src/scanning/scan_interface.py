@@ -1,30 +1,54 @@
-import  sys
-
 # External
 import requests
 from flask import Flask
 from flask_cors import CORS 
 from loading_bar import Loading_bar
 from threadpool import Threadpool
-
-app = Flask(__name__)
-CORS(app)
+import threading
 
 # Local
 import net_tools as nt
 
 # Stdlib
-import os, json
+import json, sys
 
+# Total number of threads spawned for the threadpool
 NUM_THREADS = 50
-DB_SERVER_URL = "http://127.0.0.1:5000"
+
+app = Flask(__name__)
+CORS(app)
+
+tp = Threadpool(NUM_THREADS)
+lb = Loading_bar()
+daemon_exit = threading.Event()
+daemon_exit.set()
+
+# Number of seconds between a scan ending and a new one starting in daemon mode.
+daemon_scan_rate = 60
+
+
+if len(sys.argv) < 2:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
+if sys.argv[1] == "remote":
+    # Remote
+    DB_SERVER_URL = "http://192.168.12.104:5000"
+
+elif sys.argv[1] == "local":
+    # Local
+    DB_SERVER_URL = "http://127.0.0.1:5000"
+
+else:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
 
 
 default_settings = {
     "TCP" : True,
     "UDP" : True, 
     "ports": [22,23,80,443],
-    "run_ports": False,
+    "run_ports": True,
     "run_os": False,
     "run_hostname": True,
     "run_mac_vendor": True,
@@ -36,21 +60,19 @@ default_settings = {
     "defaultBackgroundColour": "320000"
 }
 
-tp = Threadpool(NUM_THREADS)
-lb = Loading_bar()
 
-# Finds all devices on the network, runs all scans outlined in users settings
-# If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
-# otherwise will create a new network in the db
 
-# TODO, this should be PUT, currently get to run in browser
-@app.get("/scan/<network_id>")
-def scan_network(network_id=-1):
+# Retrieves a given user's settings from the database, corrects them if they are invalid or non existent
+def get_settings(user_id, network_id, fault_count=0):
 
-    res = requests.put(DB_SERVER_URL + "/settings/%d/update" % (0), json=default_settings)
-    settings = requests.get(DB_SERVER_URL + "/settings/%d" % (0)).content.decode("utf-8")
-
-    settings = json.loads(settings)
+    if fault_count > 1:
+        return None
+    
+    res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+    if res.status_code != 200:
+            return None
+    
+    settings = json.loads(res.content.decode("utf-8"))
 
     require = ["run_trace", "run_hostname", "run_vertical_trace", "run_mac_vendor",
                "run_os", "run_ports", "ports"]
@@ -59,20 +81,128 @@ def scan_network(network_id=-1):
     for req in require:
         if req not in settings.keys():
             print("[ERR ] Malformed settings file, missing required field: %s. Reverting to default settings file." % (req))
-            set_default_settings()
-            scan_network(network_id)
-            return
+            
+            # Returns user to default settings
+            res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+            if res.status_code != 200:
+                return None
+            
+            return get_settings(user_id, network_id, fault_count+1)
         
         args.append(settings[req])
 
+    return args
+
+
+# Checks if a given network ID is valid and numeric
+def validate_network_id(network_id):
+
+    if network_id.isnumeric() or (network_id[0] == '-' and network_id[1:].isnumeric()):
+        return int(network_id)
+    else:
+        return None
+    
+
+# Runs a network scan on the given network with the given settings arguments.
+# Automatically saves network to database on completion.
+def run_scan(network_id, args):
+
     network = nt.scan(lb, tp, network_id, *args)
-    requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json())
+    if res.status_code != 200:
+            return res.content, res.status_code
+
+    return "success", 200
+
+
+# Finds all devices on the network, runs all scans outlined in users settings
+# If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
+# otherwise will create a new network in the db
+# TODO, this should be POST, currently get to run in browser
+@app.get("/scan/<network_id>")
+def scan_network(network_id):
+
+    network_id = validate_network_id(network_id)
+
+    if network_id == None:
+        return "Invalid network ID entered.", 500
+    
+    args = get_settings(0, network_id)
+
+    if args == None:
+        return "Malformed settings, automatic reset has failed. Please contact system administrator.", 500
+
+    return run_scan(network_id, args)
+    
+
+# Starts an automatic scanning daemon on the network specified.
+# Scans are conducted at the interval specified in the user's settings table (NOT IMPLEMENTED, HARDCODED ABOVE CURRENTLY)
+# The daemon will be shutdown after the end_daemon method is called, or if it encounters a specific number of 
+# consecutive database faults.
+@app.get("/daemon/start/<network_id>")
+def start_daemon(network_id):
+
+    # Ensures only one daemon is running at a time (Although the backend is built to handle multiple, just need to add
+    # unique IDs for each process if we want this to be a feature).
+    if not daemon_exit.is_set():
+        print("[ERR ] Scan daemon is already running.")
+        return "Daemon already running", 500
+
+    # Checks network ID is valid
+    network_id = validate_network_id(network_id)
+    if network_id == None or network_id < 0:
+        return "Invalid network ID entered.", 500
+    
+    # Retrieves user's settings from the database
+    args = get_settings(0, network_id)
+    if args == None:
+        return "Malformed settings, automatic reset has failed. Please contact system administrator.", 500
+    
+    # Hardcoded fault limit, will be moved to user settings 
+    consecutive_fault_limit = 3
+    consecutive_faults = 0
+    daemon_exit.clear()
+
+    print("[INFO] Daemon is starting!")
+    while not daemon_exit.is_set():
+
+        # If the scans fail to be written to the database a certain number of times, the daemon exits
+        if consecutive_faults == consecutive_fault_limit:
+            daemon_exit.set()
+            print("[INFO] Scan daemon closing due to consecutive errors.")
+            return "Reached maximum number of consecutive failures. Daemon mode terminated.", 500
+
+        if run_scan(network_id, args)[1] != 200:
+            print("[ERR ] Failed to write scanned data to remote database. %d attempts remaining..." % \
+                  (consecutive_fault_limit - consecutive_faults))
+            
+            consecutive_faults += 1
+
+        elif consecutive_faults != 0:
+            consecutive_faults = 0
+
+        # Waits configurable amount of time before scanning again
+        daemon_exit.wait(daemon_scan_rate)
+
+    return "Success", 200
+
+
+# Sets the flag to kill the scanning daemon after it finishes its current operation
+# Note that this doesnt have to be called when ending the program, as the backend is threadsafe and will close 
+# gracefully on its own.
+@app.get("/daemon/end")
+def end_daemon():
+
+    print("[INFO] Scan daemon will shut down after current operation.")
+    daemon_exit.set()
+
+    return "Success", 200
 
 
 @app.get("/scan/progress")
 def get_progress():
 
-    return lb.get_progress()
+    return lb.get_progress(), 200
 
 
 # Serves the information of the dhcp server
