@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { DarkMode } from "@/components/DarkModeButton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 import { LayoutDashboard, Network, Cog, BarChart2, LogOut, UserCircle} from "lucide-react"
 
