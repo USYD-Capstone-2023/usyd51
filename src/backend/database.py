@@ -136,13 +136,8 @@ class PostgreSQL_database:
     def __register_network(self, network):
 
         query = """
-<<<<<<< HEAD
-                INSERT INTO networks (network_id, gateway_mac, name, ssid)
-                VALUES (%s, %s, %s, %s);
-=======
                 INSERT INTO networks (id, gateway_mac, name, ssid, n_alive)
                 VALUES (%s, %s, %s, %s, %s);
->>>>>>> main
                 """
         
         params = (network["network_id"],
