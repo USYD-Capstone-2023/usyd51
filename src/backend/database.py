@@ -124,6 +124,9 @@ class PostgreSQL_database:
         if not self.__save_devices(id, devices, timestamp):
             return self.err_codes["db_error"]
         
+        if not self.__set_n_alive(id, len(devices)):
+            return self.err_codes["db_error"]
+        
         return self.err_codes["success"]
     
 
@@ -131,15 +134,30 @@ class PostgreSQL_database:
     def __register_network(self, network):
 
         query = """
-                INSERT INTO networks (id, gateway_mac, name, ssid)
-                VALUES (%s, %s, %s, %s);
+                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive)
+                VALUES (%s, %s, %s, %s, %s);
                 """
         
         params = (network["network_id"],
                   network["gateway_mac"],
                   network["name"],
-                  network["ssid"],)
+                  network["ssid"],
+                  len(network["devices"]))
         
+        return self.query(query, params)
+    
+
+    def __set_n_alive(self, network_id, n_alive):
+
+        query = """
+                UPDATE networks
+                SET
+                    n_alive = %s
+                WHERE id = %s;
+                """
+        
+        params = (n_alive, network_id,)
+
         return self.query(query, params)
     
 
@@ -223,7 +241,7 @@ class PostgreSQL_database:
     def get_networks(self):
 
         query = """
-                SELECT id, gateway_mac, name, ssid
+                SELECT id, gateway_mac, name, ssid, n_alive
                 FROM networks;
                 """
 
@@ -239,17 +257,11 @@ class PostgreSQL_database:
         out = []
         for resp in responses:
 
-            # Gets n_alive attribute for all networks
-            devices = self.get_all_devices(resp[0])
-            n_alive = len(devices[0])
-            if devices[1] != 200:
-                n_alive == 0
-
             net_dict = {"id" : resp[0],
                         "gateway_mac": resp[1],
                         "name": resp[2],
                         "ssid": resp[3],
-                        "n_alive" : n_alive}
+                        "n_alive" : resp[4]}
             
             out.append(net_dict)
             
@@ -264,7 +276,7 @@ class PostgreSQL_database:
             return self.err_codes["no_network"]
 
         query = """
-                SELECT id, gateway_mac, name, ssid
+                SELECT id, gateway_mac, name, ssid, n_alive
                 FROM networks
                 WHERE id = %s;
                 """
@@ -280,7 +292,7 @@ class PostgreSQL_database:
                    "gateway_mac" : network_info[1],
                    "name" : network_info[2],
                    "ssid" : network_info[3],
-                   "n_alive" : len(self.get_all_devices(network_id))} 
+                   "n_alive" : network_info[4]} 
 
         return network, 200
 
@@ -796,7 +808,8 @@ class PostgreSQL_database:
                             (id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
                             name TEXT,
-                            ssid TEXT);
+                            ssid TEXT,
+                            n_alive INTEGER);
                         """
 
 

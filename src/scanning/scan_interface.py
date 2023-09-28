@@ -61,32 +61,33 @@ default_settings = {
 }
 
 
-# Retrieves a given user's settings from the database, corrects them if they are invalid or non existent
-def get_settings(user_id, network_id, fault_count=0):
+# Retrieves a given user's settings from the database, adds them if they are non existent
+def get_settings(user_id):
 
-    if fault_count > 1:
-        return None
-    
     res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+
+    # User doesnt exist in settings database, give them default settings
+    if res.status_code == 502:
+        # Returns user to default settings
+        res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+        if res.status_code != 200:
+            return None
+        
+        res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+
     if res.status_code != 200:
             return None
     
+
+    require = ["run_trace", "run_hostname", "run_vertical_trace",
+               "run_mac_vendor", "run_os", "run_ports", "ports"]
+    
     settings = json.loads(res.content.decode("utf-8"))
 
-    require = ["run_trace", "run_hostname", "run_vertical_trace", "run_mac_vendor",
-               "run_os", "run_ports", "ports"]
-    
     args = []
     for req in require:
         if req not in settings.keys():
-            print("[ERR ] Malformed settings file, missing required field: %s. Reverting to default settings file." % (req))
-            
-            # Returns user to default settings
-            res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
-            if res.status_code != 200:
-                return None
-            
-            return get_settings(user_id, network_id, fault_count+1)
+            return "Settings in database are malformed. Contact your system administrator.", 500
         
         args.append(settings[req])
 
@@ -136,7 +137,6 @@ def verify_current_connection(network_id):
     return True
 
 
-
 # Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
@@ -152,7 +152,7 @@ def scan_network(network_id):
     if not verify_current_connection(network_id):
         return "Not currently connected to network.", 500
     
-    args = get_settings(0, network_id)
+    args = get_settings(0)
 
     if args == None:
         return "Malformed settings, automatic reset has failed. Please contact system administrator.", 500
@@ -179,7 +179,7 @@ def start_daemon(network_id):
         return "Invalid network ID entered.", 500
     
     # Retrieves user's settings from the database
-    args = get_settings(0, network_id)
+    args = get_settings(0)
     if args == None:
         return "Malformed settings, automatic reset has failed. Please contact system administrator.", 500
     

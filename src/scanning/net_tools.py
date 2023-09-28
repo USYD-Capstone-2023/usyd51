@@ -570,6 +570,7 @@ def get_dhcp_server_info():
         "domain": domain,
     }
 
+
 def get_gateway_mac(iface=conf.iface):
 
     dhcp_info = get_dhcp_server_info()
