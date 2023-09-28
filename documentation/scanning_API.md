@@ -21,6 +21,21 @@ The behaviour of the ```/scan/``` feature is dependent on the user's settings in
 
 There is an optional *network_id* parameter, which can be given to indicate that the network already exists, adding to the database entry for that network if that is the case. If no ID is given or an incorrect ID is given, the database will assign the network a new unique ID.
 
+To run the scanning interface server, simply use:
+
+```sudo python3 scan_interface.py local```
+
+if using a database on ```127.0.0.1:5000```
+
+or 
+
+```sudo python3 scan_interface.py remote```
+
+to use the remote database currently hosted at ```192.168.12.104:5000```
+
+Note that to use the remote database, you must be connected to the VPN!
+
+
 ### Usage ###
 
 ```json
@@ -56,7 +71,7 @@ Retrieves the DHCP server information for the current network.
 
 ### Usage ###
 
-```bash
+```json
 "GET /dhcp"
 ```
 

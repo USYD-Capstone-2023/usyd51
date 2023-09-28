@@ -102,12 +102,14 @@ class PostgreSQL_database:
                 if req not in device.keys() or type(device[req]) != required[req]:
                     return self.err_codes["malformed_device"]
                 
-        # Registers a new network with a unique ID if the given ID doesnt exist or is invalid
+        # Gets the next valid ID if the ID parameter is unset
         id = network["network_id"]
-        if id == -1 or not self.__contains_network(id):
+        if id == -1:
             id = self.__get_next_network_id()
-            
             network["network_id"] = id
+            
+        # Adds a new network to the database if it doesnt exist
+        if not self.__contains_network(id):
             if not self.__register_network(network):
                 return self.err_codes["db_error"]
                 
