@@ -9,7 +9,20 @@ app = Flask(__name__)
 CORS(app)
 
 # stub data for settings prototyping
-settings = {"udp": "false"}
+settings_json = {"user_id" : 0,
+               "TCP" : False,
+               "UDP" : False,
+               "ports" : [],
+               "run_ports" : False,
+               "run_os" : False,
+               "run_hostname" : False,
+               "run_mac_vendor" : False,
+               "run_trace" : False,
+               "run_vertical_trace" : False,
+               "defaultView" : "Hierarchical",
+               "defaultNodeColour" : "aaffff",
+               "defaultEdgeColour" : "ffaaff",
+               "defaultBackgroundColour" : "ffffaa"}
 
 # Db login info
 # TODO add user system, with permissions and logins etc
@@ -52,13 +65,22 @@ def save_network():
     network = request.get_json()
     return db.save_network(network)
 
-# Stub for setting settings data
-@app.get("/setsetting/<setting>/<status>")
-def set_setting(setting, status):
-    if status in ["true", "false"]:
-        settings[setting] = status
+# Stub for getting settings data
+@app.get("/getsettings/<user_id>")
+def get_setting(user_id):
+    return settings_json
 
-    return [settings[setting]]
+# Stub for setting settings data
+@app.put("/setsettings/<user_id>/set")
+def set_setting(user_id):
+    settings = request.get_json()
+
+    for setting, status in settings.items():
+        if setting in set(("UDP", "TCP", "run_ports", "run_os", "run_hostname", "run_mac_vendor", "run_trace", "run_vertical_trace")):
+            if status in [True, False]:
+                settings_json[setting] = status
+
+    return ("Success.", 200)
 
 
 # Updates the most recent scan data of an existing network in the database, 
