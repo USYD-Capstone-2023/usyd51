@@ -103,25 +103,25 @@ class PostgreSQL_database:
                     return self.err_codes["malformed_device"]
                 
         # Gets the next valid ID if the ID parameter is unset
-        id = network["network_id"]
-        if id == -1:
-            id = self.__get_next_network_id()
-            network["network_id"] = id
+        network_id = network["network_id"]
+        if network_id == -1:
+            network_id = self.__get_next_network_id()
+            network["network_id"] = network_id
             
         # Adds a new network to the database if it doesnt exist
-        if not self.__contains_network(id):
+        if not self.__contains_network(network_id):
             if not self.__register_network(network):
                 return self.err_codes["db_error"]
                 
                 
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
-        if not self.__contains_snapshot(id, timestamp):
-            if not self.__add_snapshot(id, timestamp):
+        if not self.__contains_snapshot(network_id, timestamp):
+            if not self.__add_snapshot(network_id, timestamp):
                 return self.err_codes["db_error"]
         
         # Saves all devices
-        if not self.__save_devices(id, devices, timestamp):
+        if not self.__save_devices(network_id, devices, timestamp):
             return self.err_codes["db_error"]
         
         return self.err_codes["success"]
@@ -131,7 +131,7 @@ class PostgreSQL_database:
     def __register_network(self, network):
 
         query = """
-                INSERT INTO networks (id, gateway_mac, name, ssid)
+                INSERT INTO networks (network_id, gateway_mac, name, ssid)
                 VALUES (%s, %s, %s, %s);
                 """
         
@@ -148,7 +148,7 @@ class PostgreSQL_database:
 
         # Gets the ID of all networks in the database
         query = """
-                SELECT id
+                SELECT network_id
                 FROM networks;
                 """
 
@@ -195,7 +195,7 @@ class PostgreSQL_database:
         # Deletes the network
         query = """
                 DELETE FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
 
         if not self.query(query, params):
@@ -210,7 +210,7 @@ class PostgreSQL_database:
         query = """
                 SELECT 1
                 FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (network_id,)
@@ -223,7 +223,7 @@ class PostgreSQL_database:
     def get_networks(self):
 
         query = """
-                SELECT id, gateway_mac, name, ssid
+                SELECT network_id, gateway_mac, name, ssid
                 FROM networks;
                 """
 
@@ -245,7 +245,7 @@ class PostgreSQL_database:
             if devices[1] != 200:
                 n_alive == 0
 
-            net_dict = {"id" : resp[0],
+            net_dict = {"network_id" : resp[0],
                         "gateway_mac": resp[1],
                         "name": resp[2],
                         "ssid": resp[3],
@@ -264,9 +264,9 @@ class PostgreSQL_database:
             return self.err_codes["no_network"]
 
         query = """
-                SELECT id, gateway_mac, name, ssid
+                SELECT network_id, gateway_mac, name, ssid
                 FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (network_id,)
@@ -276,7 +276,7 @@ class PostgreSQL_database:
             return self.err_codes["db_error"]
 
         # Formats output if the query is completed successfully
-        network = {"id" : network_info[0],
+        network = {"network_id" : network_info[0],
                    "gateway_mac" : network_info[1],
                    "name" : network_info[2],
                    "ssid" : network_info[3],
@@ -295,7 +295,7 @@ class PostgreSQL_database:
         query = """
                 UPDATE networks
                 SET name = %s
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (new_name, network_id,)
@@ -793,7 +793,7 @@ class PostgreSQL_database:
 
         init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
-                            (id INTEGER PRIMARY KEY,
+                            (network_id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
                             name TEXT,
                             ssid TEXT);
@@ -821,7 +821,7 @@ class PostgreSQL_database:
 
         init_snapshots = """
                         CREATE TABLE IF NOT EXISTS snapshots
-                            (network_id INTEGER REFERENCES networks (id),
+                            (network_id INTEGER REFERENCES networks (network_id),
                             timestamp INTEGER NOT NULL,
                             n_alive INTEGER NOT NULL,
                             PRIMARY KEY (network_id, timestamp));
