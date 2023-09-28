@@ -4,14 +4,17 @@ from flask_cors import CORS
 import jwt
 import sys
 from functools import wraps
+from datetime import timedelta, datetime
 
 # Local
 from database import PostgreSQL_database
 
+TOKEN_EXPIRY_MINS = 30
+
 app = Flask(__name__)
 CORS(app)
 
-app.secret_key = 
+app.secret_key = "Security_is_my_passion. This is secure if you think about it i swear."
 
 if len(sys.argv) < 2:
     print("Please enter 'remote' or 'local'.")
@@ -60,6 +63,12 @@ def require_auth(func):
             if "user_id" not in request_payload.keys():
                 return "No user ID contained in authentication token.", 401
             
+            if "expiry" not in request_payload.keys():
+                return "Malformed auth token.", 401
+            
+            if datetime.now() > request_payload["expiry"].strptime("%D/%M/%Y/%H/%M/%S"):
+                return "Token has expired, login again", 401
+            
             user = db.get_user(request_payload["user_id"])
 
             if not user:
@@ -67,11 +76,39 @@ def require_auth(func):
             
         except:
 
-            return "Invealid authentication token.", 401
+            return "Invalid authentication token.", 401
         
         return func(user["user_id"], *args, **kwargs)
     
     return decorated
+
+
+@app.post("/signup")
+def signup():
+
+    user_data = request.get_json()
+
+    res = db.add_user(user_data)
+    if res[1] != 200:
+        return res
+    
+    return "Success.", 200
+
+
+@app.post("/login")
+def login():
+
+    user_data = request.get_json()
+
+    res = db.get_user_by_login(user_data)
+    if res[1] != 200:
+        return res[0], 401
+    
+    token = jwt.encode({"user_id" : res[0]["user_id"],
+                        "expiry" : (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%D/%M/%Y/%H/%M/%S")},
+                        app.config["SECRET_KEY"])
+    
+    return token, 200
 
 
 # Gives basic information about all networks stored in the database, as json:

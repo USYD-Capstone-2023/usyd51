@@ -15,7 +15,8 @@ class PostgreSQL_database:
                 "malformed_settings" : ("Provided settings information is malformed.", 504),
                 "malformed_device" : ("Provided device information is malformed.", 505),
                 "malformed_user" : ("Provided user information is malformed.", 506),
-                "db_error" : ("The database server encountered an error, please try again.", 507)}
+                "dup_user" : ("A user with that username already exists.", 507),
+                "db_error" : ("The database server encountered an error, please try again.", 508)}
 
 
     def __init__(self, database, user, password):
@@ -758,37 +759,62 @@ class PostgreSQL_database:
     # --------------------------------------------- USERS ------------------------------------------ #
 
 
-    def contains_user(self, user_id):
+    def contains_user(self, username):
 
         query = """
                 SELECT 1
                 FROM users
-                WHERE user_id = %s;
+                WHERE username = %s;
                 """
         
-        params = (user_id,)
+        params = (username,)
 
         response = self.query(query, params, res=True)
         return response != None and len(response) > 0
     
 
-    def get_user(self, user_id):
+    def get_user_by_login(self, user):
 
-        query = """SELECT user_id, name, password, email
+        require = ["username", "password"]
+
+        for req in require:
+            if req not in user.keys():
+                return self.err_codes["malformed_user"]
+
+        query = """SELECT user_id, user_id, password, email
+                   FROM users
+                   WHERE username = %s AND password = %s;"""
+        
+        params = (user["username"], user["password"],)
+
+        user_dict = self.query(query, params, res=True)
+        if not user_dict:
+            return self.err_codes["no_user"]
+        
+        user = {"user_id" : user_dict[0],
+                "username" : user_dict[0],
+                "password" : user_dict[0],
+                "email" : user_dict[0]}
+
+        return user, 200
+    
+
+    def get_user_by_id(self, user_id):
+
+        query = """SELECT user_id, username, password, email
                    FROM users
                    WHERE user_id = %s;"""
         
         params = (user_id,)
-        user_dict = self.query(query, params, res=True)
 
+        user_dict = self.query(query, params, res=True)
         if not user_dict:
             return None
         
         user = {"user_id" : user_dict[0],
-                "name" : user_dict[0],
+                "username" : user_dict[0],
                 "password" : user_dict[0],
                 "email" : user_dict[0]}
-
 
         return user
     
@@ -800,26 +826,30 @@ class PostgreSQL_database:
 
     def add_user(self, user):
 
-        require = ["name", "password", "email"]
+        require = ["username", "password", "email"]
 
         for req in require:
             if req not in user.keys():
                 return self.err_codes["malformed_user"]
-
+            
+        if self.contains_user(user["username"]):
+            return self.err_codes["dup_user"]
 
         query = """
                 INSERT INTO users
                     (user_id,
-                    name,
+                    username,
                     password,
                     email)
                 VALUES (%s, %s, %s, %s);
                 """
         
-        params = (self.__get_next_user_id(), user["name"], user["password"], user["email"])
+        params = (self.__get_next_user_id(), user["username"], user["password"], user["email"])
 
-        return self.query(query, params)
-
+        if not self.query(query, params):
+            return self.err_codes["db_error"]
+        
+        return self.err_codes["success"]
 
 
     # --------------------------------------------- SETUP ------------------------------------------ #
@@ -888,7 +918,7 @@ class PostgreSQL_database:
 
         init_settings = """
                         CREATE TABLE IF NOT EXISTS settings
-                            (PRIMARY KEY user_id INTEGER REFERENCES users (user_id),
+                            (user_id INTEGER PRIMARY KEY REFERENCES users (user_id),
                             TCP BOOLEAN NOT NULL,
                             UDP BOOLEAN NOT NULL, 
                             ports TEXT NOT NULL,
@@ -901,8 +931,7 @@ class PostgreSQL_database:
                             defaultView TEXT NOT NULL,
                             defaultNodeColour TEXT NOT NULL,
                             defaultEdgeColour TEXT NOT NULL,
-                            defaultBackgroundColour TEXT NOT NULL
-                            )
+                            defaultBackgroundColour TEXT NOT NULL);
                         """
 
         init_snapshots = """
@@ -932,11 +961,10 @@ class PostgreSQL_database:
         
         init_users = """
                      CREATE TABLE IF NOT EXISTS users
-                        (user_id INTEGER PRIMARY KEY,
-                        name TEXT NOT NULL,
+                        (user_id INTEGER,
+                        username TEXT PRIMARY KEY NOT NULL,
                         password TEXT NOT NULL,
-                        email TEXT NOT NULL,
-                        )                
+                        email TEXT NOT NULL);              
                     """
 
 
