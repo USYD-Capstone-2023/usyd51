@@ -44,6 +44,7 @@ else:
     sys.exit()
 
 
+# The default settings that a new user gets
 default_settings = {
     "TCP" : True,
     "UDP" : True, 
@@ -64,26 +65,28 @@ default_settings = {
 # Retrieves a given user's settings from the database, adds them if they are non existent
 def get_settings(user_id):
 
-    res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+    res = requests.get(DB_SERVER_URL + "/settings/%d" % (user_id))
 
     # User doesnt exist in settings database, give them default settings
     if res.status_code == 502:
         # Returns user to default settings
-        res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (0), json=default_settings)
+        res = requests.put(DB_SERVER_URL + "/settings/%d/set" % (user_id), json=default_settings)
         if res.status_code != 200:
             return None
         
-        res = requests.get(DB_SERVER_URL + "/settings/%d" % (0))
+        res = requests.get(DB_SERVER_URL + "/settings/%d" % (user_id))
 
     if res.status_code != 200:
             return None
     
 
+    # Order of args required to run a scan
     require = ["run_trace", "run_hostname", "run_vertical_trace",
                "run_mac_vendor", "run_os", "run_ports", "ports"]
     
     settings = json.loads(res.content.decode("utf-8"))
 
+    # Format returned settings data into arguments for scanning function
     args = []
     for req in require:
         if req not in settings.keys():
