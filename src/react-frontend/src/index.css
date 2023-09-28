@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    color-scheme: light dark;
+    color: rgba(255, 255, 255, 0.87);
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    --background: 0, 0%, 92%;
+    
+    --foreground: 60, 30%, 10%;
+
+    --muted: 232, 14%, 98%;
+    --muted-foreground: 60, 30%, 20%;
+
+    --popover: 231, 15%, 94%;
+    --popover-foreground: 60, 30%, 20%;
+
+    --border: 232, 14%, 31%;
+    --input: 225, 27%, 51%;
+
+    --card: 232, 14%, 98%;
+    --card-foreground: 60, 30%, 5%;
+
+    --primary: 265, 89%, 78%;
+    --primary-foreground: 60, 30%, 96%;
+
+    --secondary: 326, 100%, 74%;
+    --secondary-foreground: 60, 30%, 96%;
+
+    --accent: 225, 27%, 70%;
+    --accent-foreground: 60, 30%, 10%;
+
+    --destructive: 0, 100%, 67%;
+    --destructive-foreground: 60, 30%, 96%;
+
+    --ring: 225, 27%, 51%;
+
+    background-color: var(--background);
+}
+
+body {
+    margin: 0;
+    display: flex;
+    place-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+}
+
+h1 {
+    font-size: 3.2em;
+    line-height: 1.1;
+}
