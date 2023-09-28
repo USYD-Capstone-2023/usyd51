@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
+import { databaseUrl } from "@/servers";
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -40,7 +41,7 @@ const Dashboard = (props: any) => {
   ]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/networks")
+    fetch(databaseUrl + "/networks")
       .then((res) => res.json())
       .then((data) => {
         let network_list = [];

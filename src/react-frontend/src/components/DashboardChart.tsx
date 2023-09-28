@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { databaseUrl } from "@/servers";
 import {
     LineChart,
     Line,
@@ -18,7 +19,7 @@ const DashboardChart = () => {
     ]);
 
     useEffect(() => {
-        fetch("http://127.0.0.1:5000/networks/0/snapshots").then(res => res.json()).then((data) => {
+        fetch(databaseUrl + "/networks/0/snapshots").then(res => res.json()).then((data) => {
             data.forEach((element: any) => {
                 const date = new Date(element.timestamp*1000);
                 const hours = date.getHours().toString().padStart(2,'0');
