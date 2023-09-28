@@ -8,6 +8,8 @@ from database import PostgreSQL_database
 app = Flask(__name__)
 CORS(app)
 
+# stub data for settings prototyping
+settings = {"udp": "false"}
 
 # Db login info
 # TODO add user system, with permissions and logins etc
@@ -49,6 +51,14 @@ def get_devices(network_id):
 def save_network():
     network = request.get_json()
     return db.save_network(network)
+
+# Stub for setting settings data
+@app.get("/setsetting/<setting>/<status>")
+def set_setting(setting, status):
+    if status in ["true", "false"]:
+        settings[setting] = status
+
+    return [settings[setting]]
 
 
 # Updates the most recent scan data of an existing network in the database, 

@@ -26,6 +26,7 @@
     "cytoscape": "^3.26.0",
     "dagre": "^0.8.5",
     "lucide-react": "^0.279.0",
+    "next-themes": "^0.2.1",
     "react": "^18.2.0",
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^18.2.0",

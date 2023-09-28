@@ -6,6 +6,9 @@ import { Button } from "./ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
+import { databaseUrl, scannerUrl } from "@/servers";
+
+const user_id = 0;
 
 const SettingsSwitch = (props: any) => {
 
@@ -15,14 +18,22 @@ const SettingsSwitch = (props: any) => {
             <Label>{props.switchName}</Label>
             <Label className="text-xs">{props.desc}</Label>
         </div>
-        <Switch checked={props.c} onCheckedChange={props.onc}/>
+        <Switch checked={props.c} onCheckedChange={(state) => {fetch(`${databaseUrl}/setsetting/${props.settingname}/${state}`).then((res) => res.json()).then((data) => props.onc(data[0] === "true"))}}/>
     </div>
     );
 }
 
 const SettingsMenu = (props: any) => {
 
-    const [udpSetting, setUDP ] = useState(true);
+    const [udpSetting, setUDP ] = useState(false);
+
+    useEffect(() => {
+        fetch(`${databaseUrl}/setsetting/udp/get`)
+            .then((res) => res.json())
+            .then((data) => {
+                setUDP(data[0] === "true");
+            })
+    }, [])
 
     return (
         <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3">
@@ -39,8 +50,8 @@ const SettingsMenu = (props: any) => {
                             </CardHeader>
                             <CardContent>
                                 <div className="flex justify-start items-center flex-wrap">
-                                    <SettingsSwitch switchName="TCP" desc="Assistive text" c={udpSetting} onc={setUDP} />
-                                    <SettingsSwitch switchName="UDP"/>
+                                    <SettingsSwitch switchName="UDP" desc="Assistive text" settingname="udp" c={udpSetting} onc={setUDP} />
+                                    <SettingsSwitch switchName="TCP"/>
                                     <SettingsSwitch switchName="UDP"/>
                                     <SettingsSwitch switchName="UDP"/>
                                 </div>
