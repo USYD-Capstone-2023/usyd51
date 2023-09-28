@@ -114,6 +114,29 @@ def run_scan(network_id, args):
     return "success", 200
 
 
+def verify_current_connection(network_id):
+
+    network = requests.get(DB_SERVER_URL + "/networks/%s" % (network_id))
+    
+    # Network hasnt been created, so should be valid to run a scan
+    if network.status_code == 500:
+        return True
+    
+    # An error occurred
+    if network.status_code != 200:
+        return False
+
+    network = json.loads(network.content.decode("utf-8"))
+
+    # Check that the network being scanned corresponds to the one in the database
+    gateway_mac = nt.get_gateway_mac()
+    if "gateway_mac" not in network.keys() or network["gateway_mac"] != gateway_mac:
+        return False
+    
+    return True
+
+
+
 # Finds all devices on the network, runs all scans outlined in users settings
 # If a valid network id is entered, it will add the scan results to the database under that ID with a new timestamp,
 # otherwise will create a new network in the db
@@ -125,6 +148,9 @@ def scan_network(network_id):
 
     if network_id == None:
         return "Invalid network ID entered.", 500
+    
+    if not verify_current_connection(network_id):
+        return "Not currently connected to network.", 500
     
     args = get_settings(0, network_id)
 

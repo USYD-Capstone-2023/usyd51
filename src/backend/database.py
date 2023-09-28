@@ -9,12 +9,12 @@ class PostgreSQL_database:
     # Standard error codes and messages
     err_codes = {"success" : ("Success.", 200),
                 "no_network" : ("Network with given ID is not present in the database.", 500),
-                "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 500),
-                "no_user" : ("User with given ID is not present in the database.", 500),
-                "malformed_network" : ("Provided network information is malformed.", 500),
-                "malformed_settings" : ("Provded settings information is malformed.", 500),
-                "malformed_settings" : ("Provded device information is malformed.", 500),
-                "db_error" : ("The database server encountered an error, please try again.", 500)}
+                "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 501),
+                "no_user" : ("User with given ID is not present in the database.", 502),
+                "malformed_network" : ("Provided network information is malformed.", 503),
+                "malformed_settings" : ("Provded settings information is malformed.", 504),
+                "malformed_settings" : ("Provded device information is malformed.", 505),
+                "db_error" : ("The database server encountered an error, please try again.", 506)}
 
 
     def __init__(self, database, user, password):
