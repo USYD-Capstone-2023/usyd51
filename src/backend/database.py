@@ -27,7 +27,7 @@ class PostgreSQL_database:
         if not self.__init_db() or not self.__init_tables():
 
             print("[ERR ] Fatal error occurred while initialising database. Exitting...")
-            #sys.exit(-1)
+            sys.exit(-1)
 
 
     # Passes the given query to the database, retrieves result or commits if required
