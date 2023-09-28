@@ -1,13 +1,17 @@
 # External
 from flask import Flask, request
 from flask_cors import CORS 
+import jwt
 import sys
+from functools import wraps
 
 # Local
 from database import PostgreSQL_database
 
 app = Flask(__name__)
 CORS(app)
+
+app.secret_key = 
 
 if len(sys.argv) < 2:
     print("Please enter 'remote' or 'local'.")
@@ -37,6 +41,20 @@ password = "root"
 db = PostgreSQL_database(database, user, password)
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
+
+def require_auth(func):
+
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        
+        token = None
+        if "x-access-token" in request.headers:
+            token = request.headers["x-access-token"]
+        else:
+            return "Authentication token not in request headers.", 401
+
+        try:
+            request_payload = jwt.decode(token, app.config['SECRET_KEY'])
 
 # Gives basic information about all networks stored in the database, as json:
 # [{gateway_mac, id, name, ssid}, ...]
