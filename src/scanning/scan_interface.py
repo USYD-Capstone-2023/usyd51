@@ -61,7 +61,6 @@ default_settings = {
 }
 
 
-
 # Retrieves a given user's settings from the database, corrects them if they are invalid or non existent
 def get_settings(user_id, network_id, fault_count=0):
 
