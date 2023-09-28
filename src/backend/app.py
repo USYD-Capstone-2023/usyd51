@@ -42,8 +42,10 @@ db = PostgreSQL_database(database, user, password)
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
+# Authentication wrapper
 def require_auth(func):
 
+    # Ensures that there is a valid authentication token attached to each request.
     @wraps(func)
     def decorated(*args, **kwargs):
         
@@ -55,6 +57,22 @@ def require_auth(func):
 
         try:
             request_payload = jwt.decode(token, app.config['SECRET_KEY'])
+            if "user_id" not in request_payload.keys():
+                return "No user ID contained in authentication token.", 401
+            
+            user = db.get_user(request_payload["user_id"])
+
+            if not user:
+                return "User doesn't exist.", 401
+            
+        except:
+
+            return "Invealid authentication token.", 401
+        
+        return func(user["user_id"], *args, **kwargs)
+    
+    return decorated
+
 
 # Gives basic information about all networks stored in the database, as json:
 # [{gateway_mac, id, name, ssid}, ...]

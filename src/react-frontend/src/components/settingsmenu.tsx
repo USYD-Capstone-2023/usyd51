@@ -32,7 +32,7 @@ const SettingsSwitch = (props: any) => {
             <Label>{props.switchName}</Label>
             <Label className="text-xs">{props.desc}</Label>
         </div>
-        <Switch checked={props.c} onCheckedChange={(state) => {props.onc(state); settings_json[`${props.settingname}`] = state; fetch(`${databaseUrl}/setsettings/${user_id}/set`, {method: 'PUT', mode: 'cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings_json)})}}/>
+        <Switch checked={props.c} onCheckedChange={(state) => {props.onc(state); settings_json[`${props.settingname}`] = state; fetch(`${databaseUrl}/settings/${user_id}/set`, {method: 'PUT', mode: 'cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings_json)})}}/>
     </div>
     );
 }
@@ -49,7 +49,7 @@ const SettingsMenu = (props: any) => {
     const [verttraceSetting, setVertTrace ] = useState(settings_json["run_vertical_trace"]);
 
     useEffect(() => {
-        fetch(`${databaseUrl}/getsettings/0`)
+        fetch(`${databaseUrl}/settings/0`)
             .then((res) => res.json())
             .then((data) => {
                 for (let key in data) {

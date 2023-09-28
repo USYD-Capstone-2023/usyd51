@@ -9,12 +9,13 @@ class PostgreSQL_database:
     # Standard error codes and messages
     err_codes = {"success" : ("Success.", 200),
                 "no_network" : ("Network with given ID is not present in the database.", 500),
-                "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 500),
-                "no_user" : ("User with given ID is not present in the database.", 500),
-                "malformed_network" : ("Provided network information is malformed.", 500),
-                "malformed_settings" : ("Provded settings information is malformed.", 500),
-                "malformed_settings" : ("Provded device information is malformed.", 500),
-                "db_error" : ("The database server encountered an error, please try again.", 500)}
+                "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 501),
+                "no_user" : ("User with given ID is not present in the database.", 502),
+                "malformed_network" : ("Provided network information is malformed.", 503),
+                "malformed_settings" : ("Provided settings information is malformed.", 504),
+                "malformed_device" : ("Provided device information is malformed.", 505),
+                "malformed_user" : ("Provided user information is malformed.", 506),
+                "db_error" : ("The database server encountered an error, please try again.", 507)}
 
 
     def __init__(self, database, user, password):
@@ -124,6 +125,9 @@ class PostgreSQL_database:
         if not self.__save_devices(network_id, devices, timestamp):
             return self.err_codes["db_error"]
         
+        if not self.__set_n_alive(id, len(devices)):
+            return self.err_codes["db_error"]
+        
         return self.err_codes["success"]
     
 
@@ -131,15 +135,35 @@ class PostgreSQL_database:
     def __register_network(self, network):
 
         query = """
+<<<<<<< HEAD
                 INSERT INTO networks (network_id, gateway_mac, name, ssid)
                 VALUES (%s, %s, %s, %s);
+=======
+                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive)
+                VALUES (%s, %s, %s, %s, %s);
+>>>>>>> main
                 """
         
         params = (network["network_id"],
                   network["gateway_mac"],
                   network["name"],
-                  network["ssid"],)
+                  network["ssid"],
+                  len(network["devices"]))
         
+        return self.query(query, params)
+    
+
+    def __set_n_alive(self, network_id, n_alive):
+
+        query = """
+                UPDATE networks
+                SET
+                    n_alive = %s
+                WHERE id = %s;
+                """
+        
+        params = (n_alive, network_id,)
+
         return self.query(query, params)
     
 
@@ -223,7 +247,7 @@ class PostgreSQL_database:
     def get_networks(self):
 
         query = """
-                SELECT network_id, gateway_mac, name, ssid
+                SELECT id, gateway_mac, name, ssid, n_alive
                 FROM networks;
                 """
 
@@ -239,17 +263,11 @@ class PostgreSQL_database:
         out = []
         for resp in responses:
 
-            # Gets n_alive attribute for all networks
-            devices = self.get_all_devices(resp[0])
-            n_alive = len(devices[0])
-            if devices[1] != 200:
-                n_alive == 0
-
-            net_dict = {"network_id" : resp[0],
+            net_dict = {"id" : resp[0],
                         "gateway_mac": resp[1],
                         "name": resp[2],
                         "ssid": resp[3],
-                        "n_alive" : n_alive}
+                        "n_alive" : resp[4]}
             
             out.append(net_dict)
             
@@ -264,7 +282,7 @@ class PostgreSQL_database:
             return self.err_codes["no_network"]
 
         query = """
-                SELECT network_id, gateway_mac, name, ssid
+                SELECT id, gateway_mac, name, ssid, n_alive
                 FROM networks
                 WHERE network_id = %s;
                 """
@@ -280,7 +298,7 @@ class PostgreSQL_database:
                    "gateway_mac" : network_info[1],
                    "name" : network_info[2],
                    "ssid" : network_info[3],
-                   "n_alive" : len(self.get_all_devices(network_id))} 
+                   "n_alive" : network_info[4]} 
 
         return network, 200
 
@@ -754,16 +772,53 @@ class PostgreSQL_database:
         return response != None and len(response) > 0
     
 
+    def get_user(self, user_id):
+
+        query = """SELECT user_id, name, password, email
+                   FROM users
+                   WHERE user_id = %s;"""
+        
+        params = (user_id,)
+        user_dict = self.query(query, params, res=True)
+
+        if not user_dict:
+            return None
+        
+        user = {"user_id" : user_dict[0],
+                "name" : user_dict[0],
+                "password" : user_dict[0],
+                "email" : user_dict[0]}
+
+
+        return user
+    
+    
+    # TODO
+    def __get_next_user_id(self):
+        return 1
+
+
     def add_user(self, user):
 
         require = ["name", "password", "email"]
 
-        for req in requires:
+        for req in require:
             if req not in user.keys():
                 return self.err_codes["malformed_user"]
 
 
-        if self.contains_user(user)
+        query = """
+                INSERT INTO users
+                    (user_id,
+                    name,
+                    password,
+                    email)
+                VALUES (%s, %s, %s, %s);
+                """
+        
+        params = (self.__get_next_user_id(), user["name"], user["password"], user["email"])
+
+        return self.query(query, params)
 
 
 
@@ -826,7 +881,8 @@ class PostgreSQL_database:
                             (network_id INTEGER PRIMARY KEY,
                             gateway_mac TEXT,
                             name TEXT,
-                            ssid TEXT);
+                            ssid TEXT,
+                            n_alive INTEGER);
                         """
 
 
