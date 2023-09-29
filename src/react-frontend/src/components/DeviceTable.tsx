@@ -25,12 +25,16 @@ const ListView = () => {
         })
     }, [])
 
-
     return (        
-        <div className="flex w-full h-full" >
+        <div className="flex w-full h-full" style={{
+            height: "95vh",
+            width: "95%",
+            marginLeft: "5%",
+            overflowY: "scroll",
+            overflowX: "scroll"}}>
             <table>
                 <thead>
-                    <tr>
+                    <tr style={{border: "5px solid red"}}>
                         <th>MAC</th>
                         <th>IP</th>
                         <th>MAC Vendor</th>
@@ -42,7 +46,7 @@ const ListView = () => {
                         <th>Ports</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody >
                     {networkDevices.map((device, index) => (
                         <tr key={index}>
                         <td>{device.mac}</td>
