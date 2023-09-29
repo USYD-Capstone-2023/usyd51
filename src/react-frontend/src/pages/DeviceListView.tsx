@@ -1,14 +1,14 @@
 import Sidebar from "@/components/sidebar";
-import Table from "@/components/table/page";
+import DeviceTable from "@/components/DeviceTable"
 
 
-const ListView = () => {
+const DeviceListView = () => {
     return (        
         <div className="flex w-full h-full" >
             <Sidebar />
-            <Table />
+            <DeviceTable />
         </div>
     );
 };
 
-export default ListView;
+export default DeviceListView;
