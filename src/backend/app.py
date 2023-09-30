@@ -112,10 +112,8 @@ def login():
         return res[0], 401
     
     exp = (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%d/%m/%Y/%H/%M/%S")
-    token = jwt.encode({"user_id" : res[0]["user_id"],
-                        "expiry" : exp},
-                        app.config["SECRET_KEY"],
-                        algorithm="HS256")
+    token = jwt.encode({"user_id" : res[0]["user_id"], "expiry" : exp},
+                        app.config["SECRET_KEY"], algorithm="HS256")
     
     return token, 200
 

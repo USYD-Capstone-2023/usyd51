@@ -24,6 +24,5 @@ def main():
     print(res.content)
 
 
-
 if __name__ == "__main__":
     main()
