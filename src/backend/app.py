@@ -12,9 +12,10 @@ from database import PostgreSQL_database
 TOKEN_EXPIRY_MINS = 30
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
+     expose_headers="Auth-Token")
 
-app.secret_key = "Security_is_my_passion. This is secure if you think about it i swear."
+app.secret_key = "Security is my passion. This is secure if you think about it i swear."
 
 if len(sys.argv) < 2:
     print("Please enter 'remote' or 'local'.")
@@ -53,20 +54,20 @@ def require_auth(func):
     def decorated(*args, **kwargs):
         
         token = None
-        if "x-access-token" in request.headers:
-            token = request.headers["x-access-token"]
+        if "Auth-Token" in request.headers:
+            token = request.headers["Auth-Token"]
         else:
             return "Authentication token not in request headers.", 401
 
         try:
-            request_payload = jwt.decode(token, app.config['SECRET_KEY'])
+            request_payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             if "user_id" not in request_payload.keys():
                 return "No user ID contained in authentication token.", 401
             
             if "expiry" not in request_payload.keys():
                 return "Malformed auth token.", 401
             
-            if datetime.now() > request_payload["expiry"].strptime("%D/%M/%Y/%H/%M/%S"):
+            if datetime.utcnow() > datetime.strptime(request_payload["expiry"], "%d/%m/%Y/%H/%M/%S"):
                 return "Token has expired, login again", 401
             
             user = db.get_user(request_payload["user_id"])
@@ -74,7 +75,9 @@ def require_auth(func):
             if not user:
                 return "User doesn't exist.", 401
             
-        except:
+        except Exception as e:
+
+            print(e)
 
             return "Invalid authentication token.", 401
         
@@ -104,9 +107,11 @@ def login():
     if res[1] != 200:
         return res[0], 401
     
+    exp = (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%d/%m/%Y/%H/%M/%S")
     token = jwt.encode({"user_id" : res[0]["user_id"],
-                        "expiry" : (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%D/%M/%Y/%H/%M/%S")},
-                        app.config["SECRET_KEY"])
+                        "expiry" : exp},
+                        app.config["SECRET_KEY"],
+                        algorithm="HS256")
     
     return token, 200
 
@@ -114,31 +119,35 @@ def login():
 # Gives basic information about all networks stored in the database, as json:
 # [{gateway_mac, id, name, ssid}, ...]
 @app.get("/networks")
-def get_networks():
+@require_auth
+def get_networks(user_id):
 
-    return db.get_networks()
+    return db.get_networks(user_id)
 
 
 # Gives basic information about the requested network, as json:
 # {gateway_mac, id, name, ssid}
 @app.get("/networks/<network_id>")
-def get_network(network_id):
+@require_auth
+def get_network(user_id, network_id):
 
-    return db.get_network(network_id)
+    return db.get_network(user_id, network_id)
 
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
 @app.get("/networks/<network_id>/devices")
-def get_devices(network_id):
+@require_auth
+def get_devices(user_id, network_id):
     
-    return db.get_all_devices(network_id)
+    return db.get_all_devices(user_id, network_id)
 
 
 # Adds a network network to the database, along with its attributes and devices
 @app.put("/networks/add")
-def save_network():
+@require_auth
+def save_network(user_id):
     network = request.get_json()
-    return db.save_network(network)
+    return db.save_network(user_id, network)
 
 
 # Updates the most recent scan data of an existing network in the database, 
@@ -173,27 +182,31 @@ def save_network():
 # TODO - These ones are GETS just for testing purposes at the minute, so I can test them
 # in browser while the frontend isnt hooked up, will be POST
 @app.get("/networks/<network_id>/rename/<new_name>")
-def rename_network(network_id, new_name):
+@require_auth
+def rename_network(user_id, network_id, new_name):
 
-    return db.rename_network(network_id, new_name)
+    return db.rename_network(user_id, network_id, new_name)
 
 
 # Deletes a network and all related devices from the database
 @app.get("/networks/<network_id>/delete")
-def delete_network(network_id):
+@require_auth
+def delete_network(user_id, network_id):
 
-    return db.delete_network(network_id)
+    return db.delete_network(user_id, network_id)
 
 
-# Retrieves a users settings json from the database
-@app.get("/settings/<user_id>")
+# Retrieves the logged in user's settings json from the database
+@app.get("/settings")
+@require_auth
 def get_settings(user_id):
 
     return db.get_settings(user_id)
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
-@app.put("/settings/<user_id>/set")
+@app.put("/settings/set")
+@require_auth
 def set_settings(user_id):
 
     settings = request.get_json()
@@ -202,16 +215,18 @@ def set_settings(user_id):
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
 @app.get("/networks/<network_id>/snapshots")
-def get_snapshots(network_id):
+@require_auth
+def get_snapshots(user_id, network_id):
 
-    return db.get_snapshots(network_id)
+    return db.get_snapshots(user_id, network_id)
 
 
 # Retrieves a specific snapshot of a network at a point in time
 @app.get("/networks/<network_id>/snapshots/<timestamp>")
-def get_snapshot(network_id, timestamp):
+@require_auth
+def get_snapshot(user_id, network_id, timestamp):
     
-    return db.get_all_devices(network_id, timestamp)
+    return db.get_all_devices(user_id, network_id, timestamp)
 
 
 if __name__ == "__main__":

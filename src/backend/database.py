@@ -16,7 +16,8 @@ class PostgreSQL_database:
                 "malformed_device" : ("Provided device information is malformed.", 505),
                 "malformed_user" : ("Provided user information is malformed.", 506),
                 "dup_user" : ("A user with that username already exists.", 507),
-                "db_error" : ("The database server encountered an error, please try again.", 508)}
+                "db_error" : ("The database server encountered an error, please try again.", 508),
+                "no_access" : ("Current user does not have access to this resource.", 401)}
 
 
     def __init__(self, database, user, password):
@@ -33,7 +34,7 @@ class PostgreSQL_database:
 
 
     # Passes the given query to the database, retrieves result or commits if required
-    def query(self, query, params, res=False):
+    def __query(self, query, params, res=False):
 
         response = None
         conn = None
@@ -71,7 +72,7 @@ class PostgreSQL_database:
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
         
 
-    def save_network(self, network):
+    def save_network(self, user_id, network):
 
         # Ensures given network data is correctly formed
         required = {"network_id" : int,
@@ -111,10 +112,13 @@ class PostgreSQL_database:
             network["network_id"] = network_id
             
         # Adds a new network to the database if it doesnt exist
-        if not self.contains_network(network_id):
-            if not self.__register_network(network):
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] == 500:
+            if not self.__register_network(user_id, network):
                 return self.err_codes["db_error"]
-                
+
+        elif res[1] == 401:
+            return res                
                 
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
@@ -133,20 +137,21 @@ class PostgreSQL_database:
     
 
     # Adds a network to the database
-    def __register_network(self, network):
+    def __register_network(self, user_id, network):
 
         query = """
-                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive)
-                VALUES (%s, %s, %s, %s, %s);
+                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s);
                 """
         
         params = (network["network_id"],
                   network["gateway_mac"],
                   network["name"],
                   network["ssid"],
-                  len(network["devices"]))
+                  len(network["devices"]),
+                  user_id,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
     
 
     def __set_n_alive(self, network_id, n_alive):
@@ -155,12 +160,12 @@ class PostgreSQL_database:
                 UPDATE networks
                 SET
                     n_alive = %s
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (n_alive, network_id,)
 
-        return self.query(query, params)
+        return self.__query(query, params)
     
 
     # Gets the next available unique network id
@@ -172,7 +177,7 @@ class PostgreSQL_database:
                 FROM networks;
                 """
 
-        response = self.query(query, (), res=True)
+        response = self.__query(query, (), res=True)
         # Case for when there are no networks in the database
         if not response:
             return 0
@@ -186,11 +191,12 @@ class PostgreSQL_database:
     
 
     # Deletes a network from the database
-    def delete_network(self, network_id):
+    def delete_network(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.contains_network(network_id):
-            return self.err_codes["no_network"]
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         params = (network_id,)
 
@@ -200,7 +206,7 @@ class PostgreSQL_database:
                 WHERE network_id = %s;
                 """
         
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
 
         # Deletes all snapshots related to the network
@@ -209,7 +215,7 @@ class PostgreSQL_database:
                 WHERE network_id = %s;
                 """
         
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
 
         # Deletes the network
@@ -218,36 +224,46 @@ class PostgreSQL_database:
                 WHERE network_id = %s;
                 """
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
 
         return self.err_codes["success"]
 
 
     # Checks if the current network exists in the database
-    def contains_network(self, network_id):
+    def validate_network_access(self, user_id, network_id):
 
         query = """
-                SELECT 1
+                SELECT user_id
                 FROM networks
                 WHERE network_id = %s;
                 """
         
         params = (network_id,)
 
-        response = self.query(query, params, res=True)
-        return response != None and len(response) > 0
+        response = self.__query(query, params, res=True)
+
+        if not response or len(response) == 0:
+            return self.err_codes["no_network"]
+        
+        if response[0] != user_id:
+            return self.err_codes["no_access"]
+        
+        return self.err_codes["success"]
 
 
-    # Returns a list of all networks
-    def get_networks(self):
+    # Returns a list of all networks accessible to the given user
+    def get_networks(self, user_id):
 
         query = """
                 SELECT id, gateway_mac, name, ssid, n_alive
-                FROM networks;
+                FROM networks
+                WHERE user_id = %s;
                 """
+        
+        params = (user_id,)
 
-        responses = self.query(query, (), res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
             return self.err_codes["db_error"]
         
@@ -270,22 +286,23 @@ class PostgreSQL_database:
         return out, 200
 
 
-    # Returns all devices associated with a specific network
-    def get_network(self, network_id):
+    # Returns all basic information associated with a network
+    def get_network(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.contains_network(network_id):
-            return self.err_codes["no_network"]
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
                 SELECT id, gateway_mac, name, ssid, n_alive
                 FROM networks
-                WHERE network_id = %s;
+                WHERE network_id = %s and user_id = %s;
                 """
         
-        params = (network_id,)
+        params = (network_id, user_id,)
 
-        network_info = self.query(query, params, res=True)[0]
+        network_info = self.__query(query, params, res=True)[0]
         if not network_info:
             return self.err_codes["db_error"]
 
@@ -300,11 +317,12 @@ class PostgreSQL_database:
 
 
     # Allows users to rename a network and all device data
-    def rename_network(self, network_id, new_name):
+    def rename_network(self, user_id, network_id, new_name):
 
-        # Checks requested network exists
-        if not self.contains_network(network_id):
-            return self.err_codes["no_network"]
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
                 UPDATE networks
@@ -314,22 +332,22 @@ class PostgreSQL_database:
         
         params = (new_name, network_id,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
         
         return self.err_codes["success"]
-
 
 
     # ---------------------------------------------- DEVICES ------------------------------------------- #
         
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
-    def get_all_devices(self, network_id, timestamp=None):
+    def get_all_devices(self, user_id, network_id, timestamp=None):
 
-        # Checks requested network exists
-        if not self.contains_network(network_id):
-            return self.err_codes["no_network"]
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
         
         # Retrieves most recent snapshot of the network if no timestamp is provided
         if timestamp == None:
@@ -348,7 +366,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        responses = self.query(query, params, res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
             return self.err_codes["db_error"]
         
@@ -395,7 +413,7 @@ class PostgreSQL_database:
         
         params = (valid, network_id, timestamp,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return False
 
         return True
@@ -436,7 +454,7 @@ class PostgreSQL_database:
                     network_id, 
                     timestamp,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
 
 
     # NOT IMPLEMENTED YET, GOING TO BE USED FOR INCREMENTAL SAVING AND DISPLAYING OF SCANS
@@ -472,7 +490,7 @@ class PostgreSQL_database:
                     network_id, 
                     timestamp,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
 
 
     # --------------------------------------------- SNAPSHOTS ------------------------------------------ #
@@ -489,7 +507,7 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
 
         if not response or len(response) == 0:
             return None
@@ -516,7 +534,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return False
         
         return True
@@ -524,11 +542,12 @@ class PostgreSQL_database:
 
     # Returns an array of all timestamp-device_count pairs for a certain network.
     # There is a pair corresponding to each individual time a scan has been conducted.
-    def get_snapshots(self, network_id):
+    def get_snapshots(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.contains_network(network_id):
-            return self.err_codes["no_network"]
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
                 SELECT timestamp, n_alive
@@ -538,7 +557,7 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        responses = self.query(query, params, res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
             return self.err_codes["db_error"]
 
@@ -564,7 +583,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         return response != None and len(response) > 0
         
 
@@ -599,7 +618,7 @@ class PostgreSQL_database:
         
         params = (user_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         if not response or len(response) == 0:
             return self.err_codes["db_error"]
         
@@ -729,7 +748,7 @@ class PostgreSQL_database:
                     settings["defaultBackgroundColour"],
                     user_id,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
         
         return self.err_codes["success"]
@@ -747,7 +766,7 @@ class PostgreSQL_database:
         
         params = (user_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         return response != None and len(response) > 0
 
 
@@ -764,7 +783,7 @@ class PostgreSQL_database:
         
         params = (username,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         return response != None and len(response) > 0
     
 
@@ -782,7 +801,7 @@ class PostgreSQL_database:
         
         params = (user["username"], user["password"],)
 
-        user_dict = self.query(query, params, res=True)
+        user_dict = self.__query(query, params, res=True)
         if not user_dict:
             return self.err_codes["no_user"]
         
@@ -802,7 +821,7 @@ class PostgreSQL_database:
         
         params = (user_id,)
 
-        user_dict = self.query(query, params, res=True)
+        user_dict = self.__query(query, params, res=True)
         if not user_dict:
             return None
         
@@ -841,7 +860,7 @@ class PostgreSQL_database:
         
         params = (self.__get_next_user_id(), user["username"], user["password"], user["email"])
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return self.err_codes["db_error"]
         
         return self.err_codes["success"]
@@ -904,6 +923,7 @@ class PostgreSQL_database:
         init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
                             (network_id INTEGER PRIMARY KEY,
+                            user_id INTEGER REFERENCES users (user_id),
                             gateway_mac TEXT,
                             name TEXT,
                             ssid TEXT,
@@ -964,11 +984,11 @@ class PostgreSQL_database:
 
 
 
-        val =  self.query(init_networks, ())
-        val &= self.query(init_snapshots, ())
-        val &= self.query(init_devices, ())
-        val &= self.query(init_users, ())
-        val &= self.query(init_settings, ())
+        val =  self.__query(init_networks, ())
+        val &= self.__query(init_snapshots, ())
+        val &= self.__query(init_devices, ())
+        val &= self.__query(init_users, ())
+        val &= self.__query(init_settings, ())
 
         if val:
             return True
