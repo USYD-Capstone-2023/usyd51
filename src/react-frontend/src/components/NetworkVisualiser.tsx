@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
 import React, { useCallback, useEffect, useState } from "react";
+import { redirect } from "react-router";
+import { Link } from "react-router-dom";
 import ReactFlow, {
   ReactFlowProvider,
   Panel,
@@ -35,6 +37,7 @@ import "reactflow/dist/style.css";
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
 const getLayoutedElements = (nodes: any, edges: any, options: any) => {
+
   const isHorizontal = options.direction === "LR";
 
   g.setGraph({ rankdir: options.direction });
@@ -63,6 +66,7 @@ const getLayoutedElements = (nodes: any, edges: any, options: any) => {
 };
 
 const LayoutFlow = (params: LayoutFlowProps) => {
+  const [showReactFlow, setShowReactFlow] = useState(true);
   const { networkID } = params;
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
@@ -70,7 +74,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   useEffect(() => {
-    fetch(databaseUrl + `/networks/${networkID}/devices`)
+    fetch(databaseUrl + `networks/${networkID}/devices`)
       .then((res) => res.json())
       .then((data) => {
         // console.log(data);
@@ -102,8 +106,8 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       newEdges.push(edge);
     }
 
-    console.log(newNodes);
-    console.log(newEdges);
+    //console.log(newNodes);
+    //console.log(newEdges);
 
     setNodes(newNodes);
     setEdges(newEdges);
@@ -123,21 +127,26 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     [nodes, edges]
   );
 
+  const toggleReactFlowVisibility = () => {
+    setShowReactFlow(!showReactFlow);
+  };
+
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      fitView
-    >
-      <Background />
-      <Controls />
-      <Panel position="top-right">
-        <Button onClick={() => onLayout("TB")}>vertical layout</Button>
-        <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
-      </Panel>
-    </ReactFlow>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        fitView
+      >
+        <Background />
+        <Controls />
+        <Panel position="top-right">
+          <Button onClick={() => onLayout("TB")}>vertical layout</Button>
+          <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
+          <Button>  <Link to={"../../DeviceListView/" + networkID}>List View </Link></Button>
+        </Panel>
+      </ReactFlow>
   );
 };
 
