@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -12,6 +13,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const Login = (props: any) => {
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const isPasswordMatch = password === confirmPassword;
+
+    const switchToSignUp = () => {
+        setIsSignUp(true);
+        clearFields();
+      };
+    
+      const switchToLogin = () => {
+        setIsSignUp(false);
+        clearFields();
+      };
+    
+      const clearFields = () => {
+        setUsername('');
+        setPassword('');
+        setConfirmPassword('');
+      };
+
     return (
         <div 
             className="h-screen flex items-center justify-center"
@@ -31,7 +54,6 @@ const Login = (props: any) => {
                     animation: 'breathe 4s infinite alternate',
                 }}
             >
-                {/* Adjusted SVG for better visibility */}
                 <svg xmlns="http://www.w3.org/2000/svg" width="1500" height="100vh" viewBox="0 0 1500 750">
                     <line x1="300.0" y1="300.0" x2="600.0" y2="300.0" stroke="black" />
                     <line x1="600.0" y1="300.0" x2="900.0" y2="300.0" stroke="black" />
@@ -57,31 +79,85 @@ const Login = (props: any) => {
                     <circle cx="1200.0" cy="150.0" r="25" fill="#88F" />
                 </svg>
             </div>
-            <Card className="w-[400px] h-[400px] z-10">
-                <CardHeader>
+            {!isSignUp ? (
+                <Card className="w-[400px] h-[400px] z-10">
+                    <CardHeader>
                     <CardTitle>LOGIN</CardTitle>
-                </CardHeader>
-                <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <form>
                         <div className="grid w-full items-center gap-4">
-                            <div className="flex flex-col space-y-1.5">
-                                <Label htmlFor="name">Username</Label>
-                                <Input id="name" placeholder="Username" />
-                            </div>
-                            <div className="flex flex-col space-y-1.5">
-                                <Label htmlFor="name">Password</Label>
-                                <Input id="password" placeholder="Password" />
-                            </div>
-                            <div className="flex flex-col space-y-1.5"></div>
+                        <div className="flex flex-col space-y-1.5">
+                            <Label htmlFor="name">Username</Label>
+                            <Input 
+                            id="name" 
+                            placeholder="Username" 
+                            value={username} 
+                            onChange={(e) => setUsername(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1.5">
+                            <Label htmlFor="password">Password</Label>
+                            <Input 
+                            id="password" 
+                            placeholder="Password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
                         </div>
                     </form>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                    <Button variant="outline"><Link to={"./dashboard"}> Sign Up </Link></Button>
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                    <Button variant="outline" onClick={switchToSignUp}>Sign Up</Button>
                     <Button><Link to={"./dashboard"}> Login </Link></Button>
-                </CardFooter>
-            </Card>
-
+                    </CardFooter>
+                </Card>
+                ) : (
+                <Card className="w-[400px] h-[400px] z-10">
+                    <CardHeader>
+                    <CardTitle>SIGN UP</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <form>
+                        <div className="grid w-full items-center gap-4">
+                        <div className="flex flex-col space-y-1.5">
+                            <Label htmlFor="name">Username</Label>
+                            <Input 
+                            id="name" 
+                            placeholder="Username" 
+                            value={username} 
+                            onChange={(e) => setUsername(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1.5">
+                            <Label htmlFor="password">Password</Label>
+                            <Input 
+                            id="password" 
+                            placeholder="Password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1.5">
+                            <Label htmlFor="confirmPassword">Confirm Password</Label>
+                            <Input 
+                            id="confirmPassword" 
+                            placeholder="Confirm Password" 
+                            value={confirmPassword} 
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            />
+                        </div>
+                        </div>
+                        {!isPasswordMatch && <p className="text-red-500">Passwords do not match!</p>}
+                    </form>
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                    <Button variant="outline" onClick={switchToLogin}>Back</Button>
+                    <Button disabled={!isPasswordMatch}><Link to={"./dashboard"}> Create </Link></Button>
+                    </CardFooter>
+                </Card>
+                )}
             {/* Inline keyframes CSS */}
             <style>{`
                 @keyframes breathe {
