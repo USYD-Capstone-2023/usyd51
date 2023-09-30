@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ColumnDef} from "@tanstack/react-table"
+import { DataTable } from "./table/data-table";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 type NetworkItem = {
     mac: string,
@@ -13,6 +18,17 @@ type NetworkItem = {
     ports: string,
 }
 
+const columns: ColumnDef<NetworkItem>[] = [
+    {accessorKey: "mac", header: "mac",},
+    {accessorKey: "ip", header: "ip",},
+    {accessorKey: "mac_vendor", header: "mac_vendor",},
+    {accessorKey: "os_family", header: "os_family",},
+    {accessorKey: "os_vendor", header: "os_vendor",},
+    {accessorKey: "os_type", header: "os_type",},
+    {accessorKey: "hostname", header: "hostname",},
+    {accessorKey: "parent", header: "parent",},
+    {accessorKey: "ports", header: "ports",}
+  ]
 
 const ListView = () => {
     const { networkID } = useParams();
@@ -24,8 +40,32 @@ const ListView = () => {
             //console.log(data);
         })
     }, [])
+    console.log(networkDevices)
+
+   return (
+    <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
+        <ScrollArea className="h-full w-full rounded-xl">
+        <Card className="w-full">
+            <CardHeader>
+            <CardTitle className="text-left text-2xl">List View</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <DataTable columns={columns} data={networkDevices} />
+            </CardContent>
+        </Card>
+        </ScrollArea>
+  </div>
+
+   )
+
+
+
+
+
+
 
     return (        
+
         <div className="flex w-full h-full" style={{
             height: "95vh",
             width: "95%",
