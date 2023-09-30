@@ -8,6 +8,7 @@ import NetworkView from "./pages/NetworkView";
 import ListView from "./pages/ListView";
 import NewNetwork from "./pages/NewNetwork";
 import DeviceListView from "./pages/DeviceListView";
+import Login from "./pages/LogIn"
 
 function App() {
     // const [count, setCount] = useState(0);
@@ -16,7 +17,8 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/">
-                    <Route index element={<Home />} />
+                    <Route index element={<Login />} />
+                    <Route path="dashboard" element={<Home />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="listView" element={<ListView />} />
                     <Route path="deviceListView/:networkID" element={<DeviceListView />} />
