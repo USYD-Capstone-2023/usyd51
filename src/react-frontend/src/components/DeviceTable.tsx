@@ -4,6 +4,9 @@ import { ColumnDef} from "@tanstack/react-table"
 import { DataTable } from "./table/data-table";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import ReactFlow, { Panel } from "reactflow";
 
 
 type NetworkItem = {
@@ -44,6 +47,9 @@ const ListView = () => {
 
    return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
+
+        <Button style={{display: "flex", marginLeft: "auto"}}>  <Link to={"../../NetworkView/" + networkID}>Map View </Link></Button>
+
         <ScrollArea className="h-full w-full rounded-xl">
         <Card className="w-full">
             <CardHeader>
@@ -54,6 +60,7 @@ const ListView = () => {
             </CardContent>
         </Card>
         </ScrollArea>
+
   </div>
 
    )
