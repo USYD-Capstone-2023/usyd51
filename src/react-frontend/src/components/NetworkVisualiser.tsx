@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
@@ -31,6 +32,7 @@ interface LayoutFlowProps {
 
 const nodeWidth = 500;
 const nodeHeight = 36;
+const maxNum = 10;
 
 import "reactflow/dist/style.css";
 
@@ -67,11 +69,30 @@ const getLayoutedElements = (nodes: any, edges: any, options: any) => {
 
 const LayoutFlow = (params: LayoutFlowProps) => {
   const [showReactFlow, setShowReactFlow] = useState(true);
+  const [num, setNum] = useState(0);
   const { networkID } = params;
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const onLayout = useCallback(
+    (direction: any) => {
+      const layouted = getLayoutedElements(nodes, edges, { direction });
+
+      setNodes([...layouted.nodes]);
+      setEdges([...layouted.edges]);
+
+      window.requestAnimationFrame(() => {
+        fitView();
+      });
+    },
+    [nodes, edges, setNodes, setEdges, fitView]
+  );
+
+  const toggleReactFlowVisibility = () => {
+    setShowReactFlow(!showReactFlow);
+  };
 
   useEffect(() => {
     fetch(databaseUrl + `networks/${networkID}/devices`)
@@ -80,7 +101,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
         // console.log(data);
         setNetworkData(data);
       });
-  }, []);
+  }, [networkID]);
 
   useEffect(() => {
     let newNodes = [];
@@ -111,25 +132,17 @@ const LayoutFlow = (params: LayoutFlowProps) => {
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [networkData]);
 
-  const onLayout = useCallback(
-    (direction: any) => {
-      const layouted = getLayoutedElements(nodes, edges, { direction });
+  }, [networkData, setEdges, setNodes]);
 
-      setNodes([...layouted.nodes]);
-      setEdges([...layouted.edges]);
+  useEffect(() => {
+    if (nodes.length > 0 && edges.length > 0 && num < maxNum) {
+            onLayout('LR');
+            onLayout('TB');
+            setNum(num +1)
+    }
+  }, [nodes, edges, onLayout, num]);
 
-      window.requestAnimationFrame(() => {
-        fitView();
-      });
-    },
-    [nodes, edges]
-  );
-
-  const toggleReactFlowVisibility = () => {
-    setShowReactFlow(!showReactFlow);
-  };
 
   return (
       <ReactFlow
