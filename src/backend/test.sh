@@ -1,1 +1,0 @@
-curl -H 'Auth-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHBpcnkiOiIzMC8wOS8yMDIzLzA3LzMyLzIzIn0.lj9mALaVVqxY-KoUDdAZJWRfNMI7hEo3iBqKLtAgDa8'  http://127.0.0.1:5000/networks

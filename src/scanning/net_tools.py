@@ -386,6 +386,8 @@ def vertical_traceroute(devices, dhcp_server_info, iface, target_host="8.8.8.8")
             if mac == None:
                 continue
 
+            print(devices[mac])
+            print(traceroute_results[i+1])
             if mac in devices.keys():
                 devices[mac].parent = traceroute_results[i+1]
                 continue

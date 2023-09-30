@@ -53,14 +53,14 @@ def require_auth(func):
     @wraps(func)
     def decorated(*args, **kwargs):
         
-        token = None
+        auth = None
         if "Auth-Token" in request.headers:
-            token = request.headers["Auth-Token"]
+            auth = request.headers["Auth-Token"]
         else:
             return "Authentication token not in request headers.", 401
 
         try:
-            request_payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            request_payload = jwt.decode(auth, app.config['SECRET_KEY'], algorithms=["HS256"])
             
             # Checks auth token contents
             if "user_id" not in request_payload.keys():
@@ -185,7 +185,7 @@ def save_network(user_id):
 
 # TODO - These ones are GETS just for testing purposes at the minute, so I can test them
 # in browser while the frontend isnt hooked up, will be POST
-@app.get("/networks/<network_id>/rename/<new_name>")
+@app.post("/networks/<network_id>/rename/<new_name>")
 @require_auth
 def rename_network(user_id, network_id, new_name):
 
@@ -193,7 +193,7 @@ def rename_network(user_id, network_id, new_name):
 
 
 # Deletes a network and all related devices from the database
-@app.get("/networks/<network_id>/delete")
+@app.post("/networks/<network_id>/delete")
 @require_auth
 def delete_network(user_id, network_id):
 

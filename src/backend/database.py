@@ -130,7 +130,7 @@ class PostgreSQL_database:
         if not self.__save_devices(network_id, devices, timestamp):
             return self.err_codes["db_error"]
         
-        if not self.__set_n_alive(id, len(devices)):
+        if not self.__set_n_alive(network_id, len(devices)):
             return self.err_codes["db_error"]
         
         return self.err_codes["success"]
@@ -140,7 +140,7 @@ class PostgreSQL_database:
     def __register_network(self, user_id, network):
 
         query = """
-                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive, user_id)
+                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive, user_id)
                 VALUES (%s, %s, %s, %s, %s, %s);
                 """
         
