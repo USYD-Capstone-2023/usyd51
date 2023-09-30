@@ -256,7 +256,7 @@ class PostgreSQL_database:
     def get_networks(self, user_id):
 
         query = """
-                SELECT id, gateway_mac, name, ssid, n_alive
+                SELECT network_id, gateway_mac, name, ssid, n_alive
                 FROM networks
                 WHERE user_id = %s;
                 """
@@ -275,7 +275,7 @@ class PostgreSQL_database:
         out = []
         for resp in responses:
 
-            net_dict = {"id" : resp[0],
+            net_dict = {"network_id" : resp[0],
                         "gateway_mac": resp[1],
                         "name": resp[2],
                         "ssid": resp[3],
@@ -295,7 +295,7 @@ class PostgreSQL_database:
             return res
 
         query = """
-                SELECT id, gateway_mac, name, ssid, n_alive
+                SELECT network_id, gateway_mac, name, ssid, n_alive
                 FROM networks
                 WHERE network_id = %s and user_id = %s;
                 """
@@ -795,7 +795,7 @@ class PostgreSQL_database:
             if req not in user.keys():
                 return self.err_codes["malformed_user"]
 
-        query = """SELECT user_id, user_id, password, email
+        query = """SELECT user_id, username, password, email
                    FROM users
                    WHERE username = %s AND password = %s;"""
         
@@ -805,10 +805,10 @@ class PostgreSQL_database:
         if not user_dict:
             return self.err_codes["no_user"]
         
-        user = {"user_id" : user_dict[0],
-                "username" : user_dict[0],
-                "password" : user_dict[0],
-                "email" : user_dict[0]}
+        user = {"user_id" : user_dict[0][0],
+                "username" : user_dict[0][1],
+                "password" : user_dict[0][2],
+                "email" : user_dict[0][3]}
 
         return user, 200
     
@@ -825,10 +825,10 @@ class PostgreSQL_database:
         if not user_dict:
             return None
         
-        user = {"user_id" : user_dict[0],
-                "username" : user_dict[0],
-                "password" : user_dict[0],
-                "email" : user_dict[0]}
+        user = {"user_id" : user_dict[0][0],
+                "username" : user_dict[0][1],
+                "password" : user_dict[0][2],
+                "email" : user_dict[0][3]}
 
         return user
     
@@ -976,18 +976,18 @@ class PostgreSQL_database:
         
         init_users = """
                      CREATE TABLE IF NOT EXISTS users
-                        (user_id INTEGER,
-                        username TEXT PRIMARY KEY NOT NULL,
+                        (user_id INTEGER PRIMARY KEY,
+                        username TEXT UNIQUE NOT NULL,
                         password TEXT NOT NULL,
                         email TEXT NOT NULL);              
                     """
 
 
 
-        val =  self.__query(init_networks, ())
+        val = self.__query(init_users, ())
+        val &=  self.__query(init_networks, ())
         val &= self.__query(init_snapshots, ())
         val &= self.__query(init_devices, ())
-        val &= self.__query(init_users, ())
         val &= self.__query(init_settings, ())
 
         if val:

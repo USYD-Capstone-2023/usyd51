@@ -61,31 +61,35 @@ def require_auth(func):
 
         try:
             request_payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            
+            # Checks auth token contents
             if "user_id" not in request_payload.keys():
                 return "No user ID contained in authentication token.", 401
             
             if "expiry" not in request_payload.keys():
                 return "Malformed auth token.", 401
             
+            # Checks if auth token has expired
             if datetime.utcnow() > datetime.strptime(request_payload["expiry"], "%d/%m/%Y/%H/%M/%S"):
                 return "Token has expired, login again", 401
             
-            user = db.get_user(request_payload["user_id"])
-
+            # Checks that there is a corresponding user in the database
+            user = db.get_user_by_id(request_payload["user_id"])
             if not user:
                 return "User doesn't exist.", 401
             
-        except Exception as e:
-
-            print(e)
-
+        # If any error occurs, auth token is invalid
+        except:
             return "Invalid authentication token.", 401
         
+        # Run the decorated function
         return func(user["user_id"], *args, **kwargs)
     
     return decorated
 
 
+# Adds a user into the database, inputted as json:
+# {"username" : , "password" : , "email" : }
 @app.post("/signup")
 def signup():
 
@@ -117,7 +121,7 @@ def login():
 
 
 # Gives basic information about all networks stored in the database, as json:
-# [{gateway_mac, id, name, ssid}, ...]
+# [{gateway_mac : , id : , name : , ssid : }, ...]
 @app.get("/networks")
 @require_auth
 def get_networks(user_id):
@@ -126,7 +130,7 @@ def get_networks(user_id):
 
 
 # Gives basic information about the requested network, as json:
-# {gateway_mac, id, name, ssid}
+# {gateway_mac : , id : , name : , ssid : }
 @app.get("/networks/<network_id>")
 @require_auth
 def get_network(user_id, network_id):

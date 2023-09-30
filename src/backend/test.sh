@@ -1,1 +1,1 @@
-curl -H 'Auth-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpbMSwxLCJjb29sIiwicmVhbEBnbWFpbC5jb20iXSwiZXhwaXJ5IjoiMzAvMDkvMjAyMy8wNy8yMC81NyJ9.4L9a1v938OU6TEUkbDbvd7mT0UNlMvWXkMlhKnWdqw4'  http://127.0.0.1:5000/networks
+curl -H 'Auth-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHBpcnkiOiIzMC8wOS8yMDIzLzA3LzMyLzIzIn0.lj9mALaVVqxY-KoUDdAZJWRfNMI7hEo3iBqKLtAgDa8'  http://127.0.0.1:5000/networks
