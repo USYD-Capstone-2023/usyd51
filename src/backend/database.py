@@ -827,9 +827,24 @@ class PostgreSQL_database:
         return user
     
     
-    # TODO
     def __get_next_user_id(self):
-        return 1
+        # Gets the ID of users in the database
+        query = """
+                SELECT user_id
+                FROM users;
+                """
+
+        response = self.__query(query, (), res=True)
+        # Case for when there are no networks in the database
+        if not response:
+            return 0
+
+        # Searches for the maximum ID
+        next = -1
+        for r in response:
+            next = max(next, r[0])
+
+        return next + 1
 
 
     def add_user(self, user):
