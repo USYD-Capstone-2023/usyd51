@@ -37,30 +37,24 @@ class PostgreSQL_database:
     def __query(self, query, params, res=False):
 
         response = None
-        conn = None
         try:
             # Open db connection
-            conn = psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost")
-            cur = conn.cursor()
-            # Run query
-            cur.execute(query, params)
+            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost") as conn:
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-            # Retrieve result or commit changes if required
-            if res:
-                response = cur.fetchall()
-            else:
-                conn.commit()
+                with conn.cursor() as cur:
+                    # Run query
+                    cur.execute(query, params)
 
-            cur.close()
-            conn.close()
+                    # Retrieve result or commit changes if required
+                    if res:
+                        response = cur.fetchall()
+                    else:
+                        conn.commit()
 
         except Exception as e:
             print(e)
             print(f"{query} % {params}")
-            if conn:
-                cur.close()
-                conn.close()
-
             return False
         
         if res:
@@ -885,32 +879,28 @@ class PostgreSQL_database:
         res = None
         try:
             # Open Database Connection
-            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost")
-            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-            # Create Cursor Object
-            cur = conn.cursor()
-            cur.execute(query, params)
+            with psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost") as conn:
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-            res = cur.fetchone()
+                # Create Cursor Object
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
 
-            # Creates database if it doesnt exist
-            if res == None or len(res) == 0:
+                    res = cur.fetchone()
 
-                query = """
-                        CREATE DATABASE %s;
-                        """ % self.db
+                    # Creates database if it doesnt exist
+                    if res == None or len(res) == 0:
 
-                cur.execute(query)
-                conn.commit()
+                        query = """
+                                CREATE DATABASE %s;
+                                """ % self.db
 
-            cur.close()
-            conn.close()
+                        cur.execute(query)
+                        conn.commit()
 
         except Exception as e:
 
             print(e)
-            if conn:
-                conn.close()
             return False
         
         return True

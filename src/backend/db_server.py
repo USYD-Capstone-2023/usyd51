@@ -1,48 +1,47 @@
 # External
 from flask import Flask, request
-from flask_cors import CORS 
+from flask_cors import CORS
 import jwt
 import sys
 from functools import wraps
 from datetime import timedelta, datetime
 
 # Local
+from config import Config
 from database import PostgreSQL_database
 
 TOKEN_EXPIRY_MINS = 30
 
+app = None
+db = None
+
 app = Flask(__name__)
-CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
-     expose_headers="Auth-Token")
 
-app.secret_key = "Security is my passion. This is secure if you think about it i swear."
+# Load the configuration from the specified config class
+app.config.from_object(Config)
 
+# When run by name, define the app configuration based on command line args
 if len(sys.argv) < 2:
-    print("Please enter 'remote' or 'local'.")
-    sys.exit()
+    print("Please enter either 'remote' or 'local'")
+    sys.exit(-1)
 
 if sys.argv[1] == "remote":
-    # Remote
-    DB_SERVER_ADDR = "192.168.12.104"
+    app.config.from_object("config.RemoteConfig")
 
 elif sys.argv[1] == "local":
-    # Local
-    DB_SERVER_ADDR = "127.0.0.1"
+    app.config.from_object("config.LocalConfig")
+
+elif sys.argv[1] == "testing":
+    app.config.from_object("config.TestingConfig")
 
 else:
-    print("Please enter 'remote' or 'local'.")
-    sys.exit()
+    print("Please enter either 'remote' or 'local'")
+    sys.exit(-1)
 
+CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
+    expose_headers="Auth-Token")
 
-# Db login info
-# TODO add user system, with permissions and logins etc
-database = "networks"
-user = "postgres"
-password = "root"
-
-# Initialises database object
-# Temp login information
-db = PostgreSQL_database(database, user, password)
+db = PostgreSQL_database(app.config["DATABASE_NAME"], "postgres", "root")
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
@@ -183,7 +182,7 @@ def save_network(user_id):
 
 # TODO - These ones are GETS just for testing purposes at the minute, so I can test them
 # in browser while the frontend isnt hooked up, will be POST
-@app.post("/networks/<network_id>/rename/<new_name>")
+@app.put("/networks/<network_id>/rename/<new_name>")
 @require_auth
 def rename_network(user_id, network_id, new_name):
 
@@ -231,5 +230,5 @@ def get_snapshot(user_id, network_id, timestamp):
     return db.get_all_devices(user_id, network_id, timestamp)
 
 
-if __name__ == "__main__":
-    app.run(host=DB_SERVER_ADDR, port=5000)
+if __name__=="__main__":
+    app.run(host=app.config["SERVER_URI"], port=5000)
