@@ -14,7 +14,7 @@ const Sidebar = (props: any) => {
   return (
     <div className="flex justify-between align-center flex-col w-1/8 bg-gray-200 opacity-75 rounded-xl text-gray-900 overflow-hidden">
       <div className="flex flex-col justify-start items-center">
-        <Link to="/">
+        <Link to="/dashboard">
           <Button className="py-10 text-gray-900 shadow-none">
             <LayoutDashboard></LayoutDashboard>
           </Button>
@@ -39,9 +39,11 @@ const Sidebar = (props: any) => {
         <Button className="py-10 text-gray-900 shadow-none">
           <UserCircle></UserCircle>
         </Button>
-        <Button className="py-10 text-gray-900 shadow-none">
-          <LogOut></LogOut>
-        </Button>
+        <Link to="/">
+          <Button className="py-10 text-gray-900 shadow-none">
+            <LogOut></LogOut>
+          </Button>
+        </Link>
       </div>
     </div>
   );
