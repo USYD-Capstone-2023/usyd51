@@ -14,7 +14,7 @@ const Sidebar = (props: any) => {
   return (
     <div className="flex justify-between align-center flex-col w-1/8 bg-gray-200 opacity-75 rounded-xl text-gray-900 overflow-hidden">
       <div className="flex flex-col justify-start items-center">
-        <Link to="/">
+        <Link to="/Dashboard">
           <Button className="py-10 text-gray-900 shadow-none">
             <LayoutDashboard></LayoutDashboard>
           </Button>
