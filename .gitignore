@@ -57,3 +57,6 @@ src/backend/backend
 
 # bun
 src/react-frontend/bun.lockb
+
+# vite
+src/react-frontend/.vite

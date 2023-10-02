@@ -7,6 +7,15 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { databaseUrl, scannerUrl } from "@/servers";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"
+  
+
 
 const user_id = 0;
 const settings_json = {"user_id" : 0,
@@ -47,6 +56,7 @@ const SettingsMenu = (props: any) => {
     const [macvendorSetting, setMacVendor ] = useState(settings_json["run_mac_vendor"]);
     const [traceSetting, setTrace ] = useState(settings_json["run_trace"]);
     const [verttraceSetting, setVertTrace ] = useState(settings_json["run_vertical_trace"]);
+    const [defaultviewSetting, setDefaultView ] = useState(settings_json["defaultView"])
 
     useEffect(() => {
         fetch(`${databaseUrl}/settings/0`)
@@ -99,6 +109,27 @@ const SettingsMenu = (props: any) => {
                                     <SettingsSwitch switchName="MAC Vendor Scan" settingname="run_mac_vendor" c={macvendorSetting} onc={setMacVendor} />
                                     <SettingsSwitch switchName="Traceroute" settingname="run_trace" c={traceSetting} onc={setTrace} />
                                     <SettingsSwitch switchName="Vertical Traceroute" settingname="run_vertical_trace" c={verttraceSetting} onc={setVertTrace} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="w-full">
+                            <CardHeader>
+                                <CardTitle className="text-left">View</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex justify-start items-center flex-wrap">
+                                    <div className="flex flex-col items-baseline justify-start space-y-2 w-1/3 p-4 m-0">
+                                        <Label>Default View</Label>
+                                        <Select defaultValue={defaultviewSetting} onValueChange={(value) => {setDefaultView(value); settings_json["defaultView"] = value; fetch(`${databaseUrl}/settings/${user_id}/set`, {method: 'PUT', mode: 'cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings_json)})}}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={defaultviewSetting} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Hierarchical">Hierarchical</SelectItem>
+                                                <SelectItem value="Cluster">Cluster</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
