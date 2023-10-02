@@ -7,17 +7,18 @@ from datetime import datetime
 class PostgreSQL_database:
 
     # Standard error codes and messages
-    err_codes = {"success" : ("Success.", 200),
-                "no_network" : ("Network with given ID is not present in the database.", 500),
-                "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 501),
-                "no_user" : ("User with given ID is not present in the database.", 502),
-                "malformed_network" : ("Provided network information is malformed.", 503),
-                "malformed_settings" : ("Provided settings information is malformed.", 504),
-                "malformed_device" : ("Provided device information is malformed.", 505),
-                "malformed_user" : ("Provided user information is malformed.", 506),
-                "dup_user" : ("A user with that username already exists.", 507),
-                "db_error" : ("The database server encountered an error, please try again.", 508),
-                "no_access" : ("Current user does not have access to this resource.", 401)}
+    err_codes = {"success" : ["Success.", 200],
+                "no_network" : ["Network with given ID is not present in the database.", 500],
+                "no_snapshot" : ["There is no snapshot of the given network taken at the given time.", 501],
+                "no_user" : ["User with given ID is not present in the database.", 502],
+                "malformed_network" : ["Provided network information is malformed.", 503],
+                "malformed_settings" : ["Provided settings information is malformed.", 504],
+                "malformed_device" : ["Provided device information is malformed.", 505],
+                "malformed_user" : ["Provided user information is malformed.", 506],
+                "dup_user" : ["A user with that username already exists.", 507],
+                "db_error" : ["The database server encountered an error, please try again.", 508],
+                "bad_input" : ["Input was not numeric.", 509],
+                "no_access" : ["Current user does not have access to this resource.", 401]}
 
 
     def __init__(self, database, user, password):
@@ -67,6 +68,9 @@ class PostgreSQL_database:
         
 
     def save_network(self, user_id, network):
+
+        if not type(user_id) == int:
+            return self.err_codes["bad_input"]
 
         # Ensures given network data is correctly formed
         required = {"network_id" : int,
@@ -187,6 +191,9 @@ class PostgreSQL_database:
     # Deletes a network from the database
     def delete_network(self, user_id, network_id):
 
+        if not type(user_id) == int | type(network_id) == int:
+            return self.err_codes["bad_input"]
+
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res[1] != 200:
@@ -227,6 +234,9 @@ class PostgreSQL_database:
     # Checks if the current network exists in the database
     def validate_network_access(self, user_id, network_id):
 
+        if not type(user_id) == int | type(network_id) == int:
+            return self.err_codes["bad_input"]
+        
         if network_id == -1:
             return self.err_codes["success"]
 
@@ -252,6 +262,9 @@ class PostgreSQL_database:
     # Returns a list of all networks accessible to the given user
     def get_networks(self, user_id):
 
+        if not type(user_id) == int:
+            return self.err_codes["bad_input"]
+        
         query = """
                 SELECT network_id, gateway_mac, name, ssid, n_alive
                 FROM networks
@@ -286,6 +299,9 @@ class PostgreSQL_database:
     # Returns all basic information associated with a network
     def get_network(self, user_id, network_id):
 
+        if not type(user_id) == int | type(network_id) == int:
+            return self.err_codes["bad_input"]
+        
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res[1] != 200:
@@ -316,6 +332,9 @@ class PostgreSQL_database:
     # Allows users to rename a network and all device data
     def rename_network(self, user_id, network_id, new_name):
 
+        if not type(user_id) == int | type(network_id) == int | new_name == "":
+            return self.err_codes["bad_input"]
+
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res[1] != 200:
@@ -341,6 +360,9 @@ class PostgreSQL_database:
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, user_id, network_id, timestamp=None):
 
+        if not type(user_id) == int | type(network_id) == int:
+            return self.err_codes["bad_input"]
+        
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res[1] != 200:
@@ -541,6 +563,9 @@ class PostgreSQL_database:
     # There is a pair corresponding to each individual time a scan has been conducted.
     def get_snapshots(self, user_id, network_id):
 
+        if not type(user_id) == int | type(network_id) == int:
+            return self.err_codes["bad_input"]
+        
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res[1] != 200:
@@ -572,6 +597,9 @@ class PostgreSQL_database:
     # Checks if a certain snapshot exists for the given network
     def contains_snapshot(self, network_id, timestamp):
 
+        if not type(network_id) == int:
+            return self.err_codes["bad_input"]
+        
         query = """
                 SELECT 1
                 FROM snapshots
@@ -589,6 +617,9 @@ class PostgreSQL_database:
 
     # Retrieves a user's settings from database
     def get_settings(self, user_id):
+
+        if not type(user_id) == int:
+            return self.err_codes["bad_input"]
 
         # Checks that requested user exists in the database
         if not self.__contains_settings(user_id):
@@ -645,6 +676,9 @@ class PostgreSQL_database:
 
     # Sets the scan and preference settings for a given user
     def set_settings(self, user_id, settings):
+
+        if not type(user_id) == int:
+            return self.err_codes["bad_input"]
 
         # Ensures input type is correct
         if type(settings) != dict:
@@ -811,6 +845,9 @@ class PostgreSQL_database:
     
 
     def get_user_by_id(self, user_id):
+
+        if not type(user_id) == int:
+            return None
 
         query = """SELECT user_id, username, password, email
                    FROM users

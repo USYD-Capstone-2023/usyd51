@@ -8,7 +8,7 @@ from datetime import timedelta, datetime
 
 # Local
 from config import Config
-from database import PostgreSQL_database
+from database import PostgreSQL_database as pdb
 
 TOKEN_EXPIRY_MINS = 30
 
@@ -41,7 +41,7 @@ else:
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
-db = PostgreSQL_database(app.config["DATABASE_NAME"], "postgres", "root")
+db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
@@ -57,6 +57,7 @@ def require_auth(func):
             auth = request.headers["Auth-Token"]
         else:
             return "Authentication token not in request headers.", 401
+        
 
         try:
             request_payload = jwt.decode(auth, app.config['SECRET_KEY'], algorithms=["HS256"])
@@ -78,7 +79,7 @@ def require_auth(func):
                 return "User doesn't exist.", 401
             
         # If any error occurs, auth token is invalid
-        except:
+        except Exception as e:
             return "Invalid authentication token.", 401
         
         # Run the decorated function
@@ -87,13 +88,22 @@ def require_auth(func):
     return decorated
 
 
+def to_ints(vals):
+    for i in range(len(vals)):
+        try:
+            vals[i] = int(vals[i])
+        except:
+            return None
+        
+    return vals
+            
+
+
 # Adds a user into the database, inputted as json:
 # {"username" : , "password" : , "email" : }
 @app.post("/signup")
 def signup():
-
     user_data = request.get_json()
-
     res = db.add_user(user_data)
     if res[1] != 200:
         return res
@@ -105,9 +115,7 @@ def signup():
 # {"username" : , "password" : }
 @app.post("/login")
 def login():
-
     user_data = request.get_json()
-
     res = db.get_user_by_login(user_data)
     if res[1] != 200:
         return res[0], 401
@@ -124,7 +132,6 @@ def login():
 @app.get("/networks")
 @require_auth
 def get_networks(user_id):
-
     ret = db.get_networks(user_id)
     return ret[0], ret[1] 
 
@@ -134,8 +141,11 @@ def get_networks(user_id):
 @app.get("/networks/<network_id>")
 @require_auth
 def get_network(user_id, network_id):
+    args = to_ints([network_id])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
 
-    ret = db.get_network(user_id, network_id)
+    ret = db.get_network(user_id, args[0])
     return ret[0], ret[1] 
 
 
@@ -143,8 +153,11 @@ def get_network(user_id, network_id):
 @app.get("/networks/<network_id>/devices")
 @require_auth
 def get_devices(user_id, network_id):
-    
-    ret = db.get_all_devices(user_id, network_id)
+    args = to_ints([network_id])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+
+    ret = db.get_all_devices(user_id, args[0])
     return ret[0], ret[1] 
 
 
@@ -192,8 +205,11 @@ def save_network(user_id):
 @app.put("/networks/<network_id>/rename/<new_name>")
 @require_auth
 def rename_network(user_id, network_id, new_name):
-
-    ret = db.rename_network(user_id, network_id, new_name)
+    args = to_ints([network_id])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+    
+    ret = db.rename_network(user_id, args[0], new_name)
     return ret[0], ret[1] 
 
 
@@ -201,8 +217,11 @@ def rename_network(user_id, network_id, new_name):
 @app.post("/networks/<network_id>/delete")
 @require_auth
 def delete_network(user_id, network_id):
-
-    ret = db.delete_network(user_id, network_id)
+    args = to_ints([network_id])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+    
+    ret = db.delete_network(user_id, args[0])
     return ret[0], ret[1] 
 
 
@@ -229,8 +248,11 @@ def set_settings(user_id):
 @app.get("/networks/<network_id>/snapshots")
 @require_auth
 def get_snapshots(user_id, network_id):
-
-    ret = db.get_snapshots(user_id, network_id)
+    args = to_ints([network_id])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+    
+    ret = db.get_snapshots(user_id, args[0])
     return ret[0], ret[1] 
 
 
@@ -238,8 +260,11 @@ def get_snapshots(user_id, network_id):
 @app.get("/networks/<network_id>/snapshots/<timestamp>")
 @require_auth
 def get_snapshot(user_id, network_id, timestamp):
-    
-    ret = db.get_all_devices(user_id, network_id, timestamp)
+    args = to_ints([network_id, timestamp])
+    if not args:
+        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+
+    ret = db.get_all_devices(user_id, args[0], args[1])
     return ret[0], ret[1] 
 
 

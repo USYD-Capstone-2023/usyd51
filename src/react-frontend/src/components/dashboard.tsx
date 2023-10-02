@@ -48,7 +48,7 @@ const Dashboard = (props: any) => {
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
 
-    fetch(databaseUrl + "/networks", options)
+    fetch(databaseUrl + "networks", options)
       .then((res) => res.json())
       .then((data) => {
         let network_list = [];
