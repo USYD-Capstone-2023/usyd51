@@ -101,6 +101,8 @@ def signup():
     return "Success.", 200
 
 
+# Logs in a user, returns an authentication token to authenticate further access:
+# {"username" : , "password" : }
 @app.post("/login")
 def login():
 

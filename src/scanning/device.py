@@ -12,19 +12,22 @@ class Device:
     parent = default
     ports = []
 
+
     # Required not null fields
     def __init__(self, ip, mac):
         self.ip = ip
         self.mac = mac
 
+
+    # Returns a json interpretation of the device
     def to_json(self):
 
-        return {"mac" : self.mac, 
-                "ip" : self.ip, 
+        return {"mac"        : self.mac, 
+                "ip"         : self.ip, 
                 "mac_vendor" : self.mac_vendor, 
-                "os_family" : self.os_family, 
-                "os_vendor" : self.os_vendor, 
-                "os_type" : self.os_type, 
-                "hostname" : self.hostname, 
-                "parent" : self.parent, 
-                "ports" : self.ports}
+                "os_family"  : self.os_family, 
+                "os_vendor"  : self.os_vendor, 
+                "os_type"    : self.os_type, 
+                "hostname"   : self.hostname, 
+                "parent"     : self.parent, 
+                "ports"      : self.ports}
