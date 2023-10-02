@@ -103,7 +103,7 @@ def get_settings(auth):
 # Checks if a given network ID is valid and numeric
 def validate_network_id(network_id):
 
-    if network_id.isnumeric() or (network_id[0] == '-' and network_id[1:].isnumeric()):
+    if network_id.isnumeric() or network_id == "-1":
         return int(network_id)
     else:
         return None

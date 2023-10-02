@@ -1,8 +1,23 @@
 # scan_interface.py Documentation #
 
+The scan interface is run as a server that can be located either locally, or remotely on another network.
+It can be run in either "local" or "remote" mode, where local means that the database server is being served on "127.0.0.1:5000", and remote means the server is located at "192.168.12.104:5000" (Access with wireguard).
+
+Either mode can be run as:
+
+```bash
+sudo python3 scan_interface.py local
+```
+
+or
+
+```bash
+sudo python3 scan_interface.py remote
+```
+
 ## Settings ##
 
-There is a settings file stored at ```src/scanning/settings.json```, that dictates the specific behaviour of each scan, namely which scans are run and what paramters are used. In the event that the settings file becomes malformed or invalid, it will be substituted with the default one seen below:
+Each user in the database has a collection of settings associated with them to dictate the behaviour of scans, and some frontend preferences. In the event that the settings file becomes malformed or invalid, it will be substituted with the default one seen below:
 ```json
 {
     "TCP":true,
@@ -23,6 +38,8 @@ There is a settings file stored at ```src/scanning/settings.json```, that dictat
 }
 ```
 
+The default settings are also given to new users.
+
 ## Scan Network ##
 
 ### Description ###
@@ -42,9 +59,51 @@ There is an optional *network_id* parameter, which can be given to indicate that
 
 ### Usage ###
 
-```bash
-python3 scan_interface.py scan_network [network_id]
+```json
+"POST /scan/<network_id>"
+headers={"Auth-Token" : The user's authentication token}
 ```
+
+### Return Format ###
+
+If no authentication token is supplied:
+
+```json
+"Authentication token not in request headers.", 401
+```
+
+If an invalid authentication token is supplied, or the token doesnt grant required access:
+
+```json
+"Current user does not have access to this resource.", 401
+"Authentication token not in request headers.", 401
+"No user ID contained in authentication token.", 401
+"Malformed auth token.", 401
+"Token has expired, login again", 401
+"User doesn't exist.", 401
+"Invalid authentication token.", 401
+```
+as appropriate.
+
+If the network ID is invalid (i.e. not a positive integer):
+
+```json
+"Invalid network ID entered.", 500
+```
+
+If there is a failure in the settings system (this shouldnt occur, and only happens if the database fumbles the settings even after a settings reset):
+
+```json
+"Malformed settings, automatic reset has failed. Please contact system administrator.", 500
+```
+
+### Post Conditions ###
+
+- If the authentication token and network format are valid, the network will be added into the database under the user's name to be accessed later.
+- If the network was given with an ID of -1, it will be given the next available ID by the database.
+- If the network was given with an ID that is already taken by the current network, it will be added as a snapshot for that network.
+- If the network was given with an ID that isnt taken, it will be stored under that ID.
+- The system will give a HTTP 401 Unauthorized if the user attempts to save a network to a network ID that is held by another user.
 
 ## Get Current SSID ##
 
@@ -54,15 +113,14 @@ Retrieves the SSID of the network that the user is currently connected to from e
 
 ### Usage ###
 
-```bash
-python3 scan_interface.py ssid
+```json
+"GET /ssid"
 ```
 
 ### Return Format ###
 
-Currently just prints SSID, need to use FIFOs or similar to communicate the result to Node.
 ```json
-<SSID>
+SSID, 200
 ```
 
 ## Get DHCP Server Info ##
@@ -73,13 +131,11 @@ Retrieves the DHCP server information for the current network.
 
 ### Usage ###
 
-```bash
-python3 scan_interface.py dhcp
+```json
+"GET /dhcp"
 ```
 
 ### Return Format ###
-
-Currently just prints, need to use FIFOs or similar to communicate the result to Node.
 
 ```json
 {
@@ -87,5 +143,5 @@ Currently just prints, need to use FIFOs or similar to communicate the result to
     "iface"      : default interface,
     "subnet_mask": network's subnet mask,
     "domain"     : domain name,
-}
+}, 200
 ```

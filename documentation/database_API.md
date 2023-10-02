@@ -117,7 +117,7 @@ headers={"Auth-Token" : User's auth token}
     "gateway_mac" : MAC address of the network's gateway,
     "name"        : the network's human name,
     "ssid"        : the network's SSID
-} 
+}, 200
 ```
 
 or 
@@ -155,7 +155,7 @@ headers={"Auth-Token" : User's auth token}
         "parent"     : the IP of the device's parent node in the routing tree, 
         "ports"      : the ports that are scanned and open on the device
     }, ...
-]
+], 200
 
 ```
 
@@ -284,7 +284,7 @@ headers={"Auth-Token" : User's auth token}
     "iface"      : default interface,
     "subnet_mask": network's subnet mask,
     "domain"     : domain name,
-}
+}, 200
 ```
 
 
@@ -363,8 +363,18 @@ headers={"Auth-Token" : User's auth token}
     "defaultNodeColour"       : (string) Node colour,
     "defaultEdgeColour"       : (string) edge colour,
     "defaultBackgroundColour" : (string) background colour
-}
+}, 200
 ```
+
+or 
+
+```json
+"no_user" : ("User with given ID is not present in the database.", 502),
+"malformed_settings" : ("Provided settings information is malformed.", 504),
+"db_error" : ("The database server encountered an error, please try again.", 508)
+```
+
+as appropriate.
 
 ## Update/Set Settings ##
 
