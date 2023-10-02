@@ -125,7 +125,8 @@ def login():
 @require_auth
 def get_networks(user_id):
 
-    return db.get_networks(user_id)
+    ret = db.get_networks(user_id)
+    return ret[0], ret[1] 
 
 
 # Gives basic information about the requested network, as json:
@@ -134,7 +135,8 @@ def get_networks(user_id):
 @require_auth
 def get_network(user_id, network_id):
 
-    return db.get_network(user_id, network_id)
+    ret = db.get_network(user_id, network_id)
+    return ret[0], ret[1] 
 
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
@@ -142,7 +144,8 @@ def get_network(user_id, network_id):
 @require_auth
 def get_devices(user_id, network_id):
     
-    return db.get_all_devices(user_id, network_id)
+    ret = db.get_all_devices(user_id, network_id)
+    return ret[0], ret[1] 
 
 
 # Adds a network network to the database, along with its attributes and devices
@@ -150,7 +153,9 @@ def get_devices(user_id, network_id):
 @require_auth
 def save_network(user_id):
     network = request.get_json()
-    return db.save_network(user_id, network)
+    ret = db.save_network(user_id, network)
+    print(f"r0{ret[0]} r1{ret[1]}")
+    return ret[0], ret[1]
 
 
 # Updates the most recent scan data of an existing network in the database, 
@@ -188,7 +193,8 @@ def save_network(user_id):
 @require_auth
 def rename_network(user_id, network_id, new_name):
 
-    return db.rename_network(user_id, network_id, new_name)
+    ret = db.rename_network(user_id, network_id, new_name)
+    return ret[0], ret[1] 
 
 
 # Deletes a network and all related devices from the database
@@ -196,7 +202,8 @@ def rename_network(user_id, network_id, new_name):
 @require_auth
 def delete_network(user_id, network_id):
 
-    return db.delete_network(user_id, network_id)
+    ret = db.delete_network(user_id, network_id)
+    return ret[0], ret[1] 
 
 
 # Retrieves the logged in user's settings json from the database
@@ -204,7 +211,8 @@ def delete_network(user_id, network_id):
 @require_auth
 def get_settings(user_id):
 
-    return db.get_settings(user_id)
+    ret = db.get_settings(user_id)
+    return ret[0], ret[1] 
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
@@ -213,7 +221,8 @@ def get_settings(user_id):
 def set_settings(user_id):
 
     settings = request.get_json()
-    return db.set_settings(user_id, settings)
+    ret = db.set_settings(user_id, settings)
+    return ret[0], ret[1] 
 
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
@@ -221,7 +230,8 @@ def set_settings(user_id):
 @require_auth
 def get_snapshots(user_id, network_id):
 
-    return db.get_snapshots(user_id, network_id)
+    ret = db.get_snapshots(user_id, network_id)
+    return ret[0], ret[1] 
 
 
 # Retrieves a specific snapshot of a network at a point in time
@@ -229,7 +239,8 @@ def get_snapshots(user_id, network_id):
 @require_auth
 def get_snapshot(user_id, network_id, timestamp):
     
-    return db.get_all_devices(user_id, network_id, timestamp)
+    ret = db.get_all_devices(user_id, network_id, timestamp)
+    return ret[0], ret[1] 
 
 
 if __name__=="__main__":

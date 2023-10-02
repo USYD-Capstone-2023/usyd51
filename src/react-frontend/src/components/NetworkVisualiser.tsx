@@ -109,8 +109,9 @@ const LayoutFlow = (params: LayoutFlowProps) => {
           return res.json();
         } else {
           console.log("Error " + res.status);
+          return null
         }}).then((data) => {
-          if (data) {
+          if (data != null) {
             setNetworkData(data);
           }
       });

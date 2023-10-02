@@ -116,12 +116,15 @@ def run_scan(network_id, args, auth):
     network = nt.scan(lb, tp, network_id, *args)
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
-            return res.content, res.status_code
+        return res.content, res.status_code
 
-    return "success", 200
+    return res[0], 200
 
 
 def verify_current_connection(network_id, auth):
+
+    if network_id == -1:
+        return "Valid", 200
 
     network = requests.get(DB_SERVER_URL + "/networks/%s" % (network_id), headers={"Auth-Token" : auth})
     

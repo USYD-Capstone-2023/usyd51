@@ -36,7 +36,6 @@ const columns: ColumnDef<NetworkItem>[] = [
 
 const ListView = () => {
     const { networkID } = useParams();
-    //const networkID = 0;
     const [ networkDevices, setNetworkDevices] = useState<NetworkItem[]>([]);
     useEffect(() => {
         const authToken = localStorage.getItem("Auth-Token");
@@ -45,12 +44,23 @@ const ListView = () => {
             return;
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-        fetch(databaseUrl + "networks/" + networkID + "/devices", options).then((res)=>(res.json())).then((data) => {
-            setNetworkDevices(data);
-            //console.log(data);
-        })
-    }, [])
-    console.log(networkDevices)
+        fetch(databaseUrl + `networks/${networkID}/devices`, options)
+          .then((res) => {
+    
+            if (res.status === 200) {
+              console.log("Success!");
+              return res.json();
+            } else {
+              console.log("Error " + res.status);
+              return null
+            }}).then((data) => {
+              if (data != null) {
+                setNetworkDevices(data);
+              }
+          });
+      }, [networkID]);
+    
+      console.log(networkDevices);
 
    return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">

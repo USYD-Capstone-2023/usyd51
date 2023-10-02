@@ -28,8 +28,16 @@ export default function NewNetwork() {
     const options = {method: "POST", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
 
     fetch(scannerUrl + "scan/-1", options)
-      .then((res) => res.text())
+      .then((res) => {
+        if (res.status === 200) {
+          return res.json();
+
+        } else {
+          console.log("Error");
+          return {};
+        }})
       .then((id) => {
+        console.log(id);
         setNetworkId(parseInt(id));
       });
   }, []);

@@ -127,7 +127,7 @@ class PostgreSQL_database:
         if not self.__set_n_alive(network_id, len(devices)):
             return self.err_codes["db_error"]
         
-        return self.err_codes["success"]
+        return network_id, 200
     
 
     # Adds a network to the database
@@ -226,6 +226,9 @@ class PostgreSQL_database:
 
     # Checks if the current network exists in the database
     def validate_network_access(self, user_id, network_id):
+
+        if network_id == -1:
+            return self.err_codes["success"]
 
         query = """
                 SELECT user_id
