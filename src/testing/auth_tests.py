@@ -428,7 +428,8 @@ class auth_tests(unittest.TestCase):
         
         token = res.content.decode("utf-8")
         res = requests.put("http://" + TestingConfig.SERVER_URI + ":5000/settings/set", 
-                           headers={"Auth-Token" : token})
+                           headers={"Auth-Token" : token},
+                           json={})
         
         assert res.status_code != pdb.err_codes["no_access"][1]
 
