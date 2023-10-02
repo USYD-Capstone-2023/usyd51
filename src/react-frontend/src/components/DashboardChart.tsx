@@ -19,16 +19,30 @@ const DashboardChart = () => {
     ]);
 
     useEffect(() => {
-        fetch(databaseUrl + "/networks/0/snapshots").then(res => res.json()).then((data) => {
-            data.forEach((element: any) => {
-                const date = new Date(element.timestamp*1000);
-                const hours = date.getHours().toString().padStart(2,'0');
-                const minutes = date.getMinutes().toString().padStart(2,'0');
-                element.time = hours + ":" + minutes;
+        const authToken = localStorage.getItem("Auth-Token");
+        if (authToken == null) {
+            console.log("User is logged out!");
+            return;
+        }
+        const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+        fetch(databaseUrl + "networks/0/snapshots", options).then((res) => {
+
+            if (res.status === 200) {
+                return res.json();
+            } else {
+                console.log("Error " + res.status);
+                return [];
+            }}).then((data) => {
+
+                data.forEach((element: any) => {
+                    const date = new Date(element.timestamp*1000);
+                    const hours = date.getHours().toString().padStart(2,'0');
+                    const minutes = date.getMinutes().toString().padStart(2,'0');
+                    element.time = hours + ":" + minutes;
+                })
+                setData(data);
             })
-            setData(data);
-        })
-    }, [])
+        }, [])
 
 
 

@@ -95,11 +95,24 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   };
 
   useEffect(() => {
-    fetch(databaseUrl + `networks/${networkID}/devices`)
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log(data);
-        setNetworkData(data);
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+        console.log("User is logged out!");
+        return;
+    }
+    const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+    fetch(databaseUrl + `networks/${networkID}/devices`, options)
+      .then((res) => {
+
+        if (res.status === 200) {
+          console.log("Success!");
+          return res.json();
+        } else {
+          console.log("Error " + res.status);
+        }}).then((data) => {
+          if (data) {
+            setNetworkData(data);
+          }
       });
   }, [networkID]);
 

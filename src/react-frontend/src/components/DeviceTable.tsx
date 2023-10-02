@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { databaseUrl } from "@/servers";
 import ReactFlow, { Panel } from "reactflow";
 
 
@@ -38,7 +39,13 @@ const ListView = () => {
     //const networkID = 0;
     const [ networkDevices, setNetworkDevices] = useState<NetworkItem[]>([]);
     useEffect(() => {
-        fetch("http://192.168.12.104:5000/networks/" + networkID + "/devices").then((res)=>(res.json())).then((data) => {
+        const authToken = localStorage.getItem("Auth-Token");
+        if (authToken == null) {
+            console.log("User is logged out!");
+            return;
+        }
+        const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+        fetch(databaseUrl + "networks/" + networkID + "/devices", options).then((res)=>(res.json())).then((data) => {
             setNetworkDevices(data);
             //console.log(data);
         })

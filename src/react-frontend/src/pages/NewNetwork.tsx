@@ -19,7 +19,15 @@ export default function NewNetwork() {
   const [networkId, setNetworkId] = useState(-1);
 
   useEffect(() => {
-    fetch(scannerUrl + "scan/-1")
+
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+        console.log("User is logged out!");
+        return;
+    }
+    const options = {method: "POST", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+
+    fetch(scannerUrl + "scan/-1", options)
       .then((res) => res.text())
       .then((id) => {
         setNetworkId(parseInt(id));

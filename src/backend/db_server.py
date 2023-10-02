@@ -116,7 +116,7 @@ def login():
     token = jwt.encode({"user_id" : res[0]["user_id"], "expiry" : exp},
                         app.config["SECRET_KEY"], algorithm="HS256")
     
-    return token, 200
+    return {"Auth-Token" : token}, 200
 
 
 # Gives basic information about all networks stored in the database, as json:

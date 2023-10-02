@@ -8,8 +8,13 @@ import { databaseUrl } from "../../servers.tsx";
 // Mock async data fetching function
 async function fetchData(): Promise<Payment[]> {
   // Simulate an API call or fetch data from your source
-
-  let retval = fetch(databaseUrl + "networks")
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+      console.log("User is logged out!");
+      return [];
+  }
+  const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+  let retval = fetch(databaseUrl + "networks", options)
     .then((res) => res.json())
     .then((data) => {
       let retval = [];

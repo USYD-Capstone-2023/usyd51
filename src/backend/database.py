@@ -240,7 +240,7 @@ class PostgreSQL_database:
         if not response or len(response) == 0:
             return self.err_codes["no_network"]
         
-        if response[0] != user_id:
+        if response[0][0] != user_id:
             return self.err_codes["no_access"]
         
         return self.err_codes["success"]
