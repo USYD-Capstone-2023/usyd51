@@ -54,7 +54,7 @@ const ListView = () => {
                     console.log(data["status"] + " " + data["message"])
                 }
             });
-        }, [networkID]);
+        }, []);
     
    return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">

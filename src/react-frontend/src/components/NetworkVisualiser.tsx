@@ -113,7 +113,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
           console.log(data["status"] + " " + data["message"]);
         }
       });
-  }, [networkID]);
+  }, []);
 
   useEffect(() => {
     let newNodes = [];

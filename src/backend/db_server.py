@@ -171,7 +171,7 @@ def get_devices(user_id, network_id):
 def save_network(user_id):
     network = request.get_json()
     ret = db.save_network(user_id, network)
-    return create_response(ret)
+    return create_response(*ret)
 
 
 # Updates the most recent scan data of an existing network in the database, 
@@ -213,7 +213,7 @@ def rename_network(user_id, network_id, new_name):
         return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
     ret = db.rename_network(user_id, args[0], new_name)
-    return create_response(ret)
+    return create_response(*ret)
 
 
 # Deletes a network and all related devices from the database
@@ -272,4 +272,4 @@ def get_snapshot(user_id, network_id, timestamp):
 
 
 if __name__=="__main__":
-    app.run(host=app.config["SERVER_URI"], port=5002)
+    app.run(host=app.config["SERVER_URI"], port=app.config["SERVER_PORT"])
