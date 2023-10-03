@@ -272,4 +272,4 @@ def get_snapshot(user_id, network_id, timestamp):
 
 
 if __name__=="__main__":
-    app.run(host=app.config["SERVER_URI"], port=5000)
+    app.run(host=app.config["SERVER_URI"], port=5002)
