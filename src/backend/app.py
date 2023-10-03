@@ -1,12 +1,44 @@
 # External
 from flask import Flask, request
 from flask_cors import CORS 
+import sys
 
 # Local
 from database import PostgreSQL_database
 
 app = Flask(__name__)
 CORS(app)
+
+# stub data for settings prototyping
+settings_json = {"user_id" : 0,
+               "TCP" : False,
+               "UDP" : False,
+               "ports" : [],
+               "run_ports" : False,
+               "run_os" : False,
+               "run_hostname" : False,
+               "run_mac_vendor" : False,
+               "run_trace" : False,
+               "run_vertical_trace" : False,
+               "defaultView" : "Hierarchical",
+               "defaultNodeColour" : "aaffff",
+               "defaultEdgeColour" : "ffaaff",
+               "defaultBackgroundColour" : "ffffaa"}
+if len(sys.argv) < 2:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
+
+if sys.argv[1] == "remote":
+    # Remote
+    DB_SERVER_ADDR = "192.168.12.104"
+
+elif sys.argv[1] == "local":
+    # Local
+    DB_SERVER_ADDR = "127.0.0.1"
+
+else:
+    print("Please enter 'remote' or 'local'.")
+    sys.exit()
 
 
 # Db login info
@@ -49,6 +81,23 @@ def get_devices(network_id):
 def save_network():
     network = request.get_json()
     return db.save_network(network)
+
+# Stub for getting settings data
+@app.get("/getsettings/<user_id>")
+def get_setting(user_id):
+    return settings_json
+
+# Stub for setting settings data
+@app.put("/setsettings/<user_id>/set")
+def set_setting(user_id):
+    settings = request.get_json()
+
+    for setting, status in settings.items():
+        if setting in set(("UDP", "TCP", "run_ports", "run_os", "run_hostname", "run_mac_vendor", "run_trace", "run_vertical_trace")):
+            if status in [True, False]:
+                settings_json[setting] = status
+
+    return ("Success.", 200)
 
 
 # Updates the most recent scan data of an existing network in the database, 
@@ -122,3 +171,7 @@ def get_snapshots(network_id):
 def get_snapshot(network_id, timestamp):
     
     return db.get_all_devices(network_id, timestamp)
+
+
+if __name__ == "__main__":
+    app.run(host=DB_SERVER_ADDR, port=5000)

@@ -9,14 +9,14 @@
 
     color-scheme: light dark;
     color: rgba(255, 255, 255, 0.87);
-    background-color: #f8f9fa;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
-    --background: 231, 15%, 100%;
+    --background: 0, 0%, 92%;
+    
     --foreground: 60, 30%, 10%;
 
     --muted: 232, 14%, 98%;
@@ -44,6 +44,8 @@
     --destructive-foreground: 60, 30%, 96%;
 
     --ring: 225, 27%, 51%;
+
+    background-color: var(--background);
 }
 
 body {
