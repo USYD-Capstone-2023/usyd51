@@ -5,57 +5,32 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { databaseUrl } from "../../servers.tsx";
 
-// Mock async data fetching function
 async function fetchData(): Promise<Payment[]> {
-  // Simulate an API call or fetch data from your source
+  const networks = await fetch(databaseUrl + "networks")
+    .then(res => res.json())
+    .catch(error => {
+      console.error("Error fetching networks:", error);
+      return [];
+    });
+  const retval = [];
 
-  let retval = fetch(databaseUrl + "networks")
-    .then((res) => res.json())
-    .then((data) => {
-      let retval = [];
-      for (let network of data) {
-        let newNetwork = network;
-        newNetwork.encrypted = false;
-        newNetwork.status = "OFFLINE";
-        newNetwork.lastScanned = new Date("1970-1-1");
-        newNetwork.devices = 100;
-        retval.push(newNetwork);
-      }
-      return retval;
-    })
-    .catch(() => []);
+  for (const network of networks) {
+    const devices = await fetch(databaseUrl + `networks/${network.id}/devices`)
+      .then(res => res.json())
+      .catch(error => {
+        console.error("Error fetching devices for network:", network.id, error);
+        return [];
+      });
 
+    retval.push({
+      ...network,
+      encrypted: false,
+      status: "OFFLINE",
+      lastScanned: new Date("1970-1-1"),
+      devices: devices.length,
+    });
+  }
   return retval;
-
-  // return [
-  //   {
-  //     id: "0",
-  //     name: "Home Network",
-  //     ssid: "NETGEAR86",
-  //     devices: 124,
-  //     status: "ONLINE",
-  //     lastScanned: new Date("2023-09-17"),
-  //     encrypted: true,
-  //   },
-  //   {
-  //     id: "1",
-  //     name: "Office Downstairs",
-  //     ssid: "TPG_4208",
-  //     devices: 28,
-  //     status: "ONLINE",
-  //     lastScanned: new Date("2023-09-17"),
-  //     encrypted: true,
-  //   },
-  //   {
-  //     id: "2",
-  //     name: "Office Upstairs",
-  //     ssid: "TPG_4209",
-  //     devices: 192,
-  //     status: "INACTIVE",
-  //     lastScanned: new Date("2023-09-17"),
-  //     encrypted: true,
-  //   },
-  // ];
 }
 
 export default function Table() {
