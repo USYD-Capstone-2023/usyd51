@@ -15,41 +15,27 @@ from scapy.all import (
     # show_interfaces,
     # dev_from_index,
 )
+
 import nmap, netifaces, requests
 
 # Local
-from threadpool import Threadpool
 from job import Job
 from MAC_table import MAC_table
-from loading_bar import Loading_bar
 from device import Device
 from network import Network
 
 # Stdlib
 from platform import system
-import socket, threading, sys, signal, subprocess, os
+import socket, threading, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 25
-BACKEND_URL = "http://127.0.0.1:5000"
+NUM_THREADS = 50
 
-
-def scan(network_id, run_trace, run_hostname, run_vertical_trace,
+def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
          run_mac_vendor, run_os, run_ports, ports):
 
-    ts = datetime.now().timestamp()
-    lb = Loading_bar()
-    tp = Threadpool(NUM_THREADS)
-
-    def cleanup(*args):
-        tp.end()
-        print("Finished cleaning up! Server will now shut down.")
-
-    # Set signal handler to gracefully terminate threadpool on shutdown
-    signal.signal(signal.SIGTERM, cleanup)
-    signal.signal(signal.SIGINT, cleanup)
-
+    ts = int(datetime.now().timestamp())
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
@@ -112,10 +98,7 @@ def scan(network_id, run_trace, run_hostname, run_vertical_trace,
     if run_ports:
         add_ports(devices, tp, lb, iface, ports)
 
-    # Ends threadpool and closes threads
-    cleanup()
-
-    requests.put(BACKEND_URL + "/network/add", json=network.to_json())
+    return network
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
@@ -586,6 +569,7 @@ def get_dhcp_server_info():
         "subnet_mask": subnet_mask,
         "domain": domain,
     }
+
 
 def get_gateway_mac(iface=conf.iface):
 

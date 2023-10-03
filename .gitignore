@@ -51,3 +51,12 @@ Thumbs.db
 *.json
 *.png
 *.tmp
+
+# backend python venv
+src/backend/backend
+
+# bun
+src/react-frontend/bun.lockb
+
+# vite
+src/react-frontend/.vite

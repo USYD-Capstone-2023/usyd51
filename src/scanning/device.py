@@ -19,7 +19,6 @@ class Device:
 
     def to_json(self):
 
-        port_str = "".join(str(x) + "," for x in self.ports)[:-1]
         return {"mac" : self.mac, 
                 "ip" : self.ip, 
                 "mac_vendor" : self.mac_vendor, 
@@ -28,4 +27,4 @@ class Device:
                 "os_type" : self.os_type, 
                 "hostname" : self.hostname, 
                 "parent" : self.parent, 
-                "ports" : port_str}
+                "ports" : self.ports}
