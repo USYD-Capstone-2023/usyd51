@@ -42,16 +42,17 @@ const Login = (props: any) => {
     const login = () => {
         const credentials = {"username" : username, "password" : password};
         const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
-        fetch(databaseUrl + "login", options).then((res) => {
+        fetch(databaseUrl + "login", options)
+            .then((res) => (res.json()))
+            .then((data) => {
 
-            if (res.status === 200) {
-                console.log("Success!");
-                return res.json();
-            } else {
-                console.log("Error " + res.status);
-            }}).then((data) => {
-                localStorage.setItem("Auth-Token", data["Auth-Token"])
-                navigate("/dashboard");
+                if (data["status"] === 200) {
+                    localStorage.setItem("Auth-Token", data["content"]["Auth-Token"])
+                    navigate("/dashboard");
+                
+                } else {
+                    console.log(data["status"] + " " + data["message"]);
+                }
             });
     }
 
@@ -59,13 +60,12 @@ const Login = (props: any) => {
         const credentials = {"username" : username, "password" : password, "email" : "not_implemented"};
         const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
         fetch(databaseUrl + "signup", options).then((res) => {
-
             if (res.status === 200) {
-                console.log("Success!");
                 login();
             } else {
                 console.log("Error " + res.status);
-            }});
+            }
+        });
     }
 
     const handleSubmit = (e: React.SyntheticEvent) => {

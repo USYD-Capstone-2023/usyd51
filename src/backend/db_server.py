@@ -45,6 +45,11 @@ db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
+def create_response(message, code, content=""):
+
+    return {"message" : message, "status" : code, "content" : content}, code
+
+
 # Authentication wrapper
 def require_auth(func):
 
@@ -56,7 +61,7 @@ def require_auth(func):
         if "Auth-Token" in request.headers:
             auth = request.headers["Auth-Token"]
         else:
-            return "Authentication token not in request headers.", 401
+            return create_response("Authentication token not in request headers.", 401)
         
 
         try:
@@ -64,27 +69,26 @@ def require_auth(func):
             
             # Checks auth token contents
             if "user_id" not in request_payload.keys():
-                return "No user ID contained in authentication token.", 401
+                return create_response("No user ID contained in authentication token.", 401)
             
             if "expiry" not in request_payload.keys():
-                return "Malformed auth token.", 401
+                return create_response("Malformed auth token.", 401)
             
             # Checks if auth token has expired
             if datetime.utcnow() > datetime.strptime(request_payload["expiry"], "%d/%m/%Y/%H/%M/%S"):
-                return "Token has expired, login again", 401
+                return create_response("Token has expired, login again", 401)
             
             # Checks that there is a corresponding user in the database
-            user = db.get_user_by_id(request_payload["user_id"])
-            if not user:
-                return "User doesn't exist.", 401
+            res = db.get_user_by_id(request_payload["user_id"])
+            if res[1] != 200:
+                return create_response(*res)
             
         # If any error occurs, auth token is invalid
         except Exception as e:
-            return "Invalid authentication token.", 401
+            return create_response("Invalid authentication token.", 401)
         
         # Run the decorated function
-        return func(user["user_id"], *args, **kwargs)
-    
+        return func(res[2]["user_id"], *args, **kwargs)
     return decorated
 
 
@@ -108,7 +112,7 @@ def signup():
     if res[1] != 200:
         return res
     
-    return "Success.", 200
+    return create_response("Success.", 200)
 
 
 # Logs in a user, returns an authentication token to authenticate further access:
@@ -118,13 +122,13 @@ def login():
     user_data = request.get_json()
     res = db.get_user_by_login(user_data)
     if res[1] != 200:
-        return res[0], 401
+        return create_response(res[0], 401)
     
     exp = (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%d/%m/%Y/%H/%M/%S")
-    token = jwt.encode({"user_id" : res[0]["user_id"], "expiry" : exp},
+    token = jwt.encode({"user_id" : res[2]["user_id"], "expiry" : exp},
                         app.config["SECRET_KEY"], algorithm="HS256")
     
-    return {"Auth-Token" : token}, 200
+    return create_response("Success.", 200, {"Auth-Token" : token})
 
 
 # Gives basic information about all networks stored in the database, as json:
@@ -133,7 +137,7 @@ def login():
 @require_auth
 def get_networks(user_id):
     ret = db.get_networks(user_id)
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Gives basic information about the requested network, as json:
@@ -143,10 +147,10 @@ def get_networks(user_id):
 def get_network(user_id, network_id):
     args = to_ints([network_id])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
 
     ret = db.get_network(user_id, args[0])
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
@@ -155,10 +159,10 @@ def get_network(user_id, network_id):
 def get_devices(user_id, network_id):
     args = to_ints([network_id])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
 
     ret = db.get_all_devices(user_id, args[0])
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Adds a network network to the database, along with its attributes and devices
@@ -167,8 +171,7 @@ def get_devices(user_id, network_id):
 def save_network(user_id):
     network = request.get_json()
     ret = db.save_network(user_id, network)
-    print(f"r0{ret[0]} r1{ret[1]}")
-    return ret[0], ret[1]
+    return create_response(ret)
 
 
 # Updates the most recent scan data of an existing network in the database, 
@@ -207,10 +210,10 @@ def save_network(user_id):
 def rename_network(user_id, network_id, new_name):
     args = to_ints([network_id])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
     ret = db.rename_network(user_id, args[0], new_name)
-    return ret[0], ret[1] 
+    return create_response(ret)
 
 
 # Deletes a network and all related devices from the database
@@ -219,10 +222,10 @@ def rename_network(user_id, network_id, new_name):
 def delete_network(user_id, network_id):
     args = to_ints([network_id])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
     ret = db.delete_network(user_id, args[0])
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Retrieves the logged in user's settings json from the database
@@ -231,7 +234,7 @@ def delete_network(user_id, network_id):
 def get_settings(user_id):
 
     ret = db.get_settings(user_id)
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
@@ -241,7 +244,7 @@ def set_settings(user_id):
 
     settings = request.get_json()
     ret = db.set_settings(user_id, settings)
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
@@ -250,10 +253,10 @@ def set_settings(user_id):
 def get_snapshots(user_id, network_id):
     args = to_ints([network_id])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
     ret = db.get_snapshots(user_id, args[0])
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 # Retrieves a specific snapshot of a network at a point in time
@@ -262,10 +265,10 @@ def get_snapshots(user_id, network_id):
 def get_snapshot(user_id, network_id, timestamp):
     args = to_ints([network_id, timestamp])
     if not args:
-        return pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1]
+        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
 
     ret = db.get_all_devices(user_id, args[0], args[1])
-    return ret[0], ret[1] 
+    return create_response(*ret) 
 
 
 if __name__=="__main__":

@@ -45,23 +45,17 @@ const ListView = () => {
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
         fetch(databaseUrl + `networks/${networkID}/devices`, options)
-          .then((res) => {
+            .then((res) => (res.json()))
+            .then((data) => {
+                if (data["status"] === 200) {
+                    setNetworkDevices(data["content"]);
+                } else {
+                    setNetworkDevices([]);
+                    console.log(data["status"] + " " + data["message"])
+                }
+            });
+        }, [networkID]);
     
-            if (res.status === 200) {
-              console.log("Success!");
-              return res.json();
-            } else {
-              console.log("Error " + res.status);
-              return null
-            }}).then((data) => {
-              if (data != null) {
-                setNetworkDevices(data);
-              }
-          });
-      }, [networkID]);
-    
-      console.log(networkDevices);
-
    return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
 

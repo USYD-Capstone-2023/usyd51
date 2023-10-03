@@ -25,22 +25,22 @@ const DashboardChart = () => {
             return;
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-        fetch(databaseUrl + "networks/0/snapshots", options).then((res) => {
+        fetch(databaseUrl + "networks/0/snapshots", options)
+            .then((res) => (res.json()))
+            .then((data) => {
+                if (data.status === 200) {
+                    data["content"].forEach((element: any) => {
+                        const date = new Date(element.timestamp*1000);
+                        const hours = date.getHours().toString().padStart(2,'0');
+                        const minutes = date.getMinutes().toString().padStart(2,'0');
+                        element.time = hours + ":" + minutes;
+                    })
+                    setData(data["content"]);
 
-            if (res.status === 200) {
-                return res.json();
-            } else {
-                console.log("Error " + res.status);
-                return [];
-            }}).then((data) => {
-
-                data.forEach((element: any) => {
-                    const date = new Date(element.timestamp*1000);
-                    const hours = date.getHours().toString().padStart(2,'0');
-                    const minutes = date.getMinutes().toString().padStart(2,'0');
-                    element.time = hours + ":" + minutes;
-                })
-                setData(data);
+                } else {
+                    setData([]);
+                    console.log(data.status + " " + data["message"]);
+                }
             })
         }, [])
 

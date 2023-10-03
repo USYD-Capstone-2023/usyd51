@@ -102,18 +102,16 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     }
     const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
     fetch(databaseUrl + `networks/${networkID}/devices`, options)
-      .then((res) => {
+      .then((res) => (res.json()))
+      .then((data) => {
 
-        if (res.status === 200) {
-          console.log("Success!");
-          return res.json();
+        if (data["status"] === 200) {
+          setNetworkData(data["content"]);
+
         } else {
-          console.log("Error " + res.status);
-          return null
-        }}).then((data) => {
-          if (data != null) {
-            setNetworkData(data);
-          }
+          setNetworkData([]);
+          console.log(data["status"] + " " + data["message"]);
+        }
       });
   }, [networkID]);
 
