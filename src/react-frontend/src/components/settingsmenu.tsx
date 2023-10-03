@@ -59,21 +59,23 @@ const SettingsMenu = (props: any) => {
     const [defaultviewSetting, setDefaultView ] = useState(settings_json["defaultView"])
 
     useEffect(() => {
-        fetch(`${databaseUrl}/settings/0`)
+        fetch(`${databaseUrl}settings/0`)
             .then((res) => res.json())
             .then((data) => {
-                for (let key in data) {
-                    settings_json[key] = data[key]
-                }
-                setUDP(settings_json["UDP"]);
-                setTCP(settings_json["TCP"]);
-                setPortScan(settings_json["run_ports"]);
-                setOS(settings_json["run_os"]);
-                setHostname(settings_json["run_hostname"]);
-                setMacVendor(settings_json["run_mac_vendor"]);
-                setTrace(settings_json["run_trace"]);
-                setVertTrace(settings_json["run_vertical_trace"]);
 
+                if (data["status"] === 200) {
+                    setUDP(data["content"]["UDP"]);
+                    setTCP(data["content"]["TCP"]);
+                    setPortScan(data["content"]["run_ports"]);
+                    setOS(data["content"]["run_os"]);
+                    setHostname(data["content"]["run_hostname"]);
+                    setMacVendor(data["content"]["run_mac_vendor"]);
+                    setTrace(data["content"]["run_trace"]);
+                    setVertTrace(data["content"]["run_vertical_trace"]);
+                
+                } else {
+                    console.log(data["status"] + " " + data["message"])
+                }
             })
     }, [])
 

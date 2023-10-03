@@ -95,13 +95,25 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   };
 
   useEffect(() => {
-    fetch(databaseUrl + `networks/${networkID}/devices`)
-      .then((res) => res.json())
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+        console.log("User is logged out!");
+        return;
+    }
+    const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+    fetch(databaseUrl + `networks/${networkID}/devices`, options)
+      .then((res) => (res.json()))
       .then((data) => {
-        // console.log(data);
-        setNetworkData(data);
+
+        if (data["status"] === 200) {
+          setNetworkData(data["content"]);
+
+        } else {
+          setNetworkData([]);
+          console.log(data["status"] + " " + data["message"]);
+        }
       });
-  }, [networkID]);
+  }, []);
 
   useEffect(() => {
     let newNodes = [];

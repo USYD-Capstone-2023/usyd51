@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { databaseUrl } from "@/servers"
+import { stringify } from "querystring";
+import { sign } from "crypto";
 
 const Login = (props: any) => {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -18,23 +21,63 @@ const Login = (props: any) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const isPasswordMatch = password === confirmPassword;
-
+    const navigate = useNavigate();
+    
     const switchToSignUp = () => {
         setIsSignUp(true);
         clearFields();
-      };
+    };
     
-      const switchToLogin = () => {
+    const switchToLogin = () => {
         setIsSignUp(false);
         clearFields();
-      };
+    };
     
-      const clearFields = () => {
+    const clearFields = () => {
         setUsername('');
         setPassword('');
         setConfirmPassword('');
-      };
+    };
 
+    const login = () => {
+        const credentials = {"username" : username, "password" : password};
+        const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
+        fetch(databaseUrl + "login", options)
+            .then((res) => (res.json()))
+            .then((data) => {
+
+                if (data["status"] === 200) {
+                    localStorage.setItem("Auth-Token", data["content"]["Auth-Token"])
+                    navigate("/dashboard");
+                
+                } else {
+                    console.log(data["status"] + " " + data["message"]);
+                }
+            });
+    }
+
+    const signUp = () => {
+        const credentials = {"username" : username, "password" : password, "email" : "not_implemented"};
+        const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
+        fetch(databaseUrl + "signup", options).then((res) => {
+            if (res.status === 200) {
+                login();
+            } else {
+                console.log("Error " + res.status);
+            }
+        });
+    }
+
+    const handleSubmit = (e: React.SyntheticEvent) => {
+        e.preventDefault();
+
+        if (isSignUp) {
+            signUp();
+        } else {
+            login();
+        }
+    };
+    
     return (
         <div 
             className="h-screen flex items-center justify-center"
@@ -84,8 +127,8 @@ const Login = (props: any) => {
                     <CardHeader>
                     <CardTitle>LOGIN</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                    <form>
+                    <form onSubmit={(e) => handleSubmit(e)}>
+                        <CardContent>
                         <div className="grid w-full items-center gap-4">
                         <div className="flex flex-col space-y-1.5">
                             <Label htmlFor="name">Username</Label>
@@ -106,20 +149,20 @@ const Login = (props: any) => {
                             />
                         </div>
                         </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between">
+                        <Button type="button" variant="outline" onClick={switchToSignUp}>Sign Up</Button>
+                        <input type="submit" value="Login" />
+                        </CardFooter>
                     </form>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={switchToSignUp}>Sign Up</Button>
-                    <Button><Link to={"./dashboard"}> Login </Link></Button>
-                    </CardFooter>
                 </Card>
                 ) : (
                 <Card className="w-[400px] h-[400px] z-10">
                     <CardHeader>
                     <CardTitle>SIGN UP</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                    <form>
+                    <form onSubmit={(e) => handleSubmit(e)}>
+                        <CardContent>
                         <div className="grid w-full items-center gap-4">
                         <div className="flex flex-col space-y-1.5">
                             <Label htmlFor="name">Username</Label>
@@ -150,12 +193,12 @@ const Login = (props: any) => {
                         </div>
                         </div>
                         {!isPasswordMatch && <p className="text-red-500">Passwords do not match!</p>}
+                        </CardContent>
+                        <CardFooter className="flex justify-between">
+                        <Button type="button" variant="outline" onClick={switchToLogin}>Back</Button>
+                        <input disabled={!isPasswordMatch} type="submit" value="Create" />
+                        </CardFooter>
                     </form>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={switchToLogin}>Back</Button>
-                    <Button disabled={!isPasswordMatch}><Link to={"./dashboard"}> Create </Link></Button>
-                    </CardFooter>
                 </Card>
                 )}
             {/* Inline keyframes CSS */}
