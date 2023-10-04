@@ -651,10 +651,10 @@ class PostgreSQL_database:
         if not response or len(response) == 0:
             return *self.err_codes["db_error"], None
         
-        port_str = response[0][3].replace("{", "").replace("}", "").split(",")
+        port_str = response[0][3].replace("{", "").replace("}", "")
         port_ls = []
         if len(port_str) > 0:
-            port_ls = [int(x) for x in port_str]
+            port_ls = [int(x) for x in port_str.split(",")]
 
         # Formats output and returns if query is completed successfully
         out = {"user_id" : response[0][0],
@@ -908,11 +908,31 @@ class PostgreSQL_database:
                 VALUES (%s, %s, %s, %s);
                 """
         
-        params = (self.__get_next_user_id(), user["username"], user["password"], user["email"])
+        user_id = self.__get_next_user_id()
+        params = (user_id, user["username"], user["password"], user["email"])
 
         if not self.__query(query, params):
             return *self.err_codes["db_error"], None
         
+        default_settings = {
+            "TCP" : True,
+            "UDP" : True, 
+            "ports": [22,23,80,443],
+            "run_ports": True,
+            "run_os": False,
+            "run_hostname": True,
+            "run_mac_vendor": True,
+            "run_trace": True,
+            "run_vertical_trace": True,
+            "defaultView": "grid",
+            "defaultNodeColour": "0FF54A",
+            "defaultEdgeColour": "32FFAB",
+            "defaultBackgroundColour": "320000"
+        }
+
+        if self.set_settings(user_id, default_settings)[1] != 200:
+            return *self.err_codes["db_error"], None
+
         return *self.err_codes["success"], None
 
 

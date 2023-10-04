@@ -102,7 +102,6 @@ def to_ints(vals):
     return vals
             
 
-
 # Adds a user into the database, inputted as json:
 # {"username" : , "password" : , "email" : }
 @app.post("/signup")
