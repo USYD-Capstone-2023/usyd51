@@ -16,22 +16,9 @@ import {
   } from "@/components/ui/select"
   
 
-
-const user_id = 0;
-const settings_json = {"user_id" : 0,
-"TCP" : false,
-"UDP" : false,
-"ports" : [],
-"run_ports" : false,
-"run_os" : false,
-"run_hostname" : false,
-"run_mac_vendor" : false,
-"run_trace" : false,
-"run_vertical_trace" : false,
-"defaultView" : "Hierarchical",
-"defaultNodeColour" : "aaffff",
-"defaultEdgeColour" : "ffaaff",
-"defaultBackgroundColour" : "ffffaa"}
+// Filled on load, dont put default values here, they are already set in the db so in the event it
+// fails to retrieve the data and resorts to defaults, itll fill the settings with incorrect data
+let settings_json = {};
 
 const SettingsSwitch = (props: any) => {
 
@@ -41,16 +28,60 @@ const SettingsSwitch = (props: any) => {
             <Label>{props.switchName}</Label>
             <Label className="text-xs">{props.desc}</Label>
         </div>
-        <Switch checked={props.c} onCheckedChange={(state) => {props.onc(state); settings_json[`${props.settingname}`] = state; fetch(`${databaseUrl}/settings/${user_id}/set`, {method: 'PUT', mode: 'cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings_json)})}}/>
+        <Switch checked={props.c} onCheckedChange={(state) => {
+            props.onc(state);
+            settings_json[`${props.settingname}`] = state;
+            const authToken = localStorage.getItem("Auth-Token");
+            if (authToken == null) {
+                console.log("User is logged out!");
+                return;
+            }
+
+            const options = {method: "PUT", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}, body: JSON.stringify(settings_json)};
+            fetch(`${databaseUrl}settings/set`, options)
+            .then((res) => (res.json())
+            .then((data) => {
+
+                if (data["status"] != 200) {
+                    console.log(data["status"] + " " + data["message"]);
+                }
+            })
+            )}}/>
     </div>
     );
 }
 
 const SettingsMenu = (props: any) => {
 
+    // Retrieves stored settings from database
+    useEffect(() => {
+
+        const authToken = localStorage.getItem("Auth-Token");
+        if (authToken == null) {
+            console.log("User is logged out! System is gonna break here");
+            
+        } else {
+            const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}};
+            fetch(`${databaseUrl}settings`, options)
+                .then((res) => (res.json()))
+                .then((data) => {
+            
+                    if (data["status"] === 200) {
+                        settings_json = data["content"];
+                        console.log(settings_json);
+                    
+                    } else {
+                        console.log(data["status"] + " " + data["message"]);
+                        console.log("System will break here, need to figure out what to do if database goes offline or errors");
+                    }
+                })
+        }
+    }, [])
+
     const [udpSetting, setUDP ] = useState(settings_json['UDP']);
     const [tcpSetting, setTCP ] = useState(settings_json["TCP"]);
     const [portscanSetting, setPortScan ] = useState(settings_json["run_ports"]);
+    const [portsSetting, setPorts ] = useState(settings_json["ports"]);
     const [osSetting, setOS ] = useState(settings_json["run_os"]);
     const [hostnameSetting, setHostname ] = useState(settings_json["run_hostname"]);
     const [macvendorSetting, setMacVendor ] = useState(settings_json["run_mac_vendor"]);
@@ -59,8 +90,15 @@ const SettingsMenu = (props: any) => {
     const [defaultviewSetting, setDefaultView ] = useState(settings_json["defaultView"])
 
     useEffect(() => {
-        fetch(`${databaseUrl}settings/0`)
-            .then((res) => res.json())
+        const authToken = localStorage.getItem("Auth-Token");
+        if (authToken == null) {
+            console.log("User is logged out!");
+            return;
+        }
+
+        const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}};
+        fetch(`${databaseUrl}settings`, options)
+            .then((res) => (res.json()))
             .then((data) => {
 
                 if (data["status"] === 200) {
@@ -72,6 +110,7 @@ const SettingsMenu = (props: any) => {
                     setMacVendor(data["content"]["run_mac_vendor"]);
                     setTrace(data["content"]["run_trace"]);
                     setVertTrace(data["content"]["run_vertical_trace"]);
+                    setPorts(data["content"]["ports"]);
                 
                 } else {
                     console.log(data["status"] + " " + data["message"])
@@ -122,7 +161,18 @@ const SettingsMenu = (props: any) => {
                                 <div className="flex justify-start items-center flex-wrap">
                                     <div className="flex flex-col items-baseline justify-start space-y-2 w-1/3 p-4 m-0">
                                         <Label>Default View</Label>
-                                        <Select defaultValue={defaultviewSetting} onValueChange={(value) => {setDefaultView(value); settings_json["defaultView"] = value; fetch(`${databaseUrl}/settings/${user_id}/set`, {method: 'PUT', mode: 'cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings_json)})}}>
+                                        <Select defaultValue={defaultviewSetting} onValueChange={(value) => {
+                                            const authToken = localStorage.getItem("Auth-Token");
+                                            if (authToken == null) {
+                                                console.log("User is logged out!");
+                                                return;
+                                            }
+
+                                            setDefaultView(value);
+                                            settings_json["defaultView"] = value;
+                                            const options = {method: 'PUT', headers: {'Content-Type': 'application/json', "Auth-Token" : authToken, 'Accept': 'application/json'}, body: JSON.stringify(settings_json)}
+                                            fetch(`${databaseUrl}settings/set`, options);
+                                            }}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder={defaultviewSetting} />
                                             </SelectTrigger>
