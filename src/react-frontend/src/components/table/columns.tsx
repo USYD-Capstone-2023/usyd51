@@ -38,8 +38,8 @@ export const columns: ColumnDef<Payment>[] = [
     header: "SSID",
   },
   {
-    accessorKey: "devices",
-    header: "Devices",
+    accessorKey: "n_alive",
+    header: "Alive Devices",
   },
   {
     accessorKey: "status",
@@ -48,9 +48,5 @@ export const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: "lastScanned",
     header: "Last Scanned",
-  },
-  {
-    accessorKey: "encrypted",
-    header: "Encrypted",
-  },
+  }
 ];

@@ -12,9 +12,13 @@ class PostgreSQL_database:
                 "no_snapshot" : ("There is no snapshot of the given network taken at the given time.", 501),
                 "no_user" : ("User with given ID is not present in the database.", 502),
                 "malformed_network" : ("Provided network information is malformed.", 503),
-                "malformed_settings" : ("Provded settings information is malformed.", 504),
-                "malformed_settings" : ("Provded device information is malformed.", 505),
-                "db_error" : ("The database server encountered an error, please try again.", 506)}
+                "malformed_settings" : ("Provided settings information is malformed.", 504),
+                "malformed_device" : ("Provided device information is malformed.", 505),
+                "malformed_user" : ("Provided user information is malformed.", 506),
+                "dup_user" : ("A user with that username already exists.", 507),
+                "db_error" : ("The database server encountered an error, please try again.", 508),
+                "bad_input" : ("Input was not numeric.", 509),
+                "no_access" : ("Current user does not have access to this resource.", 401)}
 
 
     def __init__(self, database, user, password):
@@ -31,33 +35,27 @@ class PostgreSQL_database:
 
 
     # Passes the given query to the database, retrieves result or commits if required
-    def query(self, query, params, res=False):
+    def __query(self, query, params, res=False):
 
         response = None
-        conn = None
         try:
             # Open db connection
-            conn = psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost")
-            cur = conn.cursor()
-            # Run query
-            cur.execute(query, params)
+            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost") as conn:
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-            # Retrieve result or commit changes if required
-            if res:
-                response = cur.fetchall()
-            else:
-                conn.commit()
+                with conn.cursor() as cur:
+                    # Run query
+                    cur.execute(query, params)
 
-            cur.close()
-            conn.close()
+                    # Retrieve result or commit changes if required
+                    if res:
+                        response = cur.fetchall()
+                    else:
+                        conn.commit()
 
         except Exception as e:
             print(e)
             print(f"{query} % {params}")
-            if conn:
-                cur.close()
-                conn.close()
-
             return False
         
         if res:
@@ -69,7 +67,10 @@ class PostgreSQL_database:
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
         
 
-    def save_network(self, network):
+    def save_network(self, user_id, network):
+
+        if not type(user_id) == int:
+            return *self.err_codes["bad_input"], None
 
         # Ensures given network data is correctly formed
         required = {"network_id" : int,
@@ -82,7 +83,7 @@ class PostgreSQL_database:
         # Checks type and key of all attributes of the network
         for req in required.keys():
             if req not in network.keys() or type(network[req]) != required[req]:
-                return self.err_codes["malformed_network"]
+                return *self.err_codes["malformed_network"], None
             
         # Ensures given device data is well formed
         devices = network["devices"]
@@ -100,51 +101,55 @@ class PostgreSQL_database:
         for device in devices.values():
             for req in required.keys():
                 if req not in device.keys() or type(device[req]) != required[req]:
-                    return self.err_codes["malformed_device"]
+                    return *self.err_codes["malformed_device"], None
                 
         # Gets the next valid ID if the ID parameter is unset
-        id = network["network_id"]
-        if id == -1:
-            id = self.__get_next_network_id()
-            network["network_id"] = id
+        network_id = network["network_id"]
+        if network_id == -1:
+            network_id = self.__get_next_network_id()
+            network["network_id"] = network_id
             
         # Adds a new network to the database if it doesnt exist
-        if not self.__contains_network(id):
-            if not self.__register_network(network):
-                return self.err_codes["db_error"]
-                
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] == 500:
+            if not self.__register_network(user_id, network):
+                return *self.err_codes["db_error"], None
+
+        elif res[1] == 401:
+            return res                
                 
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
-        if not self.__contains_snapshot(id, timestamp):
-            if not self.__add_snapshot(id, timestamp):
-                return self.err_codes["db_error"]
+        if not self.contains_snapshot(network_id, timestamp):
+            if not self.__add_snapshot(network_id, timestamp):
+                return *self.err_codes["db_error"], None
         
         # Saves all devices
-        if not self.__save_devices(id, devices, timestamp):
-            return self.err_codes["db_error"]
+        if not self.__save_devices(network_id, devices, timestamp):
+            return *self.err_codes["db_error"], None
         
-        if not self.__set_n_alive(id, len(devices)):
-            return self.err_codes["db_error"]
+        if not self.__set_n_alive(network_id, len(devices)):
+            return *self.err_codes["db_error"], None
         
-        return self.err_codes["success"]
+        return *self.err_codes["success"], network_id
     
 
     # Adds a network to the database
-    def __register_network(self, network):
+    def __register_network(self, user_id, network):
 
         query = """
-                INSERT INTO networks (id, gateway_mac, name, ssid, n_alive)
-                VALUES (%s, %s, %s, %s, %s);
+                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s);
                 """
         
         params = (network["network_id"],
                   network["gateway_mac"],
                   network["name"],
                   network["ssid"],
-                  len(network["devices"]))
+                  len(network["devices"]),
+                  user_id,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
     
 
     def __set_n_alive(self, network_id, n_alive):
@@ -153,12 +158,12 @@ class PostgreSQL_database:
                 UPDATE networks
                 SET
                     n_alive = %s
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (n_alive, network_id,)
 
-        return self.query(query, params)
+        return self.__query(query, params)
     
 
     # Gets the next available unique network id
@@ -166,11 +171,11 @@ class PostgreSQL_database:
 
         # Gets the ID of all networks in the database
         query = """
-                SELECT id
+                SELECT network_id
                 FROM networks;
                 """
 
-        response = self.query(query, (), res=True)
+        response = self.__query(query, (), res=True)
         # Case for when there are no networks in the database
         if not response:
             return 0
@@ -184,11 +189,15 @@ class PostgreSQL_database:
     
 
     # Deletes a network from the database
-    def delete_network(self, network_id):
+    def delete_network(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.__contains_network(network_id):
-            return self.err_codes["no_network"]
+        if not type(user_id) == int | type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         params = (network_id,)
 
@@ -198,8 +207,8 @@ class PostgreSQL_database:
                 WHERE network_id = %s;
                 """
         
-        if not self.query(query, params):
-            return self.err_codes["db_error"]
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
 
         # Deletes all snapshots related to the network
         query = """
@@ -207,127 +216,158 @@ class PostgreSQL_database:
                 WHERE network_id = %s;
                 """
         
-        if not self.query(query, params):
-            return self.err_codes["db_error"]
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
 
         # Deletes the network
         query = """
                 DELETE FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
 
-        if not self.query(query, params):
-            return self.err_codes["db_error"]
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
 
-        return self.err_codes["success"]
+        return *self.err_codes["success"], None
 
 
     # Checks if the current network exists in the database
-    def __contains_network(self, network_id):
+    def validate_network_access(self, user_id, network_id):
+
+        if not type(user_id) == int | type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+        
+        if network_id == -1:
+            return *self.err_codes["success"], None
 
         query = """
-                SELECT 1
+                SELECT user_id
                 FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (network_id,)
 
-        response = self.query(query, params, res=True)
-        return response != None and len(response) > 0
+        response = self.__query(query, params, res=True)
+
+        if not response or len(response) == 0:
+            return *self.err_codes["no_network"], None
+        
+        if response[0][0] != user_id:
+            return *self.err_codes["no_access"], None
+        
+        return *self.err_codes["success"], None
 
 
-    # Returns a list of all networks
-    def get_networks(self):
+    # Returns a list of all networks accessible to the given user
+    def get_networks(self, user_id):
 
+        if not type(user_id) == int:
+            return *self.err_codes["bad_input"], None
+        
         query = """
-                SELECT id, gateway_mac, name, ssid, n_alive
-                FROM networks;
+                SELECT network_id, gateway_mac, name, ssid, n_alive
+                FROM networks
+                WHERE user_id = %s;
                 """
+        
+        params = (user_id,)
 
-        responses = self.query(query, (), res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
-            return self.err_codes["db_error"]
+            return *self.err_codes["db_error"], None
         
         # Return empty array when the database is empty
         if responses == None:
-            return [], 200
+            return *self.err_codes["success"], []
         
         # Formats output if the query is completed successfully
         out = []
         for resp in responses:
 
-            net_dict = {"id" : resp[0],
-                        "gateway_mac": resp[1],
-                        "name": resp[2],
-                        "ssid": resp[3],
-                        "n_alive" : resp[4]}
+            net_dict = {"network_id"  : resp[0],
+                        "gateway_mac" : resp[1],
+                        "name"        : resp[2],
+                        "ssid"        : resp[3],
+                        "n_alive"     : resp[4],
+                        "timestamp"   : self.__get_most_recent_timestamp(resp[0])}
             
             out.append(net_dict)
             
-        return out, 200
+        return *self.err_codes["success"], out
 
 
-    # Returns all devices associated with a specific network
-    def get_network(self, network_id):
+    # Returns all basic information associated with a network
+    def get_network(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.__contains_network(network_id):
-            return self.err_codes["no_network"]
+        if not type(user_id) == int | type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+        
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
-                SELECT id, gateway_mac, name, ssid, n_alive
+                SELECT network_id, gateway_mac, name, ssid, n_alive
                 FROM networks
-                WHERE id = %s;
+                WHERE network_id = %s and user_id = %s;
                 """
         
-        params = (network_id,)
+        params = (network_id, user_id,)
 
-        network_info = self.query(query, params, res=True)[0]
+        network_info = self.__query(query, params, res=True)[0]
         if not network_info:
-            return self.err_codes["db_error"]
+            return *self.err_codes["db_error"], None
 
         # Formats output if the query is completed successfully
-        network = {"id" : network_info[0],
+        network = {"network_id" : network_info[0],
                    "gateway_mac" : network_info[1],
                    "name" : network_info[2],
                    "ssid" : network_info[3],
                    "n_alive" : network_info[4]} 
 
-        return network, 200
+        return *self.err_codes["success"], network
 
 
     # Allows users to rename a network and all device data
-    def rename_network(self, network_id, new_name):
+    def rename_network(self, user_id, network_id, new_name):
 
-        # Checks requested network exists
-        if not self.__contains_network(network_id):
-            return self.err_codes["no_network"]
+        if not type(user_id) == int | type(network_id) == int | new_name == "":
+            return *self.err_codes["bad_input"], None
+
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
                 UPDATE networks
                 SET name = %s
-                WHERE id = %s;
+                WHERE network_id = %s;
                 """
         
         params = (new_name, network_id,)
 
-        if not self.query(query, params):
-            return self.err_codes["db_error"]
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
         
-        return self.err_codes["success"]
-
+        return *self.err_codes["success"], None
 
 
     # ---------------------------------------------- DEVICES ------------------------------------------- #
         
 
     # Gets all devices stored in the network corresponding to the gateway's MAC address
-    def get_all_devices(self, network_id, timestamp=None):
+    def get_all_devices(self, user_id, network_id, timestamp=None):
 
-        # Checks requested network exists
-        if not self.__contains_network(network_id):
-            return self.err_codes["no_network"]
+        if not type(user_id) == int | type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+        
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
         
         # Retrieves most recent snapshot of the network if no timestamp is provided
         if timestamp == None:
@@ -335,8 +375,8 @@ class PostgreSQL_database:
         
         else:
             # Errors if the given timestamp is not recorded
-            if not self.__contains_snapshot(network_id, timestamp):
-                return self.err_codes["no_snapshot"]
+            if not self.contains_snapshot(network_id, timestamp):
+                return *self.err_codes["no_snapshot"], None
 
         query = """
                 SELECT mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports
@@ -346,9 +386,9 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        responses = self.query(query, params, res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
-            return self.err_codes["db_error"]
+            return *self.err_codes["db_error"], None
         
         # Formats output if the query is completed successfully
         devices = []
@@ -370,7 +410,7 @@ class PostgreSQL_database:
                 "parent" : device[7], 
                 "ports" : port_ls})
 
-        return devices, 200
+        return *self.err_codes["success"], devices
     
 
     # Saves given devices to database at the given timestamp
@@ -393,7 +433,7 @@ class PostgreSQL_database:
         
         params = (valid, network_id, timestamp,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return False
 
         return True
@@ -403,7 +443,7 @@ class PostgreSQL_database:
     def __add_device(self, network_id, device, timestamp):
 
         # Checks that requested snapshot exists
-        if not self.__contains_snapshot(network_id, timestamp):
+        if not self.contains_snapshot(network_id, timestamp):
             return False
 
         query = """
@@ -434,7 +474,7 @@ class PostgreSQL_database:
                     network_id, 
                     timestamp,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
 
 
     # NOT IMPLEMENTED YET, GOING TO BE USED FOR INCREMENTAL SAVING AND DISPLAYING OF SCANS
@@ -470,7 +510,7 @@ class PostgreSQL_database:
                     network_id, 
                     timestamp,)
         
-        return self.query(query, params)
+        return self.__query(query, params)
 
 
     # --------------------------------------------- SNAPSHOTS ------------------------------------------ #
@@ -487,7 +527,7 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
 
         if not response or len(response) == 0:
             return None
@@ -514,7 +554,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        if not self.query(query, params):
+        if not self.__query(query, params):
             return False
         
         return True
@@ -522,11 +562,15 @@ class PostgreSQL_database:
 
     # Returns an array of all timestamp-device_count pairs for a certain network.
     # There is a pair corresponding to each individual time a scan has been conducted.
-    def get_snapshots(self, network_id):
+    def get_snapshots(self, user_id, network_id):
 
-        # Checks requested network exists
-        if not self.__contains_network(network_id):
-            return self.err_codes["no_network"]
+        if not type(user_id) == int | type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+        
+        # Checks requested network exists, and current user can access it
+        res = self.validate_network_access(user_id, network_id)
+        if res[1] != 200:
+            return res
 
         query = """
                 SELECT timestamp, n_alive
@@ -536,9 +580,9 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        responses = self.query(query, params, res=True)
+        responses = self.__query(query, params, res=True)
         if responses == False:
-            return self.err_codes["db_error"]
+            return *self.err_codes["db_error"], None
 
         # Formats output and returns if query is completed successfully
         out = []
@@ -548,12 +592,15 @@ class PostgreSQL_database:
             r_dict["n_alive"] = response[1]
             out.append(r_dict)
 
-        return out, 200
+        return *self.err_codes["success"], out
 
 
     # Checks if a certain snapshot exists for the given network
-    def __contains_snapshot(self, network_id, timestamp):
+    def contains_snapshot(self, network_id, timestamp):
 
+        if not type(network_id) == int:
+            return *self.err_codes["bad_input"], None
+        
         query = """
                 SELECT 1
                 FROM snapshots
@@ -562,7 +609,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         return response != None and len(response) > 0
         
 
@@ -572,9 +619,12 @@ class PostgreSQL_database:
     # Retrieves a user's settings from database
     def get_settings(self, user_id):
 
+        if not type(user_id) == int:
+            return *self.err_codes["bad_input"], None
+
         # Checks that requested user exists in the database
         if not self.__contains_settings(user_id):
-            return self.err_codes["no_user"]
+            return *self.err_codes["no_user"], None
 
         query = """
                 SELECT user_id,
@@ -597,9 +647,9 @@ class PostgreSQL_database:
         
         params = (user_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         if not response or len(response) == 0:
-            return self.err_codes["db_error"]
+            return *self.err_codes["db_error"], None
         
         port_str = response[0][3].replace("{", "").replace("}", "").split(",")
         port_ls = []
@@ -622,15 +672,18 @@ class PostgreSQL_database:
                "defaultEdgeColour" : response[0][12],
                "defaultBackgroundColour" : response[0][13]}
 
-        return out, 200
+        return *self.err_codes["success"], out
 
 
     # Sets the scan and preference settings for a given user
     def set_settings(self, user_id, settings):
 
+        if not type(user_id) == int:
+            return *self.err_codes["bad_input"], None
+
         # Ensures input type is correct
         if type(settings) != dict:
-            return self.err_codes["malformed_settings"]
+            return *self.err_codes["malformed_settings"], None
         
         # TODO - add format checking for frontend settings and port list
         #          Entry : type
@@ -651,7 +704,7 @@ class PostgreSQL_database:
         # Ensures format and typing in settings json is correct
         for req in required.keys():
             if req not in settings.keys() or type(settings[req]) != required[req]:
-                return self.err_codes["malformed_settings"]
+                return *self.err_codes["malformed_settings"], None
             
 
         # Create settings entry for user if they dont exist
@@ -727,10 +780,10 @@ class PostgreSQL_database:
                     settings["defaultBackgroundColour"],
                     user_id,)
 
-        if not self.query(query, params):
-            return self.err_codes["db_error"]
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
         
-        return self.err_codes["success"]
+        return *self.err_codes["success"], None
 
 
     # Checks if there is an entry in the settings table for the current user.
@@ -745,8 +798,122 @@ class PostgreSQL_database:
         
         params = (user_id,)
 
-        response = self.query(query, params, res=True)
+        response = self.__query(query, params, res=True)
         return response != None and len(response) > 0
+
+
+    # --------------------------------------------- USERS ------------------------------------------ #
+
+
+    def contains_user(self, username):
+
+        query = """
+                SELECT 1
+                FROM users
+                WHERE username = %s;
+                """
+        
+        params = (username,)
+
+        response = self.__query(query, params, res=True)
+        return response != None and len(response) > 0
+    
+
+    def get_user_by_login(self, user):
+
+        require = ["username", "password"]
+
+        for req in require:
+            if req not in user.keys():
+                return *self.err_codes["malformed_user"], None
+
+        query = """SELECT user_id, username, password, email
+                   FROM users
+                   WHERE username = %s AND password = %s;"""
+        
+        params = (user["username"], user["password"],)
+
+        user_dict = self.__query(query, params, res=True)
+        if not user_dict:
+            return *self.err_codes["no_user"], None
+        
+        user = {"user_id" : user_dict[0][0],
+                "username" : user_dict[0][1],
+                "password" : user_dict[0][2],
+                "email" : user_dict[0][3]}
+
+        return *self.err_codes["success"], user
+    
+
+    def get_user_by_id(self, user_id):
+
+        if not type(user_id) == int:
+            return *self.err_codes["malformed_user"], None
+
+        query = """SELECT user_id, username, password, email
+                   FROM users
+                   WHERE user_id = %s;"""
+        
+        params = (user_id,)
+
+        user_dict = self.__query(query, params, res=True)
+        if not user_dict:
+            return *self.err_codes["no_user"], None
+        
+        user = {"user_id" : user_dict[0][0],
+                "username" : user_dict[0][1],
+                "password" : user_dict[0][2],
+                "email" : user_dict[0][3]}
+
+        return *self.err_codes["success"], user
+    
+    
+    def __get_next_user_id(self):
+        # Gets the ID of users in the database
+        query = """
+                SELECT user_id
+                FROM users;
+                """
+
+        response = self.__query(query, (), res=True)
+        # Case for when there are no networks in the database
+        if not response:
+            return 0
+
+        # Searches for the maximum ID
+        next = -1
+        for r in response:
+            next = max(next, r[0])
+
+        return next + 1
+
+
+    def add_user(self, user):
+
+        require = ["username", "password", "email"]
+
+        for req in require:
+            if req not in user.keys():
+                return *self.err_codes["malformed_user"], None
+            
+        if self.contains_user(user["username"]):
+            return *self.err_codes["dup_user"], None
+
+        query = """
+                INSERT INTO users
+                    (user_id,
+                    username,
+                    password,
+                    email)
+                VALUES (%s, %s, %s, %s);
+                """
+        
+        params = (self.__get_next_user_id(), user["username"], user["password"], user["email"])
+
+        if not self.__query(query, params):
+            return *self.err_codes["db_error"], None
+        
+        return *self.err_codes["success"], None
 
 
     # --------------------------------------------- SETUP ------------------------------------------ #
@@ -768,32 +935,28 @@ class PostgreSQL_database:
         res = None
         try:
             # Open Database Connection
-            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost")
-            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-            # Create Cursor Object
-            cur = conn.cursor()
-            cur.execute(query, params)
+            with psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost") as conn:
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-            res = cur.fetchone()
+                # Create Cursor Object
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
 
-            # Creates database if it doesnt exist
-            if res == None or len(res) == 0:
+                    res = cur.fetchone()
 
-                query = """
-                        CREATE DATABASE %s;
-                        """ % self.db
+                    # Creates database if it doesnt exist
+                    if res == None or len(res) == 0:
 
-                cur.execute(query)
-                conn.commit()
+                        query = """
+                                CREATE DATABASE %s;
+                                """ % self.db
 
-            cur.close()
-            conn.close()
+                        cur.execute(query)
+                        conn.commit()
 
         except Exception as e:
 
             print(e)
-            if conn:
-                conn.close()
             return False
         
         return True
@@ -805,7 +968,8 @@ class PostgreSQL_database:
 
         init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
-                            (id INTEGER PRIMARY KEY,
+                            (network_id INTEGER PRIMARY KEY,
+                            user_id INTEGER REFERENCES users (user_id),
                             gateway_mac TEXT,
                             name TEXT,
                             ssid TEXT,
@@ -815,7 +979,7 @@ class PostgreSQL_database:
 
         init_settings = """
                         CREATE TABLE IF NOT EXISTS settings
-                            (user_id INTEGER PRIMARY KEY,
+                            (user_id INTEGER PRIMARY KEY REFERENCES users (user_id),
                             TCP BOOLEAN NOT NULL,
                             UDP BOOLEAN NOT NULL, 
                             ports TEXT NOT NULL,
@@ -828,13 +992,12 @@ class PostgreSQL_database:
                             defaultView TEXT NOT NULL,
                             defaultNodeColour TEXT NOT NULL,
                             defaultEdgeColour TEXT NOT NULL,
-                            defaultBackgroundColour TEXT NOT NULL
-                            )
+                            defaultBackgroundColour TEXT NOT NULL);
                         """
 
         init_snapshots = """
                         CREATE TABLE IF NOT EXISTS snapshots
-                            (network_id INTEGER REFERENCES networks (id),
+                            (network_id INTEGER REFERENCES networks (network_id),
                             timestamp INTEGER NOT NULL,
                             n_alive INTEGER NOT NULL,
                             PRIMARY KEY (network_id, timestamp));
@@ -856,14 +1019,21 @@ class PostgreSQL_database:
                             FOREIGN KEY (network_id, timestamp) REFERENCES snapshots (network_id, timestamp),
                             PRIMARY KEY (mac, network_id, timestamp));
                         """
-
-
-        val =  self.query(init_networks, ())
-        val &= self.query(init_snapshots, ())
-        val &= self.query(init_devices, ())
-        val &= self.query(init_settings, ())
-
-        if val:
-            return True
         
-        return False
+        init_users = """
+                     CREATE TABLE IF NOT EXISTS users
+                        (user_id INTEGER PRIMARY KEY,
+                        username TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        email TEXT NOT NULL);              
+                    """
+
+
+
+        val = self.__query(init_users, ())
+        val &=  self.__query(init_networks, ())
+        val &= self.__query(init_snapshots, ())
+        val &= self.__query(init_devices, ())
+        val &= self.__query(init_settings, ())
+
+        return val

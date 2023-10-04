@@ -41,18 +41,31 @@ const Dashboard = (props: any) => {
   ]);
 
   useEffect(() => {
-    fetch(databaseUrl + "/networks")
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+        console.log("User is logged out!");
+        return;
+    }
+    const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+
+    fetch(databaseUrl + "networks", options)
       .then((res) => res.json())
       .then((data) => {
-        let network_list = [];
-        for (let network of data) {
-          network_list.push({ name: network.name, id: network.id });
-        }
 
-        // for (let i = 0; i < 50; i++) {
-        //     network_list.push({ name: "test", id: i });
-        // }
-        setNetworkListData(network_list);
+        if (data.status === 200) {
+
+          console.log(data);
+          let network_list = [];
+          for (let network of data["content"]) {
+            network_list.push({ name: network.name, id: network.network_id });
+          }
+        
+          setNetworkListData(network_list);
+        
+        } else {
+          setNetworkListData([]);
+          console.log(data.status + " " + data["message"]);
+        }
       });
   }, []);
 

@@ -19,21 +19,30 @@ const DashboardChart = () => {
     ]);
 
     useEffect(() => {
-        fetch(databaseUrl + "/networks/0/snapshots").then(res => res.json()).then((data) => {
-            data.forEach((element: any) => {
-                const date = new Date(element.timestamp*1000);
-                const hours = date.getHours().toString().padStart(2,'0');
-                const minutes = date.getMinutes().toString().padStart(2,'0');
-                element.time = hours + ":" + minutes;
+        const authToken = localStorage.getItem("Auth-Token");
+        if (authToken == null) {
+            console.log("User is logged out!");
+            return;
+        }
+        const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+        fetch(databaseUrl + "networks/0/snapshots", options)
+            .then((res) => (res.json()))
+            .then((data) => {
+                if (data.status === 200) {
+                    data["content"].forEach((element: any) => {
+                        const date = new Date(element.timestamp*1000);
+                        const hours = date.getHours().toString().padStart(2,'0');
+                        const minutes = date.getMinutes().toString().padStart(2,'0');
+                        element.time = hours + ":" + minutes;
+                    })
+                    setData(data["content"]);
+
+                } else {
+                    setData([]);
+                    console.log(data.status + " " + data["message"]);
+                }
             })
-            setData(data);
-        })
-    }, [])
-
-
-
-
-
+        }, [])
 
     return (
         <ResponsiveContainer width="100%" height="100%">
