@@ -68,7 +68,6 @@ const SettingsMenu = (props: any) => {
             
                     if (data["status"] === 200) {
                         settings_json = data["content"];
-                        console.log(settings_json);
                     
                     } else {
                         console.log(data["status"] + " " + data["message"]);
