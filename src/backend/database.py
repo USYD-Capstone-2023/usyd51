@@ -191,7 +191,7 @@ class PostgreSQL_database:
     # Deletes a network from the database
     def delete_network(self, user_id, network_id):
 
-        if not type(user_id) == int | type(network_id) == int:
+        if type(user_id) != int or type(network_id) != int:
             return *self.err_codes["bad_input"], None
 
         # Checks requested network exists, and current user can access it
@@ -234,7 +234,7 @@ class PostgreSQL_database:
     # Checks if the current network exists in the database
     def validate_network_access(self, user_id, network_id):
 
-        if not type(user_id) == int | type(network_id) == int:
+        if type(user_id) != int or type(network_id) != int:
             return *self.err_codes["bad_input"], None
         
         if network_id == -1:
@@ -250,7 +250,7 @@ class PostgreSQL_database:
 
         response = self.__query(query, params, res=True)
 
-        if not response or len(response) == 0:
+        if not response:
             return *self.err_codes["no_network"], None
         
         if response[0][0] != user_id:
@@ -300,7 +300,7 @@ class PostgreSQL_database:
     # Returns all basic information associated with a network
     def get_network(self, user_id, network_id):
 
-        if not type(user_id) == int | type(network_id) == int:
+        if type(user_id) != int or type(network_id) != int:
             return *self.err_codes["bad_input"], None
         
         # Checks requested network exists, and current user can access it
@@ -333,7 +333,7 @@ class PostgreSQL_database:
     # Allows users to rename a network and all device data
     def rename_network(self, user_id, network_id, new_name):
 
-        if not type(user_id) == int | type(network_id) == int | new_name == "":
+        if type(user_id) != int or type(network_id) != int or new_name == "":
             return *self.err_codes["bad_input"], None
 
         # Checks requested network exists, and current user can access it
@@ -361,7 +361,7 @@ class PostgreSQL_database:
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, user_id, network_id, timestamp=None):
 
-        if not type(user_id) == int | type(network_id) == int:
+        if type(user_id) != int or type(network_id) != int:
             return *self.err_codes["bad_input"], None
         
         # Checks requested network exists, and current user can access it
@@ -564,7 +564,7 @@ class PostgreSQL_database:
     # There is a pair corresponding to each individual time a scan has been conducted.
     def get_snapshots(self, user_id, network_id):
 
-        if not type(user_id) == int | type(network_id) == int:
+        if type(user_id) != int or type(network_id) != int:
             return *self.err_codes["bad_input"], None
         
         # Checks requested network exists, and current user can access it
