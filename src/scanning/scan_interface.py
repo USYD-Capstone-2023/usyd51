@@ -6,6 +6,7 @@ from loading_bar import Loading_bar
 from threadpool import Threadpool
 import threading
 from functools import wraps
+import time
 
 # Local
 import net_tools as nt
@@ -20,9 +21,15 @@ app = Flask(__name__)
 CORS(app)
 
 tp = Threadpool(NUM_THREADS)
-lb = Loading_bar()
-daemon_exit = threading.Event()
-daemon_exit.set()
+daemon_sleep = threading.Event()
+daemon_sleep.set()
+
+# auth_token : loading_bar
+loading_bars = dict()
+daemon_lb = Loading_bar()
+
+# auth_token : settings
+daemon_clients = dict()
 
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
@@ -95,14 +102,11 @@ def get_settings(auth):
     settings = json.loads(res.content.decode("utf-8"))["content"]
 
     # Format returned settings data into arguments for scanning function
-    args = []
     for req in require:
         if req not in settings.keys():
             return create_response("Settings in database are malformed. Contact your system administrator.", 500)
         
-        args.append(settings[req])
-
-    return args
+    return settings
 
 
 # Checks if a given network ID is valid and numeric
@@ -116,14 +120,42 @@ def validate_network_id(network_id):
 
 # Runs a network scan on the given network with the given settings arguments.
 # Automatically saves network to database on completion.
-def run_scan(network_id, args, auth):
+def run_scan(network_id, settings, auth, lb):
 
-    network = nt.scan(lb, tp, network_id, *args)
+    # Initialises network
+    network = nt.init_scan(network_id)
+    # Retrieves devices
+    nt.add_devices(network, tp, loading_bars[auth])
+    # Runs basic traceroute
+    nt.add_routes(network, tp, loading_bars[auth])
+    # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
-        return res.content.decode("utf8"), res.status_code
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        return
 
-    return res.content.decode("utf8"), res.status_code
+    network_id = json.loads(res.content.decode("utf-8"))["content"]
+    network.network_id = network_id
+
+    scans = [
+        {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
+        {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], settings["ports"]]},
+    ]
+
+    for scan in scans:
+        if settings[scan["setting"]]:
+            scan["func"](*scan["args"])
+            res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
+            if res.status_code != 200:
+                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+                return
+
+    print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
+    del loading_bars[auth]
+    return network
 
 
 def verify_current_connection(network_id, auth):
@@ -159,21 +191,32 @@ def verify_current_connection(network_id, auth):
 @require_auth
 def scan_network(auth, network_id):
 
+    # Checks that the entered network id is valid
     network_id = validate_network_id(network_id)
-
     if network_id == None:
         return create_response("Invalid network ID entered.", 500)
     
+    # Checks that the user is connected to the network they are trying to scan
     res = verify_current_connection(network_id, auth)
     if res[1] != 200:
         return res[0], res[1]
     
-    args = get_settings(auth)
-
-    if args == None:
+    # Retrieves users scanning preferences
+    settings = get_settings(auth)
+    if settings == None:
         return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
 
-    return run_scan(network_id, args, auth)
+    # Checks if user is already running a scan
+    if auth in loading_bars.keys():
+        return create_response("User is already running a scan.", 500)
+
+    # Creates a loading bar for the scan
+    loading_bars[auth] = Loading_bar()
+    # Dispatches scan
+    scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth, loading_bars[auth]))
+    scan_thread.daemon = True
+    scan_thread.start()
+    return create_response("Scan has started.", 200)
     
 
 # Starts an automatic scanning daemon on the network specified.
@@ -186,8 +229,8 @@ def start_daemon(auth, network_id):
 
     # Ensures only one daemon is running at a time (Although the backend is built to handle multiple, just need to add
     # unique IDs for each process if we want this to be a feature).
-    if not daemon_exit.is_set():
-        print("[ERR ] Scan daemon is already running.")
+    if auth in daemon_clients.keys():
+        print("[ERR ] Scan daemon is already for this user.")
         return create_response("Daemon already running", 500)
 
     # Checks network ID is valid
@@ -201,35 +244,18 @@ def start_daemon(auth, network_id):
         return res
     
     # Retrieves user's settings from the database
-    args = get_settings(auth)
-    if args == None:
+    settings = get_settings(auth)
+    if settings == None:
         return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
     
-    # Hardcoded fault limit, will be moved to user settings 
-    consecutive_fault_limit = 3
-    consecutive_faults = 0
-    daemon_exit.clear()
+    daemon_clients[auth] = {"network_id" : network_id, "settings" : settings}
 
-    print("[INFO] Daemon is starting!")
-    while not daemon_exit.is_set():
+    if auth in loading_bars.keys():
+        # Creates a new loading bar for the scan, decouples from loading bar running concurrent scan.
+        # Daemon takes precedence
+        loading_bars[auth] = daemon_lb
 
-        # If the scans fail to be written to the database a certain number of times, the daemon exits
-        if consecutive_faults == consecutive_fault_limit:
-            daemon_exit.set()
-            print("[INFO] Scan daemon closing due to consecutive errors.")
-            return create_response("Reached maximum number of consecutive failures. Daemon mode terminated.", 500)
-
-        if run_scan(network_id, args, auth)[1] != 200:
-            print("[ERR ] Failed to write scanned data to remote database. %d attempts remaining..." % \
-                  (consecutive_fault_limit - consecutive_faults))
-            
-            consecutive_faults += 1
-
-        elif consecutive_faults != 0:
-            consecutive_faults = 0
-
-        # Waits configurable amount of time before scanning again
-        daemon_exit.wait(daemon_scan_rate)
+    daemon_sleep.set()
 
     return create_response("Success", 200)
 
@@ -238,18 +264,25 @@ def start_daemon(auth, network_id):
 # Note that this doesnt have to be called when ending the program, as the backend is threadsafe and will close 
 # gracefully on its own.
 @app.post("/daemon/end")
-def end_daemon():
+@require_auth
+def end_daemon(auth):
 
-    print("[INFO] Scan daemon will shut down after current operation.")
-    daemon_exit.set()
+    if auth in daemon_clients.keys():
+        del daemon_clients[auth]
+    else:
+        return create_response("User not registered as a daemon client.", 500)
 
     return create_response("Success", 200)
 
 
 @app.get("/scan/progress")
-def get_progress():
+@require_auth
+def get_progress(auth):
 
-    return create_response("success", 200, content=lb.get_progress())
+    if auth in loading_bars.keys():
+        return create_response("success", 200, content=loading_bars[auth].get_progress())
+    
+    return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 
 
 # Serves the information of the dhcp server
@@ -263,6 +296,69 @@ def get_dhcp_server_info():
 def get_current_ssid():
 
     return create_response("success", 200, nt.get_ssid())
+
+
+# Starts the scanning daemon for the network that this server is connected to
+def run_daemon():
+
+    print("[INFO] Daemon is starting!")
+
+    requests.post(DB_SERVER_URL + "/signup", 
+                      json={"username" : "daemon", "password" : "passwd", "email" : "sam@same"})
+        
+    res = requests.post("http://" + TestingConfig.SERVER_URI + ":5000/login", 
+                        json={"username" : "sam", "password" : "passwd"})
+    
+    token = res.content.decode("utf-8")
+
+    while True:
+
+        # Sleeps until there is a client to scan for
+        if len(daemon_clients.keys()) == 0:
+            print("[INFO] Daemon is waiting for clients...")
+            daemon_sleep.clear()
+            daemon_sleep.wait()
+
+        # Constructs the lowest possible settings to satisfy the settings of all clients in one scan
+        args = {
+            "TCP"                : False,
+            "UDP"                : False, 
+            "ports"              : [],
+            "run_ports"          : False,
+            "run_os"             : False,
+            "run_hostname"       : False,
+            "run_mac_vendor"     : False,
+            "run_trace"          : False,
+            "run_vertical_trace" : False,
+        }
+
+        for client in daemon_clients.values()["settings"]:
+            for value in args.keys():
+                if value == "ports":
+                    args.ports.extend(client["ports"])
+                    continue
+
+                if args[value]:
+                    continue
+
+                args[value] = client[value]
+
+        args["ports"] = set(args["ports"])
+
+# TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+# THIS IS THE ISSUE
+# find a way to share this scan, idk
+
+
+        # create new network id if doesnt exist, then save to that id just for the daemon account
+        network = run_scan()
+
+        # TODO - convert network to follow the users original scan settings
+        for client in daemon_clients.keys():
+            requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : client})
+
+        # Waits configurable amount of time before scanning again
+        time.sleep(daemon_scan_rate)
 
 
 if __name__ == "__main__":
@@ -283,4 +379,7 @@ if __name__ == "__main__":
         print("Please enter 'remote' or 'local'.")
         sys.exit()
 
+    # daemon_thread = threading.Thread(target=run_daemon)
+    # daemon_thread.daemon = True
+    # daemon_thread.start()
     app.run(port=5001)

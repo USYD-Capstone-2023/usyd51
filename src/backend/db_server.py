@@ -173,45 +173,25 @@ def save_network(user_id):
     return create_response(*ret)
 
 
-# Updates the most recent scan data of an existing network in the database, 
-# without creating a new snapshot in its history
+@app.put("/networks/update")
+@require_auth
+def update_network(user_id):
 
-# NOT IMPLEMENTED CURRENTLY, WANT TO CLARIFY OPERATION FIRST 
-
-# @app.put("/networks/<network_id>/update")
-# def update_devices(network_id):
-
-#     if not db.contains_network(id):
-#         return "No network with ID %s exists in database." % (network_id), 500
-    
-#     network = request.get_json()
-
-#     # Ensures given data is correctly formed
-#     required = ["network_id", "devices"]
-#     for req in required:
-#         if req not in network.keys():
-#             return "Malformed network.", 500
-            
-#     id = network["network_id"]
-#     devices = network["devices"]
-    
-#     for device in devices:
-#         if not db.update_device(network_id, device):
-#             return "Database encountered an error saving devices", 500
-
-#     return "Success", 200
+    network = request.get_json()
+    ret = db.save_network(user_id, network, exists=True)
+    return create_response(*ret)
 
 
-# TODO - These ones are GETS just for testing purposes at the minute, so I can test them
-# in browser while the frontend isnt hooked up, will be POST
+# Renames a network in the database
 @app.put("/networks/<network_id>/rename/<new_name>")
 @require_auth
 def rename_network(user_id, network_id, new_name):
+
     args = to_ints([network_id])
     if not args:
         return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
-    ret = db.rename_network(user_id, args[0], new_name)
+    ret = db.rename_network(user_id, new_name)
     return create_response(*ret)
 
 

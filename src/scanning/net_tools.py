@@ -32,8 +32,10 @@ from datetime import datetime
 MAC_TABLE_FP = "../cache/oui.csv"
 NUM_THREADS = 50
 
-def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
-         run_mac_vendor, run_os, run_ports, ports):
+mac_table = MAC_table(MAC_TABLE_FP)
+
+
+def init_scan(network_id, iface=conf.iface):
 
     ts = int(datetime.now().timestamp())
 
@@ -46,7 +48,6 @@ def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
     # show_interfaces()
     # iface = dev_from_index(63) # you need to get this index for ur interface list
 
-    iface = conf.iface
     gateway_mac = arp_helper(gateway, iface)[1]
     ssid = get_ssid(iface)
 
@@ -67,38 +68,8 @@ def scan(lb, tp, network_id, run_trace, run_hostname, run_vertical_trace,
     gateway_device.hostname = domain
     network.add_device(gateway_device)
 
-    devices = network.devices
-
-    # TODO - Update database after each scan so user doesnt have to wait the entire time
-    # Need assigned network id back from db
-
-    # Adds all active devices on the network to the database
-    get_devices(devices, tp, lb, dhcp_server_info, iface)
-
-    # Runs a vertical traceroute to the last internal network device
-    if run_vertical_trace:
-        vertical_traceroute(devices, dhcp_server_info, iface)
-
-    # Adds routing information for all devices in the database
-    if run_trace:
-        add_routes(devices, tp, lb, dhcp_server_info, iface)
-
-    # Looks up mac vendor for all devices in the database
-    if run_mac_vendor:
-        mac_table = MAC_table(MAC_TABLE_FP)
-        add_mac_vendors(devices, lb, mac_table)
-        
-    # Performs a reverse DNS lookup on all devices in the current network's table of the database 
-    if run_hostname:
-        add_hostnames(devices, tp, lb)
-
-    if run_os:
-        add_os_info(devices, tp, lb, iface)
-
-    if run_ports:
-        add_ports(devices, tp, lb, iface, ports)
-
     return network
+
 
 
 # --------------------------------------------- SSID ------------------------------------------ #
@@ -128,7 +99,6 @@ def get_ssid(iface=conf.iface):
         return os.popen("iwconfig " + iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
     elif current_system == "Windows":
-
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
         return out.split(":")[-1][1:]
 
@@ -137,14 +107,14 @@ def get_ssid(iface=conf.iface):
 # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
 # Updates the mac vendor field of all devices in the current network's table of the database
-def add_mac_vendors(devices, lb, mac_table):
+def add_mac_vendors(network, lb):
 
     # Set loading bar
-    lb.set_params("Resolving MAC Vendors", 40, len(devices.keys()))
+    lb.set_params("mac_vendor", 40, len(network.devices.keys()))
     lb.show()
 
     # Adds mac vendor to device and saves to database
-    for device in devices.values():
+    for device in network.devices.values():
         device.mac_vendor = mac_table.find_vendor(device.mac)
         lb.increment()
         lb.show()
@@ -176,13 +146,13 @@ def arp_helper(ip, iface):
 
 
 # Gets all active active devices on the network
-def get_devices(devices, tp, lb, dhcp_server_info, iface):
+def add_devices(network, tp, lb, iface=conf.iface):
 
     print("[INFO] Getting all active devices on network.")
 
     # Breaks subnet and gateway ip into bytes
-    sm_split = dhcp_server_info["subnet_mask"].split(".")
-    gateway_split = dhcp_server_info["router"].split(".")
+    sm_split = network.dhcp_server_info["subnet_mask"].split(".")
+    gateway_split = network.dhcp_server_info["router"].split(".")
     first_ip = [0] * 4
     last_ip = [0] * 4
 
@@ -203,7 +173,7 @@ def get_devices(devices, tp, lb, dhcp_server_info, iface):
     returns = [-1] * num_addrs
 
     # Set loading bar
-    lb.set_params("Scanning for active devices", 40, num_addrs)
+    lb.set_params("get_devices", 40, num_addrs)
     lb.show()
 
     # Preparing thread job parameters
@@ -247,10 +217,10 @@ def get_devices(devices, tp, lb, dhcp_server_info, iface):
     for i in range(num_addrs):
         ip = returns[i][0]
         mac = returns[i][1]
-        if mac and ip and mac not in devices.keys():
-            devices[mac] = Device(ip, mac)
+        if mac and ip and mac not in network.devices.keys():
+            network.devices[mac] = Device(ip, mac)
 
-    print("\n[INFO] Found %d devices!\n" % (len(devices)))
+    print("[INFO] Found %d devices!" % (len(network.devices)))
     lb.reset()
 
 # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #
@@ -270,7 +240,7 @@ def traceroute_helper(ip, gateway, iface):
     if ip in answers.get_trace().keys():
         for answer in answers.get_trace()[ip].keys():
 
-            hop_ip =  answers.get_trace()[ip][answer][0]
+            hop_ip = answers.get_trace()[ip][answer][0]
             # Dont register if the packet hit the same router again
             if hop_ip not in addrs:
                 addrs.append(hop_ip)
@@ -282,28 +252,28 @@ def traceroute_helper(ip, gateway, iface):
 
 
 # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
-def add_routes(devices, tp, lb, dhcp_server_info, iface):
+def add_routes(network, tp, lb, iface=conf.iface):
 
     print("[INFO] Tracing Routes...")
 
     # Retrieve network devices from database
     device_addrs = set()
-    gateway = dhcp_server_info["router"]
+    gateway = network.dhcp_server_info["router"]
 
     # Set loading bar
-    lb.set_params("Tracing routes to devices", 40, len(devices.keys()))
+    lb.set_params("traceroute", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
 
-    for device in devices.values():
+    for device in network.devices.values():
         # Creates job and adds to threadpool queue for execution
         device_addrs.add(device.ip)
         job = Job(
@@ -323,26 +293,26 @@ def add_routes(devices, tp, lb, dhcp_server_info, iface):
 
     # Waits for all jobs to be completed by the threadpool
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
 
     mutex.release()
-    print("[INFO] Traceroute complete!\n")
+    print("[INFO] Traceroute complete!")
 
     # Parses output
     job_counter = 0
-    for device in devices.values():
+    for device in network.devices.values():
         parent = ""
         for addr in returns[job_counter]:
-            # Adds devices to database if they don't already exist
+            # Adds devices if they don't already exist
             if addr not in device_addrs:
                 device_addrs.add(addr)
                 mac = arp_helper(addr, iface)[1]
                 new_device = Device(addr, mac)
                 new_device.parent = parent
-                devices[mac] = new_device
+                network.devices[mac] = new_device
 
             parent = addr
 
@@ -372,10 +342,10 @@ def add_routes(devices, tp, lb, dhcp_server_info, iface):
 #         return False #return false if this does not host a website
     
 
-def vertical_traceroute(devices, dhcp_server_info, iface, target_host="8.8.8.8"):
+def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
 
     # Run traceroute to google's DNS server
-    traceroute_results = [dhcp_server_info["router"], *traceroute_helper(target_host, dhcp_server_info["router"], iface)]
+    traceroute_results = [network.dhcp_server_info["router"], *traceroute_helper(target_host, network.dhcp_server_info["router"], iface)]
     # Print the traceroute results
     for i in range(len(traceroute_results) - 1):
         ip = traceroute_results[i]
@@ -385,13 +355,13 @@ def vertical_traceroute(devices, dhcp_server_info, iface, target_host="8.8.8.8")
             if mac == None:
                 continue
 
-            if mac in devices.keys():
-                devices[mac].parent = traceroute_results[i+1]
+            if mac in network.devices.keys():
+                network.devices[mac].parent = traceroute_results[i+1]
                 continue
 
             new_device = Device(ip, mac)
             new_device.parent = traceroute_results[i+1]
-            devices[mac] = new_device
+            network.devices[mac] = new_device
 
 
 # ---------------------------------------------- OS FINGERPRINTING ---------------------------------------------- #
@@ -420,12 +390,12 @@ def os_helper(ip):
     return os_info
 
 
-def add_os_info(devices, tp, lb, iface):
+def add_os_info(network, tp, lb, iface=conf.iface):
 
     print("[INFO] Getting OS info...")
 
     # Set loading bar
-    lb.set_params("Scanned", 40, len(devices.keys()))
+    lb.set_params("os_scan", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -436,7 +406,7 @@ def add_os_info(devices, tp, lb, iface):
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
-    for device in devices.values():
+    for device in network.devices.values():
         # Create job and add to threadpool queue for execution
         job = Job(
             fptr=os_helper,
@@ -455,7 +425,7 @@ def add_os_info(devices, tp, lb, iface):
 
     # Waits for all jobs to be completed
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -464,13 +434,13 @@ def add_os_info(devices, tp, lb, iface):
 
     # Sets all devices OS information
     job_id = 0
-    for device in devices.values():
+    for device in network.devices.values():
         device.os_type = returns[job_id]["os_type"]
         device.os_family = returns[job_id]["os_family"]
         device.os_vendor = returns[job_id]["os_vendor"]
         job_id += 1
 
-    print("\n[INFO] OS scan complete!\n")
+    print("[INFO] OS scan complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -487,22 +457,22 @@ def hostname_helper(addr):
 
 
 # Retrieves the hostnames of all devices on the network and saves them to the database
-def add_hostnames(devices, tp, lb):
+def add_hostnames(network, tp, lb):
 
     # Set loading bar
-    lb.set_params("Resolving Hostnames", 40, len(devices.keys()))
+    lb.set_params("hostnames", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
 
-    for device in devices.values():
+    for device in network.devices.values():
 
         # Create job and add to threadpool queue for execution
         job = Job(
@@ -520,7 +490,7 @@ def add_hostnames(devices, tp, lb):
 
     # Wait for all jobs to be comleted
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -529,12 +499,12 @@ def add_hostnames(devices, tp, lb):
 
     # Add returned hostnames to devices, save to database
     job_counter = 0
-    for device in devices.values():
+    for device in network.devices.values():
         if returns[job_counter] != "unkown":
             device.hostname = returns[job_counter]
         job_counter += 1
 
-    print("[INFO] Name resolution complete!\n")
+    print("[INFO] Name resolution complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -577,45 +547,45 @@ def get_gateway_mac(iface=conf.iface):
 
 # ---------------------------------------------- DNS SNIFFER ---------------------------------------------- #
 
-# Packet sniffing daemon to get hostnames
-def wlan_sniffer_callback(self, pkt):
+# # Packet sniffing daemon to get hostnames
+# def wlan_sniffer_callback(self, pkt):
 
-    # Sniffs mDNS responses for new hostnames and devices
-    if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
-        # Can only be saved to database if the network is registered
-        if not self.db.contains_network(self.network_id):
-            return
+#     # Sniffs mDNS responses for new hostnames and devices
+#     if IP in pkt and UDP in pkt and pkt[UDP].dport == 5353:
+#         # Can only be saved to database if the network is registered
+#         if not self.db.contains_network(self.network_id):
+#             return
 
-        ip = pkt[IP].src
-        mac = arp_helper(ip, iface)[1]
+#         ip = pkt[IP].src
+#         mac = arp_helper(ip, iface)[1]
 
-        if mac == None:
-            return
+#         if mac == None:
+#             return
 
-        # Add device to database if it doesnt exist
-        if not self.db.contains_mac(self.network_id, mac, self.ts):
-            device = Device(ip, mac)
-            device.mac_vendor = self.mac_table.find_vendor(mac)
-            device.parent = traceroute_helper(ip, self.gateway, self.iface)[-1]
-            self.db.add_device(self.network_id, device, self.ts)
+#         # Add device to database if it doesnt exist
+#         if not self.db.contains_mac(self.network_id, mac, self.ts):
+#             device = Device(ip, mac)
+#             device.mac_vendor = self.mac_table.find_vendor(mac)
+#             device.parent = traceroute_helper(ip, self.gateway, self.iface)[-1]
+#             self.db.add_device(self.network_id, device, self.ts)
 
-        if DNSRR in pkt:
-            # Exclude non-human names and addresses
-            name = pkt[DNSRR].rrname.decode("utf-8")
-            if name.split(".")[-2] != "arpa" and name[0] != "_":
-                # Update existing device and save to database if it already exists
-                device = self.db.get_device(self.network_id, mac, self.ts)
-                if device == None:
-                    print("[DEBUG] err in wlan sniff")
-                    return
+#         if DNSRR in pkt:
+#             # Exclude non-human names and addresses
+#             name = pkt[DNSRR].rrname.decode("utf-8")
+#             if name.split(".")[-2] != "arpa" and name[0] != "_":
+#                 # Update existing device and save to database if it already exists
+#                 device = self.db.get_device(self.network_id, mac, self.ts)
+#                 if device == None:
+#                     print("[DEBUG] err in wlan sniff")
+#                     return
 
-                if device.hostname == "unknown":
-                    device.hostname = name
-                    self.db.save_device(self.network_id, device, self.ts)
+#                 if device.hostname == "unknown":
+#                     device.hostname = name
+#                     self.db.save_device(self.network_id, device, self.ts)
 
 
-def run_wlan_sniffer(self, iface, args):
-    sniff(prn=wlan_sniffer_callback, iface=iface, args=args)
+# def run_wlan_sniffer(self, iface, args):
+#     sniff(prn=wlan_sniffer_callback, iface=iface, args=args)
 
 # ---------------------------------------- IP ----------------------------------------------------- #
         
@@ -646,7 +616,7 @@ def get_ip_class(ip):
 
 # ---------------------------------------- PORTS ---------------------------------------------------- #
 
-def check_ports(ip, iface, ports):
+def ports_helper(ip, iface, ports):
 
     out = [False] * len(ports)
     idx = 0
@@ -668,29 +638,29 @@ def check_ports(ip, iface, ports):
     return out
 
 
-def add_ports(devices, tp, lb, iface, ports):
+def add_ports(network, tp, lb, ports, iface=conf.iface):
 
     if ports == []:
         return
     
     # Set loading bar
-    lb.set_params("Checking Ports", 40, len(devices.keys()))
+    lb.set_params("ports", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
 
-    for device in devices.values():
+    for device in network.devices.values():
 
         # Create job and add to threadpool queue for execution
         job = Job(
-            fptr=check_ports,
+            fptr=ports_helper,
             args=(device.ip, iface, ports,),
             ret_ls=returns,
             ret_id=job_counter,
@@ -704,7 +674,7 @@ def add_ports(devices, tp, lb, iface, ports):
 
     # Wait for all jobs to be comleted
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -713,7 +683,7 @@ def add_ports(devices, tp, lb, iface, ports):
 
     # Add returned hostnames to devices, save to database
     job_counter = 0
-    for device in devices.values():
+    for device in network.devices.values():
         ports_open = []
         for port_idx in range(len(returns[job_counter])):
             if returns[job_counter][port_idx]:
