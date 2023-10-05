@@ -67,7 +67,7 @@ class PostgreSQL_database:
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
         
 
-    def save_network(self, user_id, network):
+    def save_network(self, user_id, network, exists=False):
 
         if not type(user_id) == int:
             return *self.err_codes["bad_input"], None
@@ -120,10 +120,16 @@ class PostgreSQL_database:
                 
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
-        if not self.contains_snapshot(network_id, timestamp):
-            if not self.__add_snapshot(network_id, timestamp):
+        if exists:
+            timestamp = self.__get_most_recent_timestamp(network_id)
+            if not timestamp:
                 return *self.err_codes["db_error"], None
         
+        else:
+            if not self.contains_snapshot(network_id, timestamp):
+                if not self.__add_snapshot(network_id, timestamp):
+                    return *self.err_codes["db_error"], None
+            
         # Saves all devices
         if not self.__save_devices(network_id, devices, timestamp):
             return *self.err_codes["db_error"], None
@@ -416,13 +422,24 @@ class PostgreSQL_database:
     # Saves given devices to database at the given timestamp
     def __save_devices(self, network_id, devices, timestamp):
 
+        # Snapshot must be initialised before devices can be saved
+        if not self.contains_snapshot(network_id, timestamp):
+            return False
+
         valid = 0
-        # Adds all entered devices to database  
+        # Adds all entered devices to database, or updates them if they already exist in this snapshot
         for device in devices.values():
-            if self.__add_device(network_id, device, timestamp):
-                # Counts only devices that were successfully added to the database
-                valid += 1
+            if self.contains_device(network_id, mac, timestamp):
+                if not self.__update_device(network_id, device, timestamp):
+                    continue
+
+            else:
+                if not self.__add_device(network_id, device, timestamp):
+                    continue
             
+            # Counts only devices that were successfully added to the database
+            valid += 1
+
         # Updates related snapshot with new n_alive attribute
         query = """
                 UPDATE snapshots
@@ -442,10 +459,6 @@ class PostgreSQL_database:
     # Adds a device into the database
     def __add_device(self, network_id, device, timestamp):
 
-        # Checks that requested snapshot exists
-        if not self.contains_snapshot(network_id, timestamp):
-            return False
-
         query = """
                 INSERT INTO devices (
                     mac, 
@@ -463,25 +476,27 @@ class PostgreSQL_database:
                 """
         
         params = (device["mac"], 
-                    device["ip"], 
-                    device["mac_vendor"], 
-                    device["hostname"], 
-                    device["os_type"],
-                    device["os_vendor"], 
-                    device["os_family"], 
-                    device["parent"], 
-                    device["ports"],
-                    network_id, 
-                    timestamp,)
+                  device["ip"], 
+                  device["mac_vendor"], 
+                  device["hostname"], 
+                  device["os_type"],
+                  device["os_vendor"], 
+                  device["os_family"], 
+                  device["parent"], 
+                  device["ports"],
+                  network_id, 
+                  timestamp,)
         
         return self.__query(query, params)
 
 
     # NOT IMPLEMENTED YET, GOING TO BE USED FOR INCREMENTAL SAVING AND DISPLAYING OF SCANS
     # Updates the most recent version of a device to add new data
-    def __update_device(self, network_id, device):
+    def __update_device(self, network_id, device, timestamp):
 
-        timestamp = self.__get_most_recent_timestamp(network_id)
+        # Checks that requested snapshot exists
+        if not self.contains_snapshot(network_id, timestamp):
+            return False
 
         query = """
                 UPDATE devices
@@ -495,22 +510,36 @@ class PostgreSQL_database:
                     os_family = %s, 
                     parent = %s, 
                     ports = %s,
-                WHERE network_id = %s and timestamp = %s;
+                WHERE network_id = %s and timestamp = %s and mac = %s;
                 """
         
-        params = (device["mac"], 
-                    device["ip"], 
-                    device["mac_vendor"], 
-                    device["hostname"], 
-                    device["os_type"],
-                    device["os_vendor"], 
-                    device["os_family"], 
-                    device["parent"], 
-                    device["ports"],
-                    network_id, 
-                    timestamp,)
+        params = (device["ip"], 
+                  device["mac_vendor"], 
+                  device["hostname"], 
+                  device["os_type"],
+                  device["os_vendor"], 
+                  device["os_family"], 
+                  device["parent"], 
+                  device["ports"],
+                  network_id, 
+                  timestamp,
+                  device["mac"])
         
         return self.__query(query, params)
+
+
+    def contains_device(self, network_id, mac, timestamp):
+
+        query = """
+                SELECT 1
+                FROM devices
+                WHERE network_id = %s and mac = %s and timestamp = %s;
+                """
+
+        params = (network_id, mac, timestamp,)
+
+        response = self.__query(query, params, res=True)
+        return response != None and len(response) > 0
 
 
     # --------------------------------------------- SNAPSHOTS ------------------------------------------ #
