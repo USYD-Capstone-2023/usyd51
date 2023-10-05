@@ -120,15 +120,12 @@ class PostgreSQL_database:
                 
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
-        if exists:
-            timestamp = self.__get_most_recent_timestamp(network_id)
-            if not timestamp:
+        if not self.contains_snapshot(network_id, timestamp):
+            if exists:
                 return *self.err_codes["db_error"], None
-        
-        else:
-            if not self.contains_snapshot(network_id, timestamp):
-                if not self.__add_snapshot(network_id, timestamp):
-                    return *self.err_codes["db_error"], None
+
+            if not self.__add_snapshot(network_id, timestamp):
+                return *self.err_codes["db_error"], None
             
         # Saves all devices
         if not self.__save_devices(network_id, devices, timestamp):
@@ -429,7 +426,7 @@ class PostgreSQL_database:
         valid = 0
         # Adds all entered devices to database, or updates them if they already exist in this snapshot
         for device in devices.values():
-            if self.contains_device(network_id, mac, timestamp):
+            if self.contains_device(network_id, device["mac"], timestamp):
                 if not self.__update_device(network_id, device, timestamp):
                     continue
 
@@ -501,7 +498,6 @@ class PostgreSQL_database:
         query = """
                 UPDATE devices
                 SET
-                    mac = %s, 
                     ip = %s, 
                     mac_vendor = %s, 
                     hostname = %s, 
@@ -509,7 +505,7 @@ class PostgreSQL_database:
                     os_vendor = %s, 
                     os_family = %s, 
                     parent = %s, 
-                    ports = %s,
+                    ports = %s
                 WHERE network_id = %s and timestamp = %s and mac = %s;
                 """
         
@@ -985,10 +981,10 @@ class PostgreSQL_database:
         try:
             # Open Database Connection
             with psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost") as conn:
-                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
                 # Create Cursor Object
                 with conn.cursor() as cur:
+                    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
                     cur.execute(query, params)
 
                     res = cur.fetchone()

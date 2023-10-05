@@ -99,7 +99,6 @@ def get_ssid(iface=conf.iface):
         return os.popen("iwconfig " + iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
     elif current_system == "Windows":
-
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
         return out.split(":")[-1][1:]
 
@@ -111,7 +110,7 @@ def get_ssid(iface=conf.iface):
 def add_mac_vendors(network, lb):
 
     # Set loading bar
-    lb.set_params("Resolving MAC Vendors", 40, len(network.devices.keys()))
+    lb.set_params("mac_vendor", 40, len(network.devices.keys()))
     lb.show()
 
     # Adds mac vendor to device and saves to database
@@ -174,7 +173,7 @@ def add_devices(network, tp, lb, iface=conf.iface):
     returns = [-1] * num_addrs
 
     # Set loading bar
-    lb.set_params("Scanning for active devices", 40, num_addrs)
+    lb.set_params("get_devices", 40, num_addrs)
     lb.show()
 
     # Preparing thread job parameters
@@ -221,7 +220,7 @@ def add_devices(network, tp, lb, iface=conf.iface):
         if mac and ip and mac not in network.devices.keys():
             network.devices[mac] = Device(ip, mac)
 
-    print("\n[INFO] Found %d devices!\n" % (len(network.devices)))
+    print("[INFO] Found %d devices!" % (len(network.devices)))
     lb.reset()
 
 # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #
@@ -241,7 +240,7 @@ def traceroute_helper(ip, gateway, iface):
     if ip in answers.get_trace().keys():
         for answer in answers.get_trace()[ip].keys():
 
-            hop_ip =  answers.get_trace()[ip][answer][0]
+            hop_ip = answers.get_trace()[ip][answer][0]
             # Dont register if the packet hit the same router again
             if hop_ip not in addrs:
                 addrs.append(hop_ip)
@@ -262,7 +261,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
     gateway = network.dhcp_server_info["router"]
 
     # Set loading bar
-    lb.set_params("Tracing routes to devices", 40, len(network.devices.keys()))
+    lb.set_params("traceroute", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -300,7 +299,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
         lb.show()
 
     mutex.release()
-    print("[INFO] Traceroute complete!\n")
+    print("[INFO] Traceroute complete!")
 
     # Parses output
     job_counter = 0
@@ -396,7 +395,7 @@ def add_os_info(network, tp, lb, iface=conf.iface):
     print("[INFO] Getting OS info...")
 
     # Set loading bar
-    lb.set_params("Scanned", 40, len(network.devices.keys()))
+    lb.set_params("os_scan", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -441,7 +440,7 @@ def add_os_info(network, tp, lb, iface=conf.iface):
         device.os_vendor = returns[job_id]["os_vendor"]
         job_id += 1
 
-    print("\n[INFO] OS scan complete!\n")
+    print("[INFO] OS scan complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -461,14 +460,14 @@ def hostname_helper(addr):
 def add_hostnames(network, tp, lb):
 
     # Set loading bar
-    lb.set_params("Resolving Hostnames", 40, len(network.devices.keys()))
+    lb.set_params("hostnames", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
@@ -491,7 +490,7 @@ def add_hostnames(network, tp, lb):
 
     # Wait for all jobs to be comleted
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -505,7 +504,7 @@ def add_hostnames(network, tp, lb):
             device.hostname = returns[job_counter]
         job_counter += 1
 
-    print("[INFO] Name resolution complete!\n")
+    print("[INFO] Name resolution complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -645,14 +644,14 @@ def add_ports(network, tp, lb, ports, iface=conf.iface):
         return
     
     # Set loading bar
-    lb.set_params("Checking Ports", 40, len(network.devices.keys()))
+    lb.set_params("ports", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0

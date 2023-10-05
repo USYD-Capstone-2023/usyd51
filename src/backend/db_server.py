@@ -173,16 +173,12 @@ def save_network(user_id):
     return create_response(*ret)
 
 
-@app.put("/networks/<network_id>/update")
+@app.put("/networks/update")
 @require_auth
-def update_network(user_id, network_id):
-
-    args = to_ints([network_id])
-    if not args:
-        return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
+def update_network(user_id):
 
     network = request.get_json()
-    ret = db.save_network(user_id, network_id, network, exists=True)
+    ret = db.save_network(user_id, network, exists=True)
     return create_response(*ret)
 
 
@@ -190,11 +186,12 @@ def update_network(user_id, network_id):
 @app.put("/networks/<network_id>/rename/<new_name>")
 @require_auth
 def rename_network(user_id, network_id, new_name):
+
     args = to_ints([network_id])
     if not args:
         return create_response(pdb.err_codes["bad_input"][0], pdb.err_codes["bad_input"][1])
     
-    ret = db.rename_network(user_id, args[0], new_name)
+    ret = db.rename_network(user_id, new_name)
     return create_response(*ret)
 
 
