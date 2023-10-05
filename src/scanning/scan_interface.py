@@ -127,16 +127,12 @@ def run_scan(network_id, args, auth, lb):
 
     # Initialises network
     network = nt.init_scan(network_id)
-    res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
-    if res.status_code != 200:
-        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
-        return
-
-
     # Retrieves devices
-    network_id = json.loads(res.content.decode("utf-8"))["content"]
     nt.add_devices(network, tp, loading_bars[auth])
-    res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
+    # Runs basic traceroute
+    nt.traceroute(network, tp, loading_bars[auth])
+    # Saves to database
+    res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
         return
@@ -159,6 +155,7 @@ def run_scan(network_id, args, auth, lb):
                 return
 
     print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
+    return network
 
 
 def verify_current_connection(network_id, auth):
@@ -216,7 +213,9 @@ def scan_network(auth, network_id):
     # Creates a loading bar for the scan
     loading_bars[auth] = Loading_bar()
     # Dispatches scan
-    threading.Thread(target=run_scan, args=(network_id, args, auth, loading_bars[auth]))
+    scan_thread = threading.Thread(target=run_scan, args=(network_id, args, auth, loading_bars[auth]))
+    scan_thread.daemon = True
+    scan_thread.start()
     return create_response("Scan has started.", 200)
     
 
@@ -299,13 +298,24 @@ def get_current_ssid():
     return create_response("success", 200, nt.get_ssid())
 
 
+# Starts the scanning daemon for the network that this server is connected to
 def run_daemon():
 
     print("[INFO] Daemon is starting!")
+
+    requests.post(DB_SERVER_URL + "/signup", 
+                      json={"username" : "daemon", "password" : "passwd", "email" : "sam@same"})
+        
+    res = requests.post("http://" + TestingConfig.SERVER_URI + ":5000/login", 
+                        json={"username" : "sam", "password" : "passwd"})
+    
+    token = res.content.decode("utf-8")
+
     while True:
 
         # Sleeps until there is a client to scan for
         if len(daemon_clients.keys()) == 0:
+            print("[INFO] Daemon is waiting for clients...")
             daemon_sleep.clear()
             daemon_sleep.wait()
 
@@ -338,7 +348,10 @@ def run_daemon():
 # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 # THIS IS THE ISSUE
 # find a way to share this scan, idk
-        network = nt.scan(daemon_lb, tp, network_id, *args)
+
+
+        # create new network id if doesnt exist, then save to that id just for the daemon account
+        network = run_scan()
 
         # TODO - convert network to follow the users original scan settings
         for client in daemon_clients.keys():
@@ -366,5 +379,7 @@ if __name__ == "__main__":
         print("Please enter 'remote' or 'local'.")
         sys.exit()
 
-    run_daemon()
+    # daemon_thread = threading.Thread(target=run_daemon)
+    # daemon_thread.daemon = True
+    # daemon_thread.start()
     app.run(port=5001)

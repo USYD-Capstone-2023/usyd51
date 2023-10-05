@@ -99,7 +99,6 @@ def get_ssid(iface=conf.iface):
         return os.popen("iwconfig " + iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
     elif current_system == "Windows":
-
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
         return out.split(":")[-1][1:]
 
@@ -111,7 +110,7 @@ def get_ssid(iface=conf.iface):
 def add_mac_vendors(network, lb):
 
     # Set loading bar
-    lb.set_params("Resolving MAC Vendors", 40, len(network.devices.keys()))
+    lb.set_params("mac_vendor", 40, len(network.devices.keys()))
     lb.show()
 
     # Adds mac vendor to device and saves to database
@@ -174,7 +173,7 @@ def add_devices(network, tp, lb, iface=conf.iface):
     returns = [-1] * num_addrs
 
     # Set loading bar
-    lb.set_params("Scanning for active devices", 40, num_addrs)
+    lb.set_params("get_devices", 40, num_addrs)
     lb.show()
 
     # Preparing thread job parameters
@@ -262,7 +261,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
     gateway = network.dhcp_server_info["router"]
 
     # Set loading bar
-    lb.set_params("Tracing routes to devices", 40, len(network.devices.keys()))
+    lb.set_params("traceroute", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -396,7 +395,7 @@ def add_os_info(network, tp, lb, iface=conf.iface):
     print("[INFO] Getting OS info...")
 
     # Set loading bar
-    lb.set_params("Scanned", 40, len(network.devices.keys()))
+    lb.set_params("os_scan", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -461,7 +460,7 @@ def hostname_helper(addr):
 def add_hostnames(network, tp, lb):
 
     # Set loading bar
-    lb.set_params("Resolving Hostnames", 40, len(network.devices.keys()))
+    lb.set_params("hostnames", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
@@ -645,7 +644,7 @@ def add_ports(network, tp, lb, ports, iface=conf.iface):
         return
     
     # Set loading bar
-    lb.set_params("Checking Ports", 40, len(network.devices.keys()))
+    lb.set_params("ports", 40, len(network.devices.keys()))
     lb.show()
 
     # Preparing thread job parameters
