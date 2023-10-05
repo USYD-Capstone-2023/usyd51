@@ -220,7 +220,7 @@ def add_devices(network, tp, lb, iface=conf.iface):
         if mac and ip and mac not in network.devices.keys():
             network.devices[mac] = Device(ip, mac)
 
-    print("\n[INFO] Found %d devices!\n" % (len(network.devices)))
+    print("[INFO] Found %d devices!" % (len(network.devices)))
     lb.reset()
 
 # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #
@@ -240,7 +240,7 @@ def traceroute_helper(ip, gateway, iface):
     if ip in answers.get_trace().keys():
         for answer in answers.get_trace()[ip].keys():
 
-            hop_ip =  answers.get_trace()[ip][answer][0]
+            hop_ip = answers.get_trace()[ip][answer][0]
             # Dont register if the packet hit the same router again
             if hop_ip not in addrs:
                 addrs.append(hop_ip)
@@ -299,7 +299,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
         lb.show()
 
     mutex.release()
-    print("[INFO] Traceroute complete!\n")
+    print("[INFO] Traceroute complete!")
 
     # Parses output
     job_counter = 0
@@ -440,7 +440,7 @@ def add_os_info(network, tp, lb, iface=conf.iface):
         device.os_vendor = returns[job_id]["os_vendor"]
         job_id += 1
 
-    print("\n[INFO] OS scan complete!\n")
+    print("[INFO] OS scan complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -467,7 +467,7 @@ def add_hostnames(network, tp, lb):
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0
@@ -490,7 +490,7 @@ def add_hostnames(network, tp, lb):
 
     # Wait for all jobs to be comleted
     mutex.acquire()
-    while counter_ptr[0] < len(devices.keys()):
+    while counter_ptr[0] < len(network.devices.keys()):
         cond.wait()
         lb.set_progress(counter_ptr[0])
         lb.show()
@@ -504,7 +504,7 @@ def add_hostnames(network, tp, lb):
             device.hostname = returns[job_counter]
         job_counter += 1
 
-    print("[INFO] Name resolution complete!\n")
+    print("[INFO] Name resolution complete!")
 
     # Reset loading bar for next task. Enables frontend to know job is complete.
     lb.reset()
@@ -651,7 +651,7 @@ def add_ports(network, tp, lb, ports, iface=conf.iface):
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0

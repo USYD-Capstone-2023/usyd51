@@ -102,14 +102,11 @@ def get_settings(auth):
     settings = json.loads(res.content.decode("utf-8"))["content"]
 
     # Format returned settings data into arguments for scanning function
-    args = []
     for req in require:
         if req not in settings.keys():
             return create_response("Settings in database are malformed. Contact your system administrator.", 500)
         
-        args.append(settings[req])
-
-    return args
+    return settings
 
 
 # Checks if a given network ID is valid and numeric
@@ -123,31 +120,33 @@ def validate_network_id(network_id):
 
 # Runs a network scan on the given network with the given settings arguments.
 # Automatically saves network to database on completion.
-def run_scan(network_id, args, auth, lb):
+def run_scan(network_id, settings, auth, lb):
 
     # Initialises network
     network = nt.init_scan(network_id)
     # Retrieves devices
     nt.add_devices(network, tp, loading_bars[auth])
     # Runs basic traceroute
-    nt.traceroute(network, tp, loading_bars[auth])
+    nt.add_routes(network, tp, loading_bars[auth])
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
         return
 
+    network_id = json.loads(res.content.decode("utf-8"))["content"]
+    network.network_id = network_id
+
     scans = [
-        {"setting" : "run_trace",          "func" : nt.traceroute,          "args" : [network, tp, loading_bars[auth]]},
-        {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
         {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
         {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
-        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], args["ports"]]},
+        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], settings["ports"]]},
     ]
 
     for scan in scans:
-        if args[scan["setting"]]:
+        if settings[scan["setting"]]:
             scan["func"](*scan["args"])
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
             if res.status_code != 200:
@@ -155,6 +154,7 @@ def run_scan(network_id, args, auth, lb):
                 return
 
     print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
+    del loading_bars[auth]
     return network
 
 
@@ -191,10 +191,6 @@ def verify_current_connection(network_id, auth):
 @require_auth
 def scan_network(auth, network_id):
 
-    # Checks if user is already running a scan
-    if auth in loading_bars.keys():
-        return create_response("User is already running a scan.", 500)
-
     # Checks that the entered network id is valid
     network_id = validate_network_id(network_id)
     if network_id == None:
@@ -206,14 +202,18 @@ def scan_network(auth, network_id):
         return res[0], res[1]
     
     # Retrieves users scanning preferences
-    args = get_settings(auth)
-    if args == None:
+    settings = get_settings(auth)
+    if settings == None:
         return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
+
+    # Checks if user is already running a scan
+    if auth in loading_bars.keys():
+        return create_response("User is already running a scan.", 500)
 
     # Creates a loading bar for the scan
     loading_bars[auth] = Loading_bar()
     # Dispatches scan
-    scan_thread = threading.Thread(target=run_scan, args=(network_id, args, auth, loading_bars[auth]))
+    scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth, loading_bars[auth]))
     scan_thread.daemon = True
     scan_thread.start()
     return create_response("Scan has started.", 200)
