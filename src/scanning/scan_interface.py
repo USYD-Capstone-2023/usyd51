@@ -125,12 +125,40 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, args, auth, lb):
 
-    network = nt.scan(lb, tp, network_id, *args)
+    # Initialises network
+    network = nt.init_scan(network_id)
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
-        return print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        return
 
-    return print(f"[INFO] Successfully wrote network '{network.name}' to database.")
+
+    # Retrieves devices
+    network_id = json.loads(res.content.decode("utf-8"))["content"]
+    nt.add_devices(network, tp, loading_bars[auth])
+    res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
+    if res.status_code != 200:
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        return
+
+    scans = [
+        {"setting" : "run_trace",          "func" : nt.traceroute,          "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
+        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], args["ports"]]},
+    ]
+
+    for scan in scans:
+        if args[scan["setting"]]:
+            scan["func"](*scan["args"])
+            res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
+            if res.status_code != 200:
+                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+                return
+
+    print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
 
 
 def verify_current_connection(network_id, auth):
