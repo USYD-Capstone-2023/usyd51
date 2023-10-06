@@ -46,7 +46,6 @@ db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
-
 # Authentication wrapper
 def require_auth(func):
 
@@ -79,6 +78,9 @@ def require_auth(func):
             if res.status != 200:
                 return res.to_json()
             
+            # Converts user id to integer
+            res.content["user_id"] = int(res.content["user_id"])
+            
         # If any error occurs, auth token is invalid
         except Exception as e:
             return Response("malformed_auth")
@@ -88,6 +90,7 @@ def require_auth(func):
     return decorated
 
 
+# Checks if input values are numerical and converts to integers or None if not
 def to_ints(vals):
 
     for i in range(len(vals)):
@@ -99,21 +102,20 @@ def to_ints(vals):
     return vals
             
 
-# Adds a user into the database, inputted as json:
-# {"username" : , "password" : , "email" : }
+# Adds a user into the database when they signup to the app
 @app.post("/signup")
 def signup():
 
     user_data = request.get_json()
     res = db.add_user(user_data)
+    print(res.to_json())
     if res.status != 200:
-        return res
+        return res.to_json()
     
-    return Response("success").json()
+    return Response("success").to_json()
 
 
 # Logs in a user, returns an authentication token to authenticate further access:
-# {"username" : , "password" : }
 @app.post("/login")
 def login():
 
@@ -121,8 +123,8 @@ def login():
 
     if "username" not in user_data.keys() or "password" not in user_data.keys():
         return Response("malformed_user").to_json()
-
-    res = db.get_user_by_login(user_data["username"], user_data["password"])
+    
+    res = db.get_user_id_by_login(user_data["username"], user_data["password"])
     if res.status != 200:
         return res.to_json()
     
@@ -133,8 +135,7 @@ def login():
     return Response("success", content={"Auth-Token" : token}).to_json()
 
 
-# Gives basic information about all networks stored in the database, as json:
-# [{gateway_mac : , id : , name : , ssid : }, ...]
+# Gives basic information about all networks accessible by the user.
 @app.get("/networks")
 @require_auth
 def get_networks(user_id):
@@ -142,8 +143,7 @@ def get_networks(user_id):
     return db.get_networks(user_id).to_json()
     
 
-# Gives basic information about the requested network, as json:
-# {gateway_mac : , id : , name : , ssid : }
+# Gives basic information about the requested network.
 @app.get("/networks/<network_id>")
 @require_auth
 def get_network(user_id, network_id):
@@ -173,6 +173,7 @@ def get_devices(user_id, network_id):
 def save_network(user_id):
 
     network = request.get_json()
+    network["user_id"] = user_id
     return db.save_network(user_id, network).to_json()
     
 
@@ -182,6 +183,7 @@ def save_network(user_id):
 def update_network(user_id):
 
     network = request.get_json()
+    network["user_id"] = user_id
     return db.save_network(user_id, network, exists=True).to_json()
     
 
@@ -230,6 +232,7 @@ def set_settings(user_id):
 @app.get("/networks/<network_id>/snapshots")
 @require_auth
 def get_snapshots(user_id, network_id):
+
     args = to_ints([network_id])
     if not args:
         return Response("bad_input").to_json()
@@ -241,6 +244,7 @@ def get_snapshots(user_id, network_id):
 @app.get("/networks/<network_id>/snapshots/<timestamp>")
 @require_auth
 def get_snapshot(user_id, network_id, timestamp):
+
     args = to_ints([network_id, timestamp])
     if not args:
         return Response("bad_input").to_json()
