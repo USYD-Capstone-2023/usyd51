@@ -21,7 +21,8 @@ app = Flask(__name__)
 # Load the configuration from the specified config class
 app.config.from_object(Config)
 
-# When run by name, define the app configuration based on command line args
+# @returns_response_objWhen run by name, 
+# define the app configuration based on command line args
 if len(sys.argv) < 2:
     print("Please enter either 'remote' or 'local'")
     sys.exit(-1)
@@ -47,17 +48,37 @@ db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
 # Authentication wrapper
+def returns_response_obj(func):
+
+    # Ensures that there is a valid authentication token attached to each request.
+    @wraps(func)
+    def res_decorator(*args, **kwargs):
+        
+        # Run the decorated function
+        res = func(*args, **kwargs)
+
+        if isinstance(res, Response):
+            content, status = res.to_json()
+            return content, status
+        
+        content, status = Response("db_error").to_json()
+        return content, status, {"Access-Control-Allow-Origin": "*"}
+        
+    return res_decorator
+
+
+# Authentication wrapper
 def require_auth(func):
 
     # Ensures that there is a valid authentication token attached to each request.
     @wraps(func)
-    def decorated(*args, **kwargs):
+    def auth_decorator(*args, **kwargs):
         
         auth = None
         if "Auth-Token" in request.headers:
             auth = request.headers["Auth-Token"]
         else:
-            return Response("Authentication token not in request headers.", 401)
+            return Response("no_auth", 401)
 
         try:
             request_payload = jwt.decode(auth, app.config['SECRET_KEY'], algorithms=["HS256"])
@@ -65,18 +86,18 @@ def require_auth(func):
             # Checks auth token contents
             if "user_id" not in request_payload.keys():
                 return Response("no_auth")
-            
+                
             if "expiry" not in request_payload.keys():
                 return Response("malformed_auth")
             
             # Checks if auth token has expired
             if datetime.utcnow() > datetime.strptime(request_payload["expiry"], "%d/%m/%Y/%H/%M/%S"):
                 return Response("expired_auth")
-            
+                
             # Checks that there is a corresponding user in the database
             res = db.get_user_by_id(request_payload["user_id"])
             if res.status != 200:
-                return res.to_json()
+                return res
             
             # Converts user id to integer
             res.content["user_id"] = int(res.content["user_id"])
@@ -84,10 +105,10 @@ def require_auth(func):
         # If any error occurs, auth token is invalid
         except Exception as e:
             return Response("malformed_auth")
-        
+            
         # Run the decorated function
         return func(res.content["user_id"], *args, **kwargs)
-    return decorated
+    return auth_decorator
 
 
 # Checks if input values are numerical and converts to integers or None if not
@@ -104,152 +125,191 @@ def to_ints(vals):
 
 # Adds a user into the database when they signup to the app
 @app.post("/signup")
+@returns_response_obj
 def signup():
 
-    user_data = request.get_json()
+    user_data = None   
+    try:
+        user_data = request.get_json()
+    except:
+        return Response("bad_input")
+        
     res = db.add_user(user_data)
-    print(res.to_json())
     if res.status != 200:
-        return res.to_json()
+        return res
     
-    return Response("success").to_json()
+    return Response("success")
+    
 
 
 # Logs in a user, returns an authentication token to authenticate further access:
 @app.post("/login")
+@returns_response_obj
 def login():
 
-    user_data = request.get_json()
-
+    user_data = None   
+    try:
+        user_data = request.get_json()
+    except:
+        return Response("bad_input")
+        
     if "username" not in user_data.keys() or "password" not in user_data.keys():
-        return Response("malformed_user").to_json()
-    
+        return Response("malformed_user")
+        
     res = db.get_user_id_by_login(user_data["username"], user_data["password"])
     if res.status != 200:
-        return res.to_json()
-    
+        return res
+        
     exp = (datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINS)).strftime("%d/%m/%Y/%H/%M/%S")
     token = jwt.encode({"user_id" : res.content["user_id"], "expiry" : exp},
                         app.config["SECRET_KEY"], algorithm="HS256")
     
-    return Response("success", content={"Auth-Token" : token}).to_json()
-
+    return Response("success", content={"Auth-Token" : token})
+    
 
 # Gives basic information about all networks accessible by the user.
 @app.get("/networks")
+@returns_response_obj
 @require_auth
 def get_networks(user_id):
 
-    return db.get_networks(user_id).to_json()
+    return db.get_networks(user_id)
     
 
 # Gives basic information about the requested network.
 @app.get("/networks/<network_id>")
+@returns_response_obj
 @require_auth
 def get_network(user_id, network_id):
 
     args = to_ints([network_id])
     if not args:
-        return Response("bad_input").to_json()
+        return Response("bad_input")
 
-    return db.get_network(user_id, args[0]).to_json()
+    return db.get_network(user_id, args[0])
     
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
 @app.get("/networks/<network_id>/devices")
+@returns_response_obj
 @require_auth
 def get_devices(user_id, network_id):
 
     args = to_ints([network_id])
     if not args:
-        return Response("bad_input").to_json()
-
-    return db.get_all_devices(user_id, args[0]).to_json()
+        return Response("bad_input")
+        
+    return db.get_all_devices(user_id, args[0])
      
 
 # Adds a network network to the database, along with its attributes and devices
 @app.put("/networks/add")
+@returns_response_obj
 @require_auth
 def save_network(user_id):
 
-    network = request.get_json()
+    network = None
+    try:
+        network = request.get_json()
+    except:
+        return Response("bad_input")
+        
     network["user_id"] = user_id
-    return db.save_network(user_id, network).to_json()
+    return db.save_network(user_id, network)
     
 
 # Updates an existing snapshot of a network in place
 @app.put("/networks/update")
+@returns_response_obj
 @require_auth
 def update_network(user_id):
 
-    network = request.get_json()
+    network = None
+    try:
+        network = request.get_json()
+    except:
+        return Response("bad_input")
+        
     network["user_id"] = user_id
-    return db.save_network(user_id, network, exists=True).to_json()
+    return db.save_network(user_id, network, exists=True)
     
 
 # Renames a network in the database
 @app.put("/networks/<network_id>/rename/<new_name>")
+@returns_response_obj
 @require_auth
 def rename_network(user_id, network_id, new_name):
 
     args = to_ints([network_id])
     if not args:
-        return Response("bad_input").to_json()
+        return Response("bad_input")
     
-    return db.rename_network(user_id, new_name).to_json()
+    return db.rename_network(user_id, args[0], new_name)
 
 
 # Deletes a network and all related devices from the database
 @app.post("/networks/<network_id>/delete")
+@returns_response_obj
 @require_auth
 def delete_network(user_id, network_id):
 
     args = to_ints([network_id])
     if not args:
-        return Response("bad_input").to_json()
-    
-    return db.delete_network(user_id, args[0]).to_json()
+        return Response("bad_input")
+        
+    return db.delete_network(user_id, args[0])
 
 
 # Retrieves the logged in user's settings json from the database
 @app.get("/settings")
+@returns_response_obj
 @require_auth
 def get_settings(user_id):
 
-    return db.get_settings(user_id).to_json()
+    return db.get_settings(user_id)
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
 @app.put("/settings/set")
+@returns_response_obj
 @require_auth
 def set_settings(user_id):
 
-    settings = request.get_json()
-    return db.set_settings(user_id, settings).to_json() 
+    settings = None
+    try:
+        settings = request.get_json()
+    except:
+        return Response("bad_input")
+        
+    
+    return db.set_settings(user_id, settings)
 
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
 @app.get("/networks/<network_id>/snapshots")
+@returns_response_obj
 @require_auth
 def get_snapshots(user_id, network_id):
 
     args = to_ints([network_id])
     if not args:
-        return Response("bad_input").to_json()
+        return Response("bad_input")
+        
     
-    return db.get_snapshots(user_id, args[0]).to_json()
+    return db.get_snapshots(user_id, args[0])
 
 
 # Retrieves a specific snapshot of a network at a point in time
 @app.get("/networks/<network_id>/snapshots/<timestamp>")
+@returns_response_obj
 @require_auth
 def get_snapshot(user_id, network_id, timestamp):
 
     args = to_ints([network_id, timestamp])
     if not args:
-        return Response("bad_input").to_json()
-
-    return db.get_all_devices(user_id, args[0], args[1]).to_json() 
+        return Response("bad_input")
+        
+    return db.get_all_devices(user_id, args[0], args[1]) 
 
 
 if __name__=="__main__":

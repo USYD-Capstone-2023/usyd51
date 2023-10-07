@@ -13,9 +13,9 @@ class Response:
                 "db_error"           : ("The database server encountered an error, please try again.", 500),
                 "bad_input"          : ("Input was not numeric.", 500),
                 "no_access"          : ("Current user does not have access to this resource.", 401),
-                "malformed_auth"     : {"Provided authentication token is malformed.", 401},
-                "expired_auth"       : {"Provided authenticaiton token has expired.", 401},
-                "no_auth"            : {"No authentication token provided.", 401}}
+                "malformed_auth"     : ("Provided authentication token is malformed.", 401),
+                "expired_auth"       : ("Provided authentication token has expired.", 401),
+                "no_auth"            : ("No authentication token provided.", 401)}
 
     def __init__(self, code_str, content=""):
 
