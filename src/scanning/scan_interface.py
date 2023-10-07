@@ -69,7 +69,6 @@ def require_auth(func):
             auth = request.headers["Auth-Token"]
         else:
             return create_response("Authentication token not in request headers.", 401)
-
         
         # Run the decorated function
         return func(auth, *args, **kwargs)
@@ -82,30 +81,10 @@ def get_settings(auth):
 
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
 
-    # User doesnt exist in settings database, give them default settings
-    if res.status_code == 502:
-        # Returns user to default settings
-        res = requests.put(DB_SERVER_URL + "/settings/set", json=default_settings, headers={"Auth-Token" : auth})
-        if res.status_code != 200:
-            return None
-        
-        res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
-
     if res.status_code != 200:
-            return None
-    
+        return None
 
-    # Order of args required to run a scan
-    require = ["run_trace", "run_hostname", "run_vertical_trace",
-               "run_mac_vendor", "run_os", "run_ports", "ports"]
-    
     settings = json.loads(res.content.decode("utf-8"))["content"]
-
-    # Format returned settings data into arguments for scanning function
-    for req in require:
-        if req not in settings.keys():
-            return create_response("Settings in database are malformed. Contact your system administrator.", 500)
-        
     return settings
 
 
@@ -120,7 +99,7 @@ def validate_network_id(network_id):
 
 # Runs a network scan on the given network with the given settings arguments.
 # Automatically saves network to database on completion.
-def run_scan(network_id, settings, auth, lb):
+def run_scan(network_id, settings, auth):
 
     # Initialises network
     network = nt.init_scan(network_id)
@@ -132,6 +111,7 @@ def run_scan(network_id, settings, auth, lb):
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        del loading_bars[auth]
         return
 
     network_id = json.loads(res.content.decode("utf-8"))["content"]
@@ -151,6 +131,7 @@ def run_scan(network_id, settings, auth, lb):
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
             if res.status_code != 200:
                 print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+                del loading_bars[auth]
                 return
 
     print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
@@ -213,7 +194,7 @@ def scan_network(auth, network_id):
     # Creates a loading bar for the scan
     loading_bars[auth] = Loading_bar()
     # Dispatches scan
-    scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth, loading_bars[auth]))
+    scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth))
     scan_thread.daemon = True
     scan_thread.start()
     return create_response("Scan has started.", 200)
