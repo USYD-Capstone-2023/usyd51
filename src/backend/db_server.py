@@ -21,8 +21,7 @@ app = Flask(__name__)
 # Load the configuration from the specified config class
 app.config.from_object(Config)
 
-# @returns_response_objWhen run by name, 
-# define the app configuration based on command line args
+# Define the app configuration based on command line args
 if len(sys.argv) < 2:
     print("Please enter either 'remote' or 'local'")
     sys.exit(-1)
@@ -47,7 +46,7 @@ db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
-# Authentication wrapper
+# Return formatting wrapper
 def returns_response_obj(func):
 
     # Converts the Resonse return into a valid flask HTTP response
@@ -280,7 +279,6 @@ def set_settings(user_id):
     except:
         return Response("bad_input")
         
-    
     return db.set_settings(user_id, settings)
 
 
@@ -294,7 +292,6 @@ def get_snapshots(user_id, network_id):
     if not args:
         return Response("bad_input")
         
-    
     return db.get_snapshots(user_id, args[0])
 
 

@@ -65,7 +65,7 @@ class PostgreSQL_database:
         self.password = password
 
         # Creates database if it doesnt exist, creates table if they dont exist
-        if not self.__init_db() or not self.__init_tables():
+        if not (self.__init_db() and self.__init_tables()):
 
             print("[ERR ] Fatal error occurred while initialising database. Exitting...")
             sys.exit(-1)
@@ -107,19 +107,19 @@ class PostgreSQL_database:
     # Saves a network and all of its devices to the database
     def save_network(self, user_id, network, exists=False):
 
-        if type(user_id) != int:
+        if not isinstance(user_id, int):
             return Response("bad_input")
 
         # Checks type and key of all attributes of the network
-        for req in self.network_format.keys():
-            if req not in network.keys() or type(network[req]) != self.network_format[req]:
+        for key, datatype in self.network_format.items():
+            if key not in network.keys() or not isinstance(network[key], datatype):
                 return Response("malformed_network")
             
         # Checks type and key of all attributes of each device
         devices = network["devices"]
         for device in devices.values():
-            for req in self.device_format.keys():
-                if req not in device.keys() or type(device[req]) != self.device_format[req]:
+            for key, datatype in self.device_format.items():
+                if key not in device.keys() or not isinstance(device[key], datatype):
                     return Response("malformed_device")
                 
         # Gets the next valid ID if the ID parameter is unset
@@ -162,7 +162,7 @@ class PostgreSQL_database:
     # TODO Probs broken havent looked at it in a long time, isnt implemented in frontend to test
     def delete_network(self, user_id, network_id):
 
-        if type(user_id) != int or type(network_id) != int:
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
 
         # Checks requested network exists, and current user can access it
@@ -205,7 +205,7 @@ class PostgreSQL_database:
     # Checks if the current network exists in the database, and that the provided user has access
     def validate_network_access(self, user_id, network_id):
 
-        if type(user_id) != int or type(network_id) != int:
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
         # Implicitly has access, as network doesnt exist
@@ -233,7 +233,7 @@ class PostgreSQL_database:
     # Returns a list of all networks accessible to the given user
     def get_networks(self, user_id):
 
-        if type(user_id) != int:
+        if not isinstance(user_id, int):
             return Response("bad_input")
         
         attrs = "network_id, ssid, gateway_mac, name, n_alive"
@@ -268,7 +268,7 @@ class PostgreSQL_database:
     # Returns all basic information associated with a network
     def get_network(self, user_id, network_id):
 
-        if type(user_id) != int or type(network_id) != int:
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
         # Checks requested network exists, and current user can access it
@@ -300,7 +300,7 @@ class PostgreSQL_database:
     # Allows users to rename a network and all device data
     def rename_network(self, user_id, network_id, new_name):
 
-        if type(user_id) != int or type(network_id) != int or new_name == "":
+        if not (isinstance(user_id, int) and isinstance(network_id, int)) or new_name == "":
             return Response("bad_input")
 
         # Checks requested network exists, and current user can access it
@@ -370,6 +370,8 @@ class PostgreSQL_database:
             return 0
 
         # Searches for the maximum ID
+        # TODO Make a generator for ids to more efficiently find the next id
+        # TODO - SAM, remove the ability to define your own network id. Dumbest feature ive added 
         next = -1
         for r in response:
             next = max(next, r[0])
@@ -383,7 +385,7 @@ class PostgreSQL_database:
     # Gets all devices stored in the network corresponding to the gateway's MAC address
     def get_all_devices(self, user_id, network_id, timestamp=None):
 
-        if type(user_id) != int or type(network_id) != int:
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
         # Checks requested network exists, and current user can access it
@@ -395,10 +397,9 @@ class PostgreSQL_database:
         if timestamp == None:
             timestamp = self.__get_most_recent_timestamp(network_id)
         
-        else:
-            # Errors if the given timestamp is not recorded
-            if not self.contains_snapshot(network_id, timestamp):
-                return Response("no_snapshot")
+        # Errors if the given timestamp is not recorded
+        elif not self.contains_snapshot(network_id, timestamp):
+            return Response("no_snapshot")
             
         attrs = "mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports"
 
@@ -421,10 +422,10 @@ class PostgreSQL_database:
             device_dict = dict(zip(attrs.split(", "), device))
 
             # formats ports into a list
-            port_str = device[8].replace("{", "").replace("}", "").split(",")
+            port_str = device_dict["ports"].replace("{", "").replace("}", "")
             port_ls = []
             if len(port_str) > 0:
-                port_ls = [int(x) for x in port_ls]
+                port_ls = [int(x) for x in port_str.split(",")]
 
             device_dict["ports"] = port_ls
             devices.append(device_dict)
@@ -454,19 +455,18 @@ class PostgreSQL_database:
         if not self.contains_snapshot(network_id, timestamp):
             return False
 
-        valid = 0
+        added = 0
+        valid = False
         # Adds all entered devices to database, or updates them if they already exist in this snapshot
         for device in devices.values():
             if self.contains_device(network_id, device["mac"], timestamp):
-                if not self.__update_device(network_id, device, timestamp):
-                    continue
+                valid = self.__update_device(network_id, device, timestamp)
 
             else:
-                if not self.__add_device(network_id, device, timestamp):
-                    continue
+                valid = self.__add_device(network_id, device, timestamp)
             
             # Counts only devices that were successfully added to the database
-            valid += 1
+            added += 1 if valid else 0
 
         # Updates related snapshot with new n_alive attribute
         query = """
@@ -476,12 +476,9 @@ class PostgreSQL_database:
                 WHERE network_id = %s and timestamp = %s;
                 """
         
-        params = (valid, network_id, timestamp,)
+        params = (added, network_id, timestamp,)
 
-        if not self.__query(query, params):
-            return False
-
-        return True
+        return self.__query(query, params)
 
 
     # Adds a device into the database in a certain snapshot
@@ -561,7 +558,7 @@ class PostgreSQL_database:
     # There is a pair corresponding to each individual time a scan has been conducted.
     def get_snapshots(self, user_id, network_id):
 
-        if type(user_id) != int or type(network_id) != int:
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
         # Checks requested network exists, and current user can access it
@@ -595,7 +592,7 @@ class PostgreSQL_database:
     # Checks if a certain snapshot exists for the given network
     def contains_snapshot(self, network_id, timestamp):
 
-        if type(network_id) != int or type(timestamp) != int:
+        if not (isinstance(network_id, int) and isinstance(timestamp, int)):
             return Response("bad_input")
         
         query = """
@@ -648,10 +645,7 @@ class PostgreSQL_database:
         
         params = (network_id, timestamp,)
 
-        if not self.__query(query, params):
-            return False
-        
-        return True
+        return self.__query(query, params)
         
 
     # ---------------------------------------------- SETTINGS ------------------------------------------ #
@@ -660,7 +654,7 @@ class PostgreSQL_database:
     # Retrieves a user's settings from database
     def get_settings(self, user_id):
 
-        if type(user_id) != int:
+        if not isinstance(user_id, int):
             return Response("bad_input")
 
         # Checks that requested user's settings exist in the database
@@ -701,7 +695,7 @@ class PostgreSQL_database:
     # Sets the scan and preference settings for a given user
     def set_settings(self, user_id, settings):
 
-        if type(user_id) != int:
+        if not isinstance(user_id, int):
             return Response("bad_input")
 
         # Ensures input type is correct
@@ -709,9 +703,25 @@ class PostgreSQL_database:
             return Response("malformed_settings")
         
         # Ensures format and typing in settings json is correct
-        for req in self.settings_format.keys():
-            if req not in settings.keys() or type(settings[req]) != self.settings_format[req]:
+        for key, datatype in self.settings_format.items():
+            if key not in settings.keys() or not isinstance(settings[key], datatype):
+                #TODO - Check ports formats, frontend settings format
                 return Response("malformed_settings")
+            
+
+        params = (settings["TCP"],
+                  settings["UDP"], 
+                  settings["ports"],
+                  settings["run_ports"],
+                  settings["run_os"],
+                  settings["run_hostname"],
+                  settings["run_mac_vendor"],
+                  settings["run_trace"],
+                  settings["run_vertical_trace"],
+                  settings["defaultView"],
+                  settings["defaultNodeColour"],
+                  settings["defaultEdgeColour"],
+                  settings["defaultBackgroundColour"],)
             
         # Create settings entry for user if they dont exist
         if not self.__contains_settings(user_id):
@@ -735,20 +745,7 @@ class PostgreSQL_database:
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
             
-            params = (user_id,
-                      settings["TCP"],
-                      settings["UDP"], 
-                      settings["ports"],
-                      settings["run_ports"],
-                      settings["run_os"],
-                      settings["run_hostname"],
-                      settings["run_mac_vendor"],
-                      settings["run_trace"],
-                      settings["run_vertical_trace"],
-                      settings["defaultView"],
-                      settings["defaultNodeColour"],
-                      settings["defaultEdgeColour"],
-                      settings["defaultBackgroundColour"],)
+            params = (user_id, *params)
 
         # Update existing settings data if the user exists
         else:
@@ -771,20 +768,7 @@ class PostgreSQL_database:
                     WHERE user_id = %s;
                     """
             
-            params = (settings["TCP"],
-                    settings["UDP"], 
-                    settings["ports"],
-                    settings["run_ports"],
-                    settings["run_os"],
-                    settings["run_hostname"],
-                    settings["run_mac_vendor"],
-                    settings["run_trace"],
-                    settings["run_vertical_trace"],
-                    settings["defaultView"],
-                    settings["defaultNodeColour"],
-                    settings["defaultEdgeColour"],
-                    settings["defaultBackgroundColour"],
-                    user_id,)
+            params = (*params, user_id)
 
         if not self.__query(query, params):
             return Response("db_error")
@@ -828,14 +812,13 @@ class PostgreSQL_database:
     # Adds a user to the database
     def add_user(self, user):
 
-        for req in self.user_format.keys():
+        for key, datatype in self.user_format.items():
 
-            if req == "user_id":
+            if key == "user_id":
                 continue
 
-            if req not in user.keys() or type(user[req]) != self.user_format[req]:
+            if key not in user.keys() or not isinstance(user[key], datatype):
                 return Response("malformed_user")
-
             
         if self.contains_user(user["username"]):
             return Response("dup_user")
@@ -882,10 +865,10 @@ class PostgreSQL_database:
         return Response("success", content=user_dict)
     
 
+    # Gets a user's information by their ID
     def get_user_by_id(self, user_id):
 
-        if type(user_id) != int:
-            print(user_id)
+        if not isinstance(user_id, int):
             return Response("malformed_user")
 
         attrs = "user_id, username, password, email"
@@ -904,6 +887,7 @@ class PostgreSQL_database:
         return Response("success", user_dict)
     
     
+    # Retrieves the next assignable user ID
     def __get_next_user_id(self):
 
         # Gets the ID of users in the database
@@ -918,6 +902,7 @@ class PostgreSQL_database:
             return 0
 
         # Searches for the maximum ID
+        # TODO Make a generator for ids to more efficiently find the next id
         next = -1
         for r in response:
             next = max(next, r[0])
