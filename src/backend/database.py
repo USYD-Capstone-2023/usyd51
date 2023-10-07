@@ -104,6 +104,7 @@ class PostgreSQL_database:
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
         
 
+    # Saves a network and all of its devices to the database
     def save_network(self, user_id, network, exists=False):
 
         if type(user_id) != int:
@@ -114,10 +115,8 @@ class PostgreSQL_database:
             if req not in network.keys() or type(network[req]) != self.network_format[req]:
                 return Response("malformed_network")
             
-        # Ensures given device data is well formed
-        devices = network["devices"]
-        
         # Checks type and key of all attributes of each device
+        devices = network["devices"]
         for device in devices.values():
             for req in self.device_format.keys():
                 if req not in device.keys() or type(device[req]) != self.device_format[req]:
@@ -131,16 +130,17 @@ class PostgreSQL_database:
             
         # Adds a new network to the database if it doesnt exist
         res = self.validate_network_access(user_id, network_id)
-        if res.status == 500:
-            if not self.__register_network(user_id, network):
-                return Response("db_error")
-
-        elif res.status == 401:
+        if res.status == 401:
             return res                
-                
+
+        # Attempts to add network if it doesnt already exist
+        if not self.contains_network(network_id) and not self.__register_network(user_id, network):
+            return Response("db_error")
+
         # Adds timestamp to database if it doesn't already exist
         timestamp = network["timestamp"]
         if not self.contains_snapshot(network_id, timestamp):
+            # Doesnt allow creation of new snapshot if running in update mode
             if exists:
                 return Response("db_error")
 
@@ -159,7 +159,7 @@ class PostgreSQL_database:
     
 
     # Deletes a network from the database
-    # TODO Probs broken havent looked at it in a long time, isnt implemented in fronted to test
+    # TODO Probs broken havent looked at it in a long time, isnt implemented in frontend to test
     def delete_network(self, user_id, network_id):
 
         if type(user_id) != int or type(network_id) != int:
@@ -208,6 +208,7 @@ class PostgreSQL_database:
         if type(user_id) != int or type(network_id) != int:
             return Response("bad_input")
         
+        # Implicitly has access, as network doesnt exist
         if network_id == -1:
             return Response("success")
 
@@ -218,7 +219,6 @@ class PostgreSQL_database:
                 """
         
         params = (network_id,)
-
         response = self.__query(query, params, res=True)
 
         if not response:
@@ -420,6 +420,7 @@ class PostgreSQL_database:
 
             device_dict = dict(zip(attrs.split(", "), device))
 
+            # formats ports into a list
             port_str = device[8].replace("{", "").replace("}", "").split(",")
             port_ls = []
             if len(port_str) > 0:
@@ -431,6 +432,7 @@ class PostgreSQL_database:
         return Response("success", devices)
     
 
+    # Checks if a device is contained in a certain snapshot of a network
     def contains_device(self, network_id, mac, timestamp):
 
         query = """
@@ -661,7 +663,7 @@ class PostgreSQL_database:
         if type(user_id) != int:
             return Response("bad_input")
 
-        # Checks that requested user exists in the database
+        # Checks that requested user's settings exist in the database
         if not self.__contains_settings(user_id):
             return Response("no_user")
 
@@ -681,13 +683,13 @@ class PostgreSQL_database:
         if not response or len(response) == 0:
             return Response("db_error")
         
-        # Formats output and returns if query is completed successfully
         if len(response[0]) != len(attrs.split(", ")):
             return Response("malformed_settings")
 
+        # Formats output and returns if query is completed successfully
         settings = dict(zip(attrs.split(", "), response[0]))
-        
         try:
+            # Formats port string into a list
             settings["ports"] = settings["ports"].replace("{", "").replace("}", "").split(",")
             settings["ports"] = [int(x) for x in settings["ports"]]
         except:
@@ -790,6 +792,7 @@ class PostgreSQL_database:
         return Response("success")
 
 
+    # Checks if the database contains the given user's settings
     def __contains_settings(self, user_id):
 
         query = """
@@ -807,6 +810,7 @@ class PostgreSQL_database:
     # --------------------------------------------- USERS ------------------------------------------ #
 
 
+    # Checks if the database contains the given username
     def contains_user(self, username):
 
         query = """
@@ -821,6 +825,7 @@ class PostgreSQL_database:
         return response != None and len(response) > 0
     
 
+    # Adds a user to the database
     def add_user(self, user):
 
         for req in self.user_format.keys():

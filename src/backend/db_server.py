@@ -50,7 +50,7 @@ db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
 # Authentication wrapper
 def returns_response_obj(func):
 
-    # Ensures that there is a valid authentication token attached to each request.
+    # Converts the Resonse return into a valid flask HTTP response
     @wraps(func)
     def res_decorator(*args, **kwargs):
         
@@ -140,7 +140,6 @@ def signup():
     
     return Response("success")
     
-
 
 # Logs in a user, returns an authentication token to authenticate further access:
 @app.post("/login")
