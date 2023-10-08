@@ -10,7 +10,6 @@ import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
 
-
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
   return (
@@ -145,7 +144,6 @@ const NewNetworkButton = (props: any) => {
 };
 
 const Dashboard = (props: any) => {
-  
   const navigate = useNavigate();
   const [networkListData, setNetworkListData] = useState([
     { name: "TestName", id: 0 },
@@ -156,20 +154,22 @@ const Dashboard = (props: any) => {
     const clickButton = (id: any) => {
       if (selectedNetworkID === id) {
         navigate("/networkView/" + id);
-        
       } else {
         setSelectedNetworkID(id);
       }
-    }
-    
+    };
+
     const { name, id } = props;
-    const buttonClass = selectedNetworkID === id ? "bg-gray-700 text-gray-300" : "bg-gray-300 text-black";
+    const buttonClass =
+      selectedNetworkID === id
+        ? "bg-gray-700 text-gray-300"
+        : "bg-gray-300 text-black";
     return (
-      <button onClick={() => clickButton(id)}>
-          <Card className={`${buttonClass}`}>{name}</Card>   
-        </button>
-        );
-      };
+      <button onClick={() => clickButton(id)} className={"w-full"}>
+        <Card className={`${buttonClass}`}>{name}</Card>
+      </button>
+    );
+  };
 
   const [newNetworkId, setNewNetworkId] = useState(-1);
 
@@ -197,7 +197,7 @@ const Dashboard = (props: any) => {
           for (let network of data["content"]) {
             network_list.push({ name: network.name, id: network.network_id });
           }
-          
+
           if (network_list.length > 0) {
             setSelectedNetworkID(network_list[0].id);
           }
