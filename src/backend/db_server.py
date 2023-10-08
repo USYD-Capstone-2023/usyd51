@@ -153,8 +153,8 @@ def login():
         
     if "username" not in user_data.keys() or "password" not in user_data.keys():
         return Response("malformed_user")
-        
-    res = db.get_user_id_by_login(user_data["username"], user_data["password"])
+    
+    res = db.get_user_by_login(user_data["username"], user_data["password"])
     if res.status != 200:
         return res
         
@@ -306,6 +306,18 @@ def get_snapshot(user_id, network_id, timestamp):
         return Response("bad_input")
         
     return db.get_all_devices(user_id, args[0], args[1]) 
+
+
+# Retrieves the salt associated with a certain username
+@app.get("/users/<username>/salt")
+@returns_response_obj
+def get_salt(username):
+
+    salt = db.get_salt_by_username(username)
+    if not salt:
+        return Response("no_user")
+    
+    return Response("success", content={"salt" : salt})
 
 
 if __name__=="__main__":

@@ -55,7 +55,8 @@ class PostgreSQL_database:
     user_format = {"user_id"  : int,
                    "username" : str,
                    "password" : str,
-                   "email"    : str}
+                   "email"    : str,
+                   "salt"     : str}
 
 
     def __init__(self, database, user, password):
@@ -823,15 +824,15 @@ class PostgreSQL_database:
         if self.contains_user(user["username"]):
             return Response("dup_user")
         
-        attrs = "user_id, username, password, email"
+        attrs = "user_id, username, password, email, salt"
 
         query = f"""
                 INSERT INTO users ({attrs})
-                VALUES (%s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s);
                 """
         
         user_id = self.__get_next_user_id()
-        params = (user_id, user["username"], user["password"], user["email"])
+        params = (user_id, user["username"], user["password"], user["email"], user["salt"],)
 
         if not self.__query(query, params):
             return Response("db_error")
@@ -844,12 +845,12 @@ class PostgreSQL_database:
     
 
     # Gets a users ID by their username and password
-    def get_user_id_by_login(self, username, password):
+    def get_user_by_login(self, username, password):
 
         if type(username) != str or type(password) != str:
             return Response("bad_input")
         
-        attrs = "user_id, username, password, email"
+        attrs = "user_id, username, password, email, salt"
 
         query = f"""SELECT {attrs}
                    FROM users
@@ -885,6 +886,24 @@ class PostgreSQL_database:
         
         user_dict = dict(zip(attrs.split(", "), res[0]))
         return Response("success", user_dict)
+    
+
+    # Retrieves the salt associated with a user
+    def get_salt_by_username(self, username):
+
+        query = """
+                SELECT salt
+                FROM users
+                WHERE username = %s;
+                """
+        
+        params = (username,)
+
+        res = self.__query(query, params, res=True)
+        if not res or len(res) == 0:
+            return None
+        
+        return res[0][0]
     
     
     # Retrieves the next assignable user ID
@@ -1021,7 +1040,8 @@ class PostgreSQL_database:
                         (user_id INTEGER PRIMARY KEY,
                         username TEXT UNIQUE NOT NULL,
                         password TEXT NOT NULL,
-                        email TEXT NOT NULL);              
+                        email TEXT NOT NULL,
+                        salt TEXT NOT NULL);              
                     """
 
 
