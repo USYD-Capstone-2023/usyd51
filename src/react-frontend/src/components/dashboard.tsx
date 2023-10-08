@@ -1,12 +1,14 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
-import { databaseUrl } from "@/servers";
+import { databaseUrl, scannerUrl } from "@/servers";
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -26,48 +28,186 @@ const CustomCard = (props: any) => {
   );
 };
 
-const NetworkButton = (props: any) => {
-  const { name, id } = props;
-  return (
-    <Link to={"/networkView/" + id}>
-      <Card className="">{name}</Card>
-    </Link>
-  );
+const NewNetworkButton = (props: any) => {
+  const { setNewNetworkId } = props;
+  const [loadingBarActive, setLoadingBarActive] = useState(false);
+  const [loadingBarProgress, setLoadingBarProgress] = useState({
+    label: " ",
+    progress: 0,
+    total: 100,
+  });
+
+  // const [networkId, setNetworkId] = useState(-1);
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+    console.log("User is logged out!");
+    return;
+  }
+
+  const createNewNetwork = useCallback(() => {
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
+    if (!loadingBarActive) {
+      setLoadingBarActive(true);
+      fetch(scannerUrl + "scan/-1", options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data["status"] === 200) {
+            setNewNetworkId(parseInt(data["content"]));
+            console.log("tester");
+          } else {
+            console.log(data["status"] + " " + data["message"]);
+          }
+        });
+    }
+  }, [loadingBarActive]);
+
+  useEffect(() => {
+    let intervalId: string | number | NodeJS.Timeout | undefined;
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
+    if (loadingBarActive) {
+      intervalId = setInterval(() => {
+        fetch(scannerUrl + "scan/progress/", options)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data["status"] === 200) {
+              if (data["message"] == "Scan finished.") {
+                setNewNetworkId(0);
+                clearInterval(intervalId);
+                return;
+              }
+              setLoadingBarProgress({
+                label: data["content"].label,
+                total: data["content"].total,
+                progress: data["content"].progress,
+              });
+            } else {
+              clearInterval(intervalId);
+            }
+          });
+      }, 400);
+    } else {
+      fetch(scannerUrl + "scan/progress/", options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data["status"] === 200) {
+            if (data["message"] != "Scan finished.") {
+              setLoadingBarActive(true);
+            }
+          }
+        });
+    }
+
+    // Cleanup
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [loadingBarActive]);
+
+  let getLoadingBar = useCallback(() => {
+    return (
+      <>
+        <Progress
+          className="w-full"
+          value={Math.floor(
+            (100 * loadingBarProgress.progress) / loadingBarProgress.total
+          )}
+        ></Progress>
+      </>
+    );
+  }, [loadingBarProgress]);
+
+  if (!loadingBarActive) {
+    return (
+      <Card className="w-full" onClick={createNewNetwork}>
+        Create new network
+      </Card>
+    );
+  } else {
+    return <Card className="w-full">{getLoadingBar()}</Card>;
+  }
 };
 
 const Dashboard = (props: any) => {
+  const navigate = useNavigate();
   const [networkListData, setNetworkListData] = useState([
     { name: "TestName", id: 0 },
   ]);
+  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+
+  const NetworkButton = (props: any) => {
+    const clickButton = (id: any) => {
+      if (selectedNetworkID === id) {
+        navigate("/networkView/" + id);
+      } else {
+        setSelectedNetworkID(id);
+      }
+    };
+
+    const { name, id } = props;
+    const buttonClass =
+      selectedNetworkID === id
+        ? "bg-gray-700 text-gray-300"
+        : "bg-gray-300 text-black";
+    return (
+      <button onClick={() => clickButton(id)} className={"w-full"}>
+        <Card className={`${buttonClass}`}>{name}</Card>
+      </button>
+    );
+  };
+
+  const [newNetworkId, setNewNetworkId] = useState(-1);
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-        console.log("User is logged out!");
-        return;
+      console.log("User is logged out!");
+      return;
     }
-    const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
 
     fetch(databaseUrl + "networks", options)
       .then((res) => res.json())
       .then((data) => {
-
         if (data.status === 200) {
-
           console.log(data);
           let network_list = [];
           for (let network of data["content"]) {
             network_list.push({ name: network.name, id: network.network_id });
           }
-        
+
+          if (network_list.length > 0) {
+            setSelectedNetworkID(network_list[0].id);
+          }
           setNetworkListData(network_list);
-        
         } else {
           setNetworkListData([]);
           console.log(data.status + " " + data["message"]);
         }
       });
-  }, []);
+  }, [newNetworkId]);
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
@@ -101,6 +241,10 @@ const Dashboard = (props: any) => {
                     <NetworkButton name={network.name} id={network.id} />
                   </div>
                 ))}
+                <NewNetworkButton
+                  loadingId={-1}
+                  setNewNetworkId={setNewNetworkId}
+                />
               </div>
             </div>
           </ScrollArea>
@@ -111,7 +255,7 @@ const Dashboard = (props: any) => {
               Home Network
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart />
+              <DashboardChart networkID={selectedNetworkID} />
             </div>
           </div>
           <Button onClick={createNewNetwork}>
