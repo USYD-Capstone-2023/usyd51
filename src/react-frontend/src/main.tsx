@@ -5,7 +5,6 @@ import "./index.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  // <React.StrictMode>
   <ThemeProvider
     attribute="class"
     defaultTheme="system"
@@ -14,5 +13,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   >
     <App />
   </ThemeProvider>
-  /* </React.StrictMode>, */
 );

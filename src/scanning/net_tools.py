@@ -402,7 +402,7 @@ def add_os_info(network, tp, lb, iface=conf.iface):
     mutex = threading.Lock()
     cond = threading.Condition(lock=mutex)
     counter_ptr = [0]
-    returns = [-1] * len(devices.keys())
+    returns = [-1] * len(network.devices.keys())
 
     # The current job, for referencing the return location for the thread
     job_counter = 0

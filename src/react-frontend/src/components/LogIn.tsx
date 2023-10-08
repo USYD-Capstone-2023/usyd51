@@ -59,11 +59,15 @@ const Login = (props: any) => {
     const signUp = () => {
         const credentials = {"username" : username, "password" : password, "email" : "not_implemented"};
         const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
-        fetch(databaseUrl + "signup", options).then((res) => {
-            if (res.status === 200) {
+        fetch(databaseUrl + "signup", options)
+        .then((res) => (res.json()))
+        .then((data) => {
+
+            if (data["status"] === 200) {
                 login();
+
             } else {
-                console.log("Error " + res.status);
+                console.log(data["status"] + " " + data["message"]);
             }
         });
     }
