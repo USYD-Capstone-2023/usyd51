@@ -75,7 +75,10 @@ const Dashboard = (props: any) => {
           for (let network of data["content"]) {
             network_list.push({ name: network.name, id: network.network_id });
           }
-        
+          
+          if (network_list.length > 0) {
+            setSelectedNetworkID(network_list[0].id);
+          }
           setNetworkListData(network_list);
         
         } else {
