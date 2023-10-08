@@ -2,11 +2,13 @@ import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl } from "@/servers";
+
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -26,19 +28,32 @@ const CustomCard = (props: any) => {
   );
 };
 
-const NetworkButton = (props: any) => {
-  const { name, id } = props;
-  return (
-    <Link to={"/networkView/" + id}>
-      <Card className="">{name}</Card>
-    </Link>
-  );
-};
-
+    
 const Dashboard = (props: any) => {
+  
+  const navigate = useNavigate();
   const [networkListData, setNetworkListData] = useState([
     { name: "TestName", id: 0 },
   ]);
+  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+
+  const NetworkButton = (props: any) => {
+    const clickButton = (id: any) => {
+      if (selectedNetworkID === id) {
+        navigate("/networkView/" + id);
+        
+      } else {
+        setSelectedNetworkID(id);
+      }
+    }
+    
+    const { name, id } = props;
+    return (
+      <button onClick={() => clickButton(id)}>
+          <Card className="">{name}</Card>
+        </button>
+        );
+      };
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -111,7 +126,7 @@ const Dashboard = (props: any) => {
               Home Network
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart />
+              <DashboardChart networkID={selectedNetworkID} />
             </div>
           </div>
           <Button onClick={createNewNetwork}>

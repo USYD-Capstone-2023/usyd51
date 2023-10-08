@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { databaseUrl } from "@/servers";
 import {
@@ -13,7 +14,7 @@ import {
     CartesianGrid,
 } from "recharts";
 
-const DashboardChart = () => {
+const DashboardChart = ({ networkID }) => {
     const [data, setData] = useState([
         { time: "Page A", uv: 400, pv: 2400, amt: 2400 },
     ]);
@@ -25,7 +26,7 @@ const DashboardChart = () => {
             return;
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-        fetch(databaseUrl + "networks/0/snapshots", options)
+        fetch(databaseUrl + "networks/" + networkID + "/snapshots", options)
             .then((res) => (res.json()))
             .then((data) => {
                 if (data.status === 200) {
@@ -42,7 +43,7 @@ const DashboardChart = () => {
                     console.log(data.status + " " + data["message"]);
                 }
             })
-        }, [])
+        }, [networkID])
 
     return (
         <ResponsiveContainer width="100%" height="100%">
