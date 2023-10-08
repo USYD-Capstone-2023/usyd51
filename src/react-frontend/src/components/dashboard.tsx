@@ -48,9 +48,10 @@ const Dashboard = (props: any) => {
     }
     
     const { name, id } = props;
+    const buttonClass = selectedNetworkID === id ? "bg-gray-700 text-gray-300" : "bg-gray-300 text-black";
     return (
       <button onClick={() => clickButton(id)}>
-          <Card className="">{name}</Card>
+          <Card className={`${buttonClass}`}>{name}</Card>   
         </button>
         );
       };
