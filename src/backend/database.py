@@ -131,10 +131,10 @@ class PostgreSQL_database:
         # Adds a new network to the database if it doesnt exist
         res = self.validate_network_access(user_id, network_id)
         if res.status == 401:
-            return res                
+            return res 
 
         # Attempts to add network if it doesnt already exist
-        if not self.contains_network(network_id) and not self.__register_network(user_id, network):
+        elif res.status == 500 and not self.__register_network(user_id, network):               
             return Response("db_error")
 
         # Adds timestamp to database if it doesn't already exist
@@ -228,7 +228,7 @@ class PostgreSQL_database:
             return Response("no_access")
         
         return Response("success")
-
+    
 
     # Returns a list of all networks accessible to the given user
     def get_networks(self, user_id):
