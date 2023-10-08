@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from "react";
+import CryptoJS from "crypto-js";
 import {
   Card,
   CardContent,
@@ -12,8 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { databaseUrl } from "@/servers"
-import { stringify } from "querystring";
-import { sign } from "crypto";
 
 const Login = (props: any) => {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -40,24 +39,43 @@ const Login = (props: any) => {
     };
 
     const login = () => {
-        const credentials = {"username" : username, "password" : password};
-        const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
-        fetch(databaseUrl + "login", options)
-            .then((res) => (res.json()))
-            .then((data) => {
 
-                if (data["status"] === 200) {
-                    localStorage.setItem("Auth-Token", data["content"]["Auth-Token"])
-                    navigate("/dashboard");
-                
-                } else {
-                    console.log(data["status"] + " " + data["message"]);
-                }
-            });
+        var salt = "";
+        // Retrieve salt associated with entered user
+        fetch(databaseUrl + "users/" + username + "/salt")
+        .then((res) => (res.json()))
+        .then((data) => {
+            if (data["status"] === 200) {
+                salt = data["content"]["salt"];
+                const credentials = {"username" : username, "password" : CryptoJS.SHA256(password + salt).toString()};
+                const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
+                fetch(databaseUrl + "login", options)
+                .then((res) => (res.json()))
+                .then((data) => {
+
+                    if (data["status"] === 200) {
+                        localStorage.setItem("Auth-Token", data["content"]["Auth-Token"])
+                        navigate("/dashboard");
+                    
+                    } else {
+                        console.log(data["status"] + " " + data["message"]);
+                    }
+                });
+
+            } else {
+                console.log(data["status"] + " " + data["message"]);
+                return;
+            }
+        });
+    
     }
 
     const signUp = () => {
-        const credentials = {"username" : username, "password" : password, "email" : "not_implemented"};
+
+        let salt = CryptoJS.lib.WordArray.random(256 / 8).toString();
+        console.log(salt);
+        const credentials = {"username" : username, "password" : CryptoJS.SHA256(password + salt).toString(), "email" : "not_implemented", "salt" : salt};
+        console.log(credentials)
         const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
         fetch(databaseUrl + "signup", options)
         .then((res) => (res.json()))
