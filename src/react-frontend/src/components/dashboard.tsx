@@ -1,13 +1,13 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
-import { Progress } from "@radix-ui/react-progress";
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -41,8 +41,8 @@ const NewNetworkButton = (props: any) => {
   const [loadingBarActive, setLoadingBarActive] = useState(false);
   const [loadingBarProgress, setLoadingBarProgress] = useState({
     label: " ",
-    progress: -1,
-    total: -1,
+    progress: 0,
+    total: 100,
   });
 
   // const [networkId, setNetworkId] = useState(-1);
@@ -51,49 +51,72 @@ const NewNetworkButton = (props: any) => {
     console.log("User is logged out!");
     return;
   }
-  const options = {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Auth-Token": authToken,
-      Accept: "application/json",
-    },
-  };
 
   const createNewNetwork = useCallback(() => {
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
     if (!loadingBarActive) {
+      setLoadingBarActive(true);
       fetch(scannerUrl + "scan/-1", options)
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
             setNewNetworkId(parseInt(data["content"]));
+            console.log("tester");
           } else {
             console.log(data["status"] + " " + data["message"]);
           }
         });
-      setLoadingBarActive(true);
     }
   }, [loadingBarActive]);
 
   useEffect(() => {
     let intervalId: string | number | NodeJS.Timeout | undefined;
-
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
     if (loadingBarActive) {
       intervalId = setInterval(() => {
-        fetch(scannerUrl + "scan/progress", options)
+        fetch(scannerUrl + "scan/progress/", options)
           .then((res) => res.json())
           .then((data) => {
             if (data["status"] === 200) {
+              if (data["message"] == "Scan finished.") {
+                setNewNetworkId(0);
+                clearInterval(intervalId);
+                return;
+              }
               setLoadingBarProgress({
-                label: data["label"],
-                total: parseInt(data["total"]),
-                progress: parseInt(data["progress"]),
+                label: data["content"].label,
+                total: data["content"].total,
+                progress: data["content"].progress,
               });
             } else {
-              console.log(data["status"] + " " + data["message"]);
+              clearInterval(intervalId);
             }
           });
-      }, 100);
+      }, 400);
+    } else {
+      fetch(scannerUrl + "scan/progress/", options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data["status"] === 200) {
+            if (data["message"] != "Scan finished.") {
+              setLoadingBarActive(true);
+            }
+          }
+        });
     }
 
     // Cleanup
@@ -106,12 +129,14 @@ const NewNetworkButton = (props: any) => {
 
   let getLoadingBar = useCallback(() => {
     return (
-      <Progress
-        value={
-          Math.floor(100 * loadingBarProgress.progress) /
-          loadingBarProgress.total
-        }
-      ></Progress>
+      <>
+        <Progress
+          className="w-full"
+          value={Math.floor(
+            (100 * loadingBarProgress.progress) / loadingBarProgress.total
+          )}
+        ></Progress>
+      </>
     );
   }, [loadingBarProgress]);
 
