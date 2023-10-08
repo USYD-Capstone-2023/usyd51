@@ -73,9 +73,7 @@ const Login = (props: any) => {
     const signUp = () => {
 
         let salt = CryptoJS.lib.WordArray.random(256 / 8).toString();
-        console.log(salt);
         const credentials = {"username" : username, "password" : CryptoJS.SHA256(password + salt).toString(), "email" : "not_implemented", "salt" : salt};
-        console.log(credentials)
         const options = {method: "POST", headers: {"Content-Type" : "application/json", 'Accept': 'application/json'}, body: JSON.stringify(credentials)}
         fetch(databaseUrl + "signup", options)
         .then((res) => (res.json()))
