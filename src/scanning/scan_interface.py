@@ -256,7 +256,7 @@ def end_daemon(auth):
     return create_response("Success", 200)
 
 
-@app.get("/scan/progress")
+@app.get("/scan/progress/")
 @require_auth
 def get_progress(auth):
 
