@@ -241,7 +241,8 @@ class PostgreSQL_database:
         
         query = f"""
                 SELECT {attrs}
-                FROM networks
+                FROM networks JOIN access
+                ON networks.network_id = access.network_id
                 WHERE user_id = %s;
                 """
         
@@ -904,7 +905,67 @@ class PostgreSQL_database:
             return None
         
         return res[0][0]
+
+
+    # Retrieves all users from the database
+    def get_users():
+
+        args = "user_id, username, email"
+
+        query = f"""
+                SELECT {args}
+                FROM users;
+                """
+
+        res = self.__query(query, (), res=True)
+        if responses == False:
+            return Response("db_error")
+
+        out = []
+        for user in res:
+            users.append(dict(zip(args.split(", "), res)))
+
+        return Response("success", content=out)
+
+
+    # Checks if a user has access to a given network
+    def __has_access(self, user_id, network_id):
+
+        query = """
+                SELECT 1
+                FROM networks JOIN access
+                ON networks.network_id = access.network_id
+                WHERE user_id = %s;
+                """
+
+        params = (user_id, network_id,)
+
+        res = self.__query(query, params, res=True)
+        return response != None and len(response) > 0
     
+
+    # Gives a user access to the given network
+    def grant_access(self, user_id, recipient_id, network_id):
+
+        if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
+            return Response("bad_input")
+
+        if not self.has_access(user_id, network_id):
+            return Response("no_access")
+        
+        query = """
+                INSERT INTO access
+                    (user_id, network_id)
+                VALUES (%s, %s);
+                """
+
+        params = (user_id, network_id,)
+
+        if not self.__query(query, params):
+            return Response("db_error")
+
+        return Response("success")
+
     
     # Retrieves the next assignable user ID
     def __get_next_user_id(self):
@@ -984,12 +1045,18 @@ class PostgreSQL_database:
         init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
                             (network_id INTEGER PRIMARY KEY,
-                            user_id INTEGER REFERENCES users (user_id),
                             gateway_mac TEXT,
                             name TEXT,
                             ssid TEXT,
                             n_alive INTEGER);
                         """
+
+        init_access = """
+                      CREATE TABLE IF NOT EXISTS access
+                        (network_id INTEGER REFERENCES networks (network_id),
+                        user_id INTEGER REFERENCES users (user_id),
+                        PRIMARY KEY (network_id, user_id));
+                      """ 
 
 
         init_settings = """
@@ -1051,5 +1118,6 @@ class PostgreSQL_database:
         val &= self.__query(init_snapshots, ())
         val &= self.__query(init_devices, ())
         val &= self.__query(init_settings, ())
+        val &= self.__query(init_access, ())
 
         return val
