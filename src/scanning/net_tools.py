@@ -30,7 +30,6 @@ import socket, threading, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 50
 
 mac_table = MAC_table(MAC_TABLE_FP)
 
@@ -238,7 +237,7 @@ def traceroute_helper(ip, gateway, iface):
         for answer in answers.get_trace()[ip].keys():
             hops[answer] = answers.get_trace()[ip][answer][0]
 
-    for hop in hops.keys().sorted():
+    for hop in sorted(hops.keys()):
         addrs.append(hops[hop])
 
     if ip not in addrs:
@@ -311,7 +310,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
                 new_device.parent = parent
                 to_add.append(new_device)
 
-            if addr == ip:
+            if addr == device.ip:
                 break
 
             parent = addr
