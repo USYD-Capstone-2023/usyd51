@@ -328,7 +328,7 @@ class PostgreSQL_database:
     def __register_network(self, user_id, network):
 
         query = """
-                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive, user_id)
+                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive)
                 VALUES (%s, %s, %s, %s, %s, %s);
                 """
         
@@ -336,7 +336,18 @@ class PostgreSQL_database:
                   network["gateway_mac"],
                   network["name"],
                   network["ssid"],
-                  len(network["devices"]),
+                  len(network["devices"]),)
+        
+        if not self.__query(query, params):
+            return False
+        
+        # Gives the current user access to the network
+        query = """
+                INSERT INTO access (network_id, user_id)
+                VALUES (%s, %s);
+                """
+        
+        params = (network["network_id"],
                   user_id,)
         
         return self.__query(query, params)

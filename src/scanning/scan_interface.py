@@ -218,7 +218,7 @@ def start_daemon(auth, network_id):
     
     # Checks that the server is currently connected to the requested network
     res = verify_current_connection(network_id, auth)
-    if res.status != 200:
+    if res[1] != 200:
         return res
     
     daemon_running = True
