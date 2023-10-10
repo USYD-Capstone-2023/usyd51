@@ -6,7 +6,9 @@ from loading_bar import Loading_bar
 from threadpool import Threadpool
 import threading
 from functools import wraps
+import json
 import time
+from Crypto.Hash import SHA256
 
 # Local
 import net_tools as nt
@@ -269,16 +271,27 @@ def run_daemon():
 
     print("[INFO] Daemon is starting!")
 
-    requests.post(DB_SERVER_URL + "/signup", 
-                      json={"username" : "daemon", "password" : "passwd", "email" : "sam@same"})
+    salt = "tesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn"
+
+    hash = SHA256.new()
+    hash.update(b"passwordtesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn")
+
+    res = requests.post(DB_SERVER_URL + "/signup", 
+                      json={"username" : "daemon", "password" : str(hash.hexdigest()), "email" : "sam@same", "salt" : salt})
         
-    res = requests.post(DB_SERVER_URL + "/login", 
-                        json={"username" : "sam", "password" : "passwd"})
-    
-    token = res.content.decode("utf-8")
 
     while True:
 
+        res = requests.post(DB_SERVER_URL + "/login", 
+                            json={"username" : "sam", "password" : "passwd"})
+        
+        token = res.content.decode("utf-8")
+        res = requests.post(DB_SERVER_URL + "/login", 
+                            json={"username" : "daemon", "password" : str(hash.hexdigest())})
+        
+        content = json.loads(res.content)
+        token = content["content"]["Auth-Token"]
+        loading_bars[token] = Loading_bar()
         # Sleeps until there is a client to scan for
         if not daemon_running:
             print("[INFO] Daemon is waiting for clients...")
@@ -286,16 +299,28 @@ def run_daemon():
             daemon_sleep.wait()
 
         # Constructs the lowest possible settings to satisfy the settings of all clients in one scan
+        # args = {
+        #     "TCP"                : False,
+        #     "UDP"                : False, 
+        #     "ports"              : [],
+        #     "run_ports"          : False,
+        #     "run_os"             : False,
+        #     "run_hostname"       : False,
+        #     "run_mac_vendor"     : False,
+        #     "run_trace"          : False,
+        #     "run_vertical_trace" : False,
+        # }
+
         args = {
-            "TCP"                : False,
-            "UDP"                : False, 
-            "ports"              : [],
-            "run_ports"          : False,
-            "run_os"             : False,
-            "run_hostname"       : False,
-            "run_mac_vendor"     : False,
-            "run_trace"          : False,
-            "run_vertical_trace" : False,
+            "TCP"                : True,
+            "UDP"                : True, 
+            "ports"              : [22,80,53,5000],
+            "run_ports"          : True,
+            "run_os"             : True,
+            "run_hostname"       : True,
+            "run_mac_vendor"     : True,
+            "run_trace"          : True,
+            "run_vertical_trace" : True,
         }
 
         # create new network id if doesnt exist, then save to that id just for the daemon account
@@ -303,6 +328,8 @@ def run_daemon():
 
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)
+        if token in loading_bars.keys():
+            del loading_bars[token]
 
 
 if __name__ == "__main__":
@@ -323,7 +350,7 @@ if __name__ == "__main__":
         print("Please enter 'remote' or 'local'.")
         sys.exit()
 
-    # daemon_thread = threading.Thread(target=run_daemon)
-    # daemon_thread.daemon = True
-    # daemon_thread.start()
+    daemon_thread = threading.Thread(target=run_daemon)
+    daemon_thread.daemon = True
+    daemon_thread.start()
     app.run(port=5001)

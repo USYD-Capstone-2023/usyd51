@@ -215,7 +215,7 @@ class PostgreSQL_database:
 
         query = """
                 SELECT user_id
-                FROM networks
+                FROM access
                 WHERE network_id = %s;
                 """
         
@@ -238,12 +238,13 @@ class PostgreSQL_database:
             return Response("bad_input")
         
         attrs = "network_id, ssid, gateway_mac, name, n_alive"
+        attrs_q = "".join(["networks.%s, " % x for x in attrs.split(", ")])[:-2]
         
         query = f"""
-                SELECT {attrs}
+                SELECT {attrs_q}
                 FROM networks JOIN access
                 ON networks.network_id = access.network_id
-                WHERE user_id = %s;
+                WHERE access.user_id = %s;
                 """
         
         params = (user_id,)
@@ -329,7 +330,7 @@ class PostgreSQL_database:
 
         query = """
                 INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive)
-                VALUES (%s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s);
                 """
         
         params = (network["network_id"],
@@ -919,7 +920,7 @@ class PostgreSQL_database:
 
 
     # Retrieves all users from the database
-    def get_users():
+    def get_users(self):
 
         args = "user_id, username, email"
 
@@ -929,12 +930,12 @@ class PostgreSQL_database:
                 """
 
         res = self.__query(query, (), res=True)
-        if responses == False:
+        if res == False:
             return Response("db_error")
 
         out = []
         for user in res:
-            users.append(dict(zip(args.split(", "), res)))
+            out.append(dict(zip(args.split(", "), user)))
 
         return Response("success", content=out)
 
@@ -952,7 +953,7 @@ class PostgreSQL_database:
         params = (user_id, network_id,)
 
         res = self.__query(query, params, res=True)
-        return response != None and len(response) > 0
+        return res != None and len(res) > 0
     
 
     # Gives a user access to the given network

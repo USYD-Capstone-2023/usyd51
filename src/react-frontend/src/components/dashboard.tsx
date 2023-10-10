@@ -9,6 +9,7 @@ import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
+import { ContextMenu } from 'primereact/contextmenu';
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -149,7 +150,8 @@ const Dashboard = (props: any) => {
     { name: "TestName", id: 0 },
   ]);
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-
+  const [userListData, setUserListData] = useState([]);
+ 
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
       if (selectedNetworkID === id) {
@@ -209,6 +211,40 @@ const Dashboard = (props: any) => {
       });
   }, [newNetworkId]);
 
+
+  useEffect(() => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
+
+    fetch(databaseUrl + "users", options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === 200) {
+          console.log(data);
+          let user_list = [];
+          for (let user of data["content"]) {
+            user_list.push({ username: user.username, id: user.user_id, email: user.email });
+          }
+
+          setUserListData(user_list);
+        } else {
+          setUserListData([]);
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }, [newNetworkId]);
+
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
       <div className="h-1/6 w-full flex items-center justify-center">
@@ -237,6 +273,7 @@ const Dashboard = (props: any) => {
               </h1>
               <div className="flex justify-center items-center gap-3 flex-col px-8">
                 {networkListData.map((network, index) => (
+
                   <div className="w-full" key={index}>
                     <NetworkButton name={network.name} id={network.id} />
                   </div>

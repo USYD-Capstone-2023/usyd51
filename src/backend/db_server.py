@@ -268,10 +268,10 @@ def share_network(user_id, network_id, recipient_id):
 
 
 # Gets the ID and name of all users
-@app.post("/users")
+@app.get("/users")
 @returns_response_obj
 @require_auth
-def share_network(user_id):
+def get_users(user_id):
 
     return db.get_users()
 
