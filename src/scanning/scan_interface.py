@@ -360,7 +360,7 @@ if __name__ == "__main__":
         print("Please enter 'remote' or 'local'.")
         sys.exit()
 
-    # daemon_thread = threading.Thread(target=run_daemon)
-    # daemon_thread.daemon = True
-    # daemon_thread.start()
+    daemon_thread = threading.Thread(target=run_daemon)
+    daemon_thread.daemon = True
+    daemon_thread.start()
     app.run(port=5001)
