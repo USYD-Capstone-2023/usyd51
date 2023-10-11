@@ -1133,3 +1133,28 @@ class PostgreSQL_database:
         val &= self.__query(init_access, ())
 
         return val
+    
+
+    # --------------------------------------------- TESTING TEARDOWN ------------------------------------------ #
+
+    # Drops the current db
+    def drop_db(self):
+
+        conn = None
+        try:
+            # Connects to default schema to drop the current database
+            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host="localhost")
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            with conn.cursor() as cur:
+                # Run query
+                cur.execute(f"DROP DATABASE {self.db};")
+            conn.close()
+
+        except Exception as e:
+            print(e)
+            if conn:
+                conn.close()
+            return False
+        
+        return True
