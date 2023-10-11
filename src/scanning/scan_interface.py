@@ -7,6 +7,7 @@ from threadpool import Threadpool
 import threading
 from functools import wraps
 import time
+import logging
 
 # Local
 import net_tools as nt
@@ -16,6 +17,9 @@ import json, sys
 
 # Total number of threads spawned for the threadpool
 NUM_THREADS = 50
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 CORS(app)
