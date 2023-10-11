@@ -225,7 +225,7 @@ class PostgreSQL_database:
         if not response:
             return Response("no_network")
         
-        if response[0][0] != user_id:
+        if user_id not in response[0]:
             return Response("no_access")
         
         return Response("success")
@@ -284,10 +284,10 @@ class PostgreSQL_database:
         query = f"""
                 SELECT {attrs}
                 FROM networks
-                WHERE network_id = %s and user_id = %s;
+                WHERE network_id = %s;
                 """
         
-        params = (network_id, user_id,)
+        params = (network_id,)
 
         res = self.__query(query, params, res=True)[0]
         if not res:
