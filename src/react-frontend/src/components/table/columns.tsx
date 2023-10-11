@@ -35,18 +35,54 @@ export const columns: ColumnDef<Payment>[] = [
   },
   {
     accessorKey: "ssid",
-    header: "SSID",
+    header: ({ column }) => (
+      <Button
+        className="shadow-none bg-transparent border-0"
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        SSID
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "n_alive",
-    header: "Alive Devices",
+    header: ({ column }) => (
+      <Button
+        className="shadow-none bg-transparent border-0"
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Alive Devices
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <Button
+        className="shadow-none bg-transparent border-0"
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Status
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "lastScanned",
-    header: "Last Scanned",
+    header: ({ column }) => (
+      <Button
+        className="shadow-none bg-transparent border-0"
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Last Scanned
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    )
   }
 ];
