@@ -264,7 +264,11 @@ def delete_network(user_id, network_id):
 @require_auth
 def share_network(user_id, network_id, recipient_id):
 
-    return db.grant_access(recipient_id, network_id)
+    args = to_ints([user_id, recipient_id, network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.grant_access(args[0], args[1], args[2])
 
 
 # Gets the ID and name of all users

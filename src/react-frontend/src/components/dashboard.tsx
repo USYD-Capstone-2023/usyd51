@@ -9,7 +9,8 @@ import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
-import { ContextMenu } from 'primereact/contextmenu';
+import { ContextMenu } from "primereact/contextmenu";
+import ShareNetworkDropdown from "./ShareNetworkDropdown";
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -150,9 +151,9 @@ const Dashboard = (props: any) => {
     { name: "TestName", id: 0 },
   ]);
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-  const [userListData, setUserListData] = useState([]);
+  const [userListData, setUserListData] = useState<any>();
   const [newNetworkId, setNewNetworkId] = useState(-1);
- 
+
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
       if (selectedNetworkID === id) {
@@ -174,6 +175,34 @@ const Dashboard = (props: any) => {
     );
   };
 
+  const shareNetworkWithUser = useCallback(
+    (id: number) => {
+      const authToken = localStorage.getItem("Auth-Token");
+      if (authToken == null) {
+        console.log("User is logged out!");
+        return;
+      }
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Auth-Token": authToken,
+          Accept: "application/json",
+        },
+      };
+
+      fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status !== 200) {
+            console.log(`${data.status}: ${data["message"]}`);
+          } else {
+            console.log(`Shared network ${selectedNetworkID} with user ${id}`);
+          }
+        });
+    },
+    [selectedNetworkID]
+  );
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -194,7 +223,6 @@ const Dashboard = (props: any) => {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
-          console.log(data);
           let network_list = [];
           for (let network of data["content"]) {
             network_list.push({ name: network.name, id: network.network_id });
@@ -210,7 +238,6 @@ const Dashboard = (props: any) => {
         }
       });
   }, [newNetworkId]);
-
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -231,9 +258,14 @@ const Dashboard = (props: any) => {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
+          console.log(data);
           let user_list = [];
           for (let user of data["content"]) {
-            user_list.push({ username: user.username, id: user.user_id, email: user.email });
+            user_list.push({
+              username: user.username,
+              id: user.user_id,
+              email: user.email,
+            });
           }
 
           setUserListData(user_list);
@@ -272,7 +304,6 @@ const Dashboard = (props: any) => {
               </h1>
               <div className="flex justify-center items-center gap-3 flex-col px-8">
                 {networkListData.map((network, index) => (
-
                   <div className="w-full" key={index}>
                     <NetworkButton name={network.name} id={network.id} />
                   </div>
@@ -301,6 +332,10 @@ const Dashboard = (props: any) => {
               </CardHeader>
             </Link>
           </Button>
+          <ShareNetworkDropdown
+            userList={userListData}
+            onSelect={shareNetworkWithUser}
+          />
         </Card>
       </div>
     </div>
