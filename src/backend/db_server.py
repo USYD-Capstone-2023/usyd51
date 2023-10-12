@@ -245,7 +245,7 @@ def rename_network(user_id, network_id, new_name):
     return db.rename_network(user_id, args[0], new_name)
 
 
-# Deletes a network and all related devices from the database
+# Deletes a network and all related devices from the dzatabase
 @app.post("/networks/<network_id>/delete")
 @returns_response_obj
 @require_auth
@@ -256,6 +256,24 @@ def delete_network(user_id, network_id):
         return Response("bad_input")
         
     return db.delete_network(user_id, args[0])
+
+
+# Shares access to a network with another user
+@app.post("/networks/<network_id>/share/<recipient_id>")
+@returns_response_obj
+@require_auth
+def share_network(user_id, network_id, recipient_id):
+
+    return db.grant_access(recipient_id, network_id)
+
+
+# Gets the ID and name of all users
+@app.get("/users")
+@returns_response_obj
+@require_auth
+def get_users(user_id):
+
+    return db.get_users()
 
 
 # Retrieves the logged in user's settings json from the database
