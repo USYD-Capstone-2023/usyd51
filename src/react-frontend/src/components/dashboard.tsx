@@ -3,13 +3,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
-import { ContextMenu } from 'primereact/contextmenu';
+import { ContextMenu } from "primereact/contextmenu";
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -149,10 +149,13 @@ const Dashboard = (props: any) => {
   const [networkListData, setNetworkListData] = useState([
     { name: "TestName", id: 0 },
   ]);
+  const [editName, setEditName] = useState(false);
+  const [currentName, setCurrentName] = useState("");
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
   const [userListData, setUserListData] = useState([]);
   const [newNetworkId, setNewNetworkId] = useState(-1);
- 
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
       if (selectedNetworkID === id) {
@@ -173,7 +176,6 @@ const Dashboard = (props: any) => {
       </button>
     );
   };
-
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -211,7 +213,32 @@ const Dashboard = (props: any) => {
       });
   }, [newNetworkId]);
 
+  const handleNewNetworkName = useCallback(() => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+    const options = {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
 
+    fetch(
+      databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
+      options
+    )
+      .then((res) => res.json())
+      .then((data: any) => {
+        if (data.status !== 200) {
+          console.log(`${data.status} ${data.content}`);
+        }
+      });
+  }, [currentName, selectedNetworkID]);
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -233,7 +260,11 @@ const Dashboard = (props: any) => {
         if (data.status === 200) {
           let user_list = [];
           for (let user of data["content"]) {
-            user_list.push({ username: user.username, id: user.user_id, email: user.email });
+            user_list.push({
+              username: user.username,
+              id: user.user_id,
+              email: user.email,
+            });
           }
 
           setUserListData(user_list);
@@ -272,7 +303,6 @@ const Dashboard = (props: any) => {
               </h1>
               <div className="flex justify-center items-center gap-3 flex-col px-8">
                 {networkListData.map((network, index) => (
-
                   <div className="w-full" key={index}>
                     <NetworkButton name={network.name} id={network.id} />
                   </div>
@@ -288,7 +318,29 @@ const Dashboard = (props: any) => {
         <Card className="flex flex-col justify-between items-center w-2/3 gap-10 pb-8">
           <div className="h-full w-full  rounded-xl">
             <div className="h-1/8 font-medium text-2xl p-8 text-left">
-              Home Network
+              {editName && (
+                <input
+                  type="text"
+                  ref={inputRef}
+                  value={currentName}
+                  onChange={(e) => setCurrentName(e.target.value)}
+                  onBlur={handleNewNetworkName}
+                />
+              )}
+              {!editName && (
+                <span
+                  onClick={() => {
+                    setEditName(true);
+                    inputRef.current !== null && inputRef.current.focus();
+                  }}
+                >
+                  {
+                    networkListData?.find(
+                      (element) => element.id === selectedNetworkID
+                    )?.name
+                  }
+                </span>
+              )}
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
               <DashboardChart networkID={selectedNetworkID} />
