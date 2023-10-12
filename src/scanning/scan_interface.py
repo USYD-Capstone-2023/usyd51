@@ -6,7 +6,9 @@ from loading_bar import Loading_bar
 from threadpool import Threadpool
 import threading
 from functools import wraps
+import json
 import time
+from Crypto.Hash import SHA256
 import logging
 
 # Local
@@ -27,13 +29,10 @@ CORS(app)
 tp = Threadpool(NUM_THREADS)
 daemon_sleep = threading.Event()
 daemon_sleep.set()
+daemon_running = False
 
 # auth_token : loading_bar
 loading_bars = dict()
-daemon_lb = Loading_bar()
-
-# auth_token : settings
-daemon_clients = dict()
 
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
@@ -214,8 +213,8 @@ def start_daemon(auth, network_id):
 
     # Ensures only one daemon is running at a time (Although the backend is built to handle multiple, just need to add
     # unique IDs for each process if we want this to be a feature).
-    if auth in daemon_clients.keys():
-        print("[ERR ] Scan daemon is already for this user.")
+    if daemon_sleep.is_set():
+        print("[ERR ] Scan daemon is already running.")
         return create_response("Daemon already running", 500)
 
     # Checks network ID is valid
@@ -228,20 +227,8 @@ def start_daemon(auth, network_id):
     if res[1] != 200:
         return res
     
-    # Retrieves user's settings from the database
-    settings = get_settings(auth)
-    if settings == None:
-        return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
-    
-    daemon_clients[auth] = {"network_id" : network_id, "settings" : settings}
-
-    if auth in loading_bars.keys():
-        # Creates a new loading bar for the scan, decouples from loading bar running concurrent scan.
-        # Daemon takes precedence
-        loading_bars[auth] = daemon_lb
-
+    daemon_running = True
     daemon_sleep.set()
-
     return create_response("Success", 200)
 
 
@@ -252,12 +239,12 @@ def start_daemon(auth, network_id):
 @require_auth
 def end_daemon(auth):
 
-    if auth in daemon_clients.keys():
-        del daemon_clients[auth]
-    else:
-        return create_response("User not registered as a daemon client.", 500)
-
-    return create_response("Success", 200)
+    if daemon_running:
+        daemon_running = False
+        daemon_sleep.set()
+        return create_response("Success", 200)
+    
+    return create_response("Daemon not running", 500)
 
 
 @app.get("/scan/progress/")
@@ -288,62 +275,65 @@ def run_daemon():
 
     print("[INFO] Daemon is starting!")
 
-    requests.post(DB_SERVER_URL + "/signup", 
-                      json={"username" : "daemon", "password" : "passwd", "email" : "sam@same"})
+    salt = "tesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn"
+
+    hash = SHA256.new()
+    hash.update(b"passwordtesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn")
+
+    res = requests.post(DB_SERVER_URL + "/signup", 
+                      json={"username" : "daemon", "password" : str(hash.hexdigest()), "email" : "sam@same", "salt" : salt})
         
-    res = requests.post("http://" + TestingConfig.SERVER_URI + ":5000/login", 
-                        json={"username" : "sam", "password" : "passwd"})
-    
-    token = res.content.decode("utf-8")
 
     while True:
 
+        res = requests.post(DB_SERVER_URL + "/login", 
+                            json={"username" : "sam", "password" : "passwd"})
+        
+        token = res.content.decode("utf-8")
+        res = requests.post(DB_SERVER_URL + "/login", 
+                            json={"username" : "daemon", "password" : str(hash.hexdigest())})
+        
+        content = json.loads(res.content)
+        token = content["content"]["Auth-Token"]
+        loading_bars[token] = Loading_bar()
         # Sleeps until there is a client to scan for
-        if len(daemon_clients.keys()) == 0:
+        if not daemon_running:
             print("[INFO] Daemon is waiting for clients...")
             daemon_sleep.clear()
             daemon_sleep.wait()
 
         # Constructs the lowest possible settings to satisfy the settings of all clients in one scan
+        # args = {
+        #     "TCP"                : False,
+        #     "UDP"                : False, 
+        #     "ports"              : [],
+        #     "run_ports"          : False,
+        #     "run_os"             : False,
+        #     "run_hostname"       : False,
+        #     "run_mac_vendor"     : False,
+        #     "run_trace"          : False,
+        #     "run_vertical_trace" : False,
+        # }
+
         args = {
-            "TCP"                : False,
-            "UDP"                : False, 
-            "ports"              : [],
-            "run_ports"          : False,
-            "run_os"             : False,
-            "run_hostname"       : False,
-            "run_mac_vendor"     : False,
-            "run_trace"          : False,
-            "run_vertical_trace" : False,
+            "TCP"                : True,
+            "UDP"                : True, 
+            "ports"              : [22,80,53,5000],
+            "run_ports"          : True,
+            "run_os"             : True,
+            "run_hostname"       : True,
+            "run_mac_vendor"     : True,
+            "run_trace"          : True,
+            "run_vertical_trace" : True,
         }
 
-        for client in daemon_clients.values()["settings"]:
-            for value in args.keys():
-                if value == "ports":
-                    args.ports.extend(client["ports"])
-                    continue
-
-                if args[value]:
-                    continue
-
-                args[value] = client[value]
-
-        args["ports"] = set(args["ports"])
-
-# TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-# THIS IS THE ISSUE
-# find a way to share this scan, idk
-
-
         # create new network id if doesnt exist, then save to that id just for the daemon account
-        network = run_scan()
-
-        # TODO - convert network to follow the users original scan settings
-        for client in daemon_clients.keys():
-            requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : client})
+        run_scan(9999, args, token)
 
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)
+        if token in loading_bars.keys():
+            del loading_bars[token]
 
 
 if __name__ == "__main__":
@@ -364,7 +354,7 @@ if __name__ == "__main__":
         print("Please enter 'remote' or 'local'.")
         sys.exit()
 
-    # daemon_thread = threading.Thread(target=run_daemon)
-    # daemon_thread.daemon = True
-    # daemon_thread.start()
+    daemon_thread = threading.Thread(target=run_daemon)
+    daemon_thread.daemon = True
+    daemon_thread.start()
     app.run(port=5001)

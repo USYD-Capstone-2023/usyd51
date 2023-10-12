@@ -13,6 +13,9 @@ import {
     YAxis,
     CartesianGrid,
 } from "recharts";
+import { reSplitAlphaNumeric } from "@tanstack/react-table";
+
+const timeFormat = { day : "numeric", month : "numeric", year : "numeric", hour : "numeric", minute : "numeric"};
 
 const DashboardChart = ({ networkID }) => {
     const [data, setData] = useState([
@@ -31,10 +34,7 @@ const DashboardChart = ({ networkID }) => {
             .then((data) => {
                 if (data.status === 200) {
                     data["content"].forEach((element: any) => {
-                        const date = new Date(element.timestamp*1000);
-                        const hours = date.getHours().toString().padStart(2,'0');
-                        const minutes = date.getMinutes().toString().padStart(2,'0');
-                        element.time = hours + ":" + minutes;
+                        element.time = element.timestamp;
                     })
                     setData(data["content"]);
 
@@ -83,6 +83,14 @@ const DashboardChart = ({ networkID }) => {
 
                 <XAxis
                     dataKey="time"
+                    name = 'Time'
+                    tickFormatter = {(timestamp) => {
+                        const date = new Date(timestamp * 1000);
+                        const hours = date.getHours().toString().padStart(2,'0');
+                        const minutes = date.getMinutes().toString().padStart(2,'0');
+                        return hours + ":" + minutes;
+                    }}
+
                     label={{
                         value: "Timestamp",
                         position: "insideBottom",
