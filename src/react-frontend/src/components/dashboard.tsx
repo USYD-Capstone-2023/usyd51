@@ -236,6 +236,9 @@ const Dashboard = (props: any) => {
       .then((data: any) => {
         if (data.status !== 200) {
           console.log(`${data.status} ${data.content}`);
+        } else {
+          setNewNetworkId(0); // Bit jank, just causes a reload of stuff
+          setEditName(false);
         }
       });
   }, [currentName, selectedNetworkID]);
