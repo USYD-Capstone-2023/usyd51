@@ -342,7 +342,6 @@ def get_salt(username):
     return Response("success", content={"salt" : salt})
 
 
-print(db.get_users_with_access(0))
 if __name__=="__main__":
     app.run(host=app.config["SERVER_URI"], port=app.config["SERVER_PORT"])
 
