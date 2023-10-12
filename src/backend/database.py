@@ -947,13 +947,13 @@ class PostgreSQL_database:
                 SELECT 1
                 FROM networks JOIN access
                 ON networks.network_id = access.network_id
-                WHERE user_id = %s;
+                WHERE access.user_id = %s and networks.network_id = %s;
                 """
 
         params = (user_id, network_id,)
 
         res = self.__query(query, params, res=True)
-        return res != None and len(res) > 0
+        return res and len(res) > 0
     
 
     # Gives a user access to the given network
@@ -962,7 +962,7 @@ class PostgreSQL_database:
         if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
             return Response("bad_input")
 
-        if not self.has_access(user_id, network_id):
+        if not self.__has_access(user_id, network_id):
             return Response("no_access")
         
         query = """
@@ -971,7 +971,7 @@ class PostgreSQL_database:
                 VALUES (%s, %s);
                 """
 
-        params = (user_id, network_id,)
+        params = (recipient_id, network_id,)
 
         if not self.__query(query, params):
             return Response("db_error")
