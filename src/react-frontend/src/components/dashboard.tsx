@@ -151,6 +151,7 @@ const Dashboard = (props: any) => {
   ]);
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
   const [userListData, setUserListData] = useState([]);
+  const [newNetworkId, setNewNetworkId] = useState(-1);
  
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
@@ -173,7 +174,6 @@ const Dashboard = (props: any) => {
     );
   };
 
-  const [newNetworkId, setNewNetworkId] = useState(-1);
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -231,7 +231,6 @@ const Dashboard = (props: any) => {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
-          console.log(data);
           let user_list = [];
           for (let user of data["content"]) {
             user_list.push({ username: user.username, id: user.user_id, email: user.email });
