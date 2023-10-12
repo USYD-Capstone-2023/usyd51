@@ -50,11 +50,6 @@ const DashboardChart = ({ networkID }) => {
       });
   }, [networkID]);
 
-  const onElementClick = (item: any, index: any) => {
-    console.log("You clicked: ");
-    console.log(item);
-  };
-
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data}>
