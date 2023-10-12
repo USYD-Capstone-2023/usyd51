@@ -154,6 +154,7 @@ const Dashboard = (props: any) => {
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
   const [userListData, setUserListData] = useState<any>();
   const [newNetworkId, setNewNetworkId] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
@@ -240,6 +241,72 @@ const Dashboard = (props: any) => {
       });
   }, [newNetworkId]);
 
+  const handleNewNetworkName = useCallback(() => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+    const options = {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        Accept: "application/json",
+      },
+    };
+
+    fetch(
+      databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
+      options
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status !== 200) {
+          console.log(`${data.status} ${data.content}`);
+        } else {
+          const options = {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Auth-Token": authToken,
+              Accept: "application/json",
+            },
+          };
+
+          fetch(databaseUrl + "networks", options)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === 200) {
+                let network_list = [];
+                for (let network of data["content"]) {
+                  network_list.push({
+                    name: network.name,
+                    id: network.network_id,
+                  });
+                }
+
+                if (network_list.length > 0) {
+                  setSelectedNetworkID(network_list[0].id);
+                }
+                setNetworkListData(network_list);
+              } else {
+                setNetworkListData([]);
+                console.log(data.status + " " + data["message"]);
+              }
+            });
+          setCurrentName("");
+          setEditName(false);
+        }
+      });
+  }, [selectedNetworkID, currentName]);
+
+  useEffect(() => {
+    if (editName && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editName]);
+
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -259,7 +326,6 @@ const Dashboard = (props: any) => {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
-          console.log(data);
           let user_list = [];
           for (let user of data["content"]) {
             user_list.push({
@@ -327,6 +393,8 @@ const Dashboard = (props: any) => {
                   value={currentName}
                   onChange={(e) => setCurrentName(e.target.value)}
                   onBlur={handleNewNetworkName}
+                  style={{ backgroundColor: "transparent" }}
+                  maxLength={25}
                 />
               )}
               {!editName && (

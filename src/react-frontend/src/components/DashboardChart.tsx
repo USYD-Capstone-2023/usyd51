@@ -12,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { reSplitAlphaNumeric } from "@tanstack/react-table";
 
 const timeFormat = {
   day: "numeric",
@@ -28,6 +27,9 @@ const DashboardChart = ({ networkID }) => {
   ]);
 
   useEffect(() => {
+    if (networkID == null) {
+      return;
+    }
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       console.log("User is logged out!");
@@ -41,6 +43,7 @@ const DashboardChart = ({ networkID }) => {
         Accept: "application/json",
       },
     };
+
     fetch(databaseUrl + "networks/" + networkID + "/snapshots", options)
       .then((res) => res.json())
       .then((data) => {
