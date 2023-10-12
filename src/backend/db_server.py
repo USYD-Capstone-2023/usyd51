@@ -272,12 +272,12 @@ def share_network(user_id, network_id, recipient_id):
 
 
 # Gets the ID and name of all users
-@app.get("/users")
+@app.get("/users/<network_id>")
 @returns_response_obj
 @require_auth
-def get_users(user_id):
+def get_users(user_id, network_id):
 
-    return db.get_users()
+    return db.get_users_with_access(network_id)
 
 
 # Retrieves the logged in user's settings json from the database
@@ -342,5 +342,7 @@ def get_salt(username):
     return Response("success", content={"salt" : salt})
 
 
+print(db.get_users_with_access(0))
 if __name__=="__main__":
     app.run(host=app.config["SERVER_URI"], port=app.config["SERVER_PORT"])
+
