@@ -19,7 +19,20 @@ type NetworkItem = {
     hostname: string,
     parent: string,
     ports: string,
+    [key: string]: string;
 }
+
+const columnDisplayNames: { [key: string]: string } = {
+    mac: "MAC",
+    ip: "IP",
+    mac_vendor: "MAC Vendor",
+    os_family: "OS Family",
+    os_vendor: "OS Vendor",
+    os_type: "OS Type",
+    hostname: "Hostname",
+    parent: "Parent",
+    ports: "Ports",
+};
 
 let desc = true;
 
@@ -36,7 +49,7 @@ function customSort(rowA: any, rowB: any, columnId: any): number {
         
         const a = valueA[0];
         const b = valueB[0];
-        
+
         if (desc == false){
             valueA.sort((a, b) => b - a);
             valueB.sort((a, b) => b - a);
@@ -136,6 +149,8 @@ const columns: ColumnDef<NetworkItem>[] = [
 const ListView = () => {
     const { networkID } = useParams();
     const [ networkDevices, setNetworkDevices] = useState<NetworkItem[]>([]);
+    const [filterKeyword, setFilterKeyword] = useState('');
+    const [filterColumn, setFilterColumn] = useState('');
     useEffect(() => {
         const authToken = localStorage.getItem("Auth-Token");
         if (authToken == null) {
@@ -154,24 +169,48 @@ const ListView = () => {
                 }
             });
         }, []);
+
+    const filteredDevices = networkDevices.filter(device => 
+        String(device[filterColumn]).toLowerCase().includes(filterKeyword.toLowerCase())
+    );
     
    return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
-
-        <Button style={{display: "flex", marginLeft: "auto"}}>  <Link to={"../../NetworkView/" + networkID}>Map View </Link></Button>
+        <Button style={{display: "flex", marginLeft: "auto"}}>
+            <Link to={"../../NetworkView/" + networkID}>Map View</Link>
+        </Button>
 
         <ScrollArea className="h-full w-full rounded-xl">
-        <Card className="w-full">
+            <Card className="w-full">
             <CardHeader>
-            <CardTitle className="text-left text-2xl">List View</CardTitle>
+            <div className="flex items-center">
+                    <CardTitle className="text-left text-2xl mr-4">List View</CardTitle>
+                    <select 
+                        onChange={e => setFilterColumn(e.target.value)} 
+                        value={filterColumn} 
+                        className="mr-2 p-2 border rounded"
+                        style={{appearance: 'none'}}
+                    >
+                        <option value="" disabled>Select Filter Type</option> 
+                        {Object.keys(networkDevices[0] ?? {}).map(key => 
+                            <option value={key} key={key}>{columnDisplayNames[key as keyof typeof columnDisplayNames] || key}</option>
+                        )}
+                    </select>
+                    <input 
+                        type="text" 
+                        value={filterKeyword} 
+                        onChange={e => setFilterKeyword(e.target.value)} 
+                        placeholder="Type to filter"
+                        className="p-2 border rounded"
+                    />
+                </div>
             </CardHeader>
-            <CardContent>
-                <DataTable columns={columns} data={networkDevices} />
-            </CardContent>
-        </Card>
+                <CardContent>
+                    <DataTable columns={columns} data={filteredDevices} />
+                </CardContent>
+            </Card>
         </ScrollArea>
-
-  </div>
+    </div>
    )
 };
 
