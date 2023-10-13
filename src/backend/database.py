@@ -125,7 +125,7 @@ class PostgreSQL_database:
                 
         # Gets the next valid ID if the ID parameter is unset
         network_id = network["network_id"]
-        if network_id == -1:
+        if network_id <= -1:
             network_id = self.__get_next_network_id()
             network["network_id"] = network_id
             
@@ -225,10 +225,12 @@ class PostgreSQL_database:
         if not response:
             return Response("no_network")
         
-        if user_id not in response[0]:
-            return Response("no_access")
+        for user in response:
+            if user[0] == user_id:
+                return Response("success")
+
+        return Response("no_access")
         
-        return Response("success")
     
 
     # Returns a list of all networks accessible to the given user
@@ -961,8 +963,8 @@ class PostgreSQL_database:
         all_users = all_users.content
 
         access = set()
-        for user_id in with_access:
-            access.add(user_id)
+        for user in with_access:
+            access.add(user[0])
 
         out = {
             "shared"   : [],
@@ -970,7 +972,6 @@ class PostgreSQL_database:
         }
 
         for user in all_users:
-            
             if user["user_id"] in access:
                 out["shared"].append(user)
 
@@ -1006,7 +1007,7 @@ class PostgreSQL_database:
         if res.status != 200:
             return res 
 
-        if self.__has_access(recipient, network_id):
+        if self.__has_access(recipient_id, network_id):
             return Response("already_authorized")
         
         query = """
