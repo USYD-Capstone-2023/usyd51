@@ -1,7 +1,5 @@
-"use client"
-
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function DarkMode() {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
 
   return (
     <DropdownMenu>
