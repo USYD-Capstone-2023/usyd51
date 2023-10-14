@@ -10,6 +10,7 @@ const SimpleNode = ({
   isConnectable: boolean;
   selected: boolean;
 }) => {
+  const nodeTitle = data.hostname !== "unknown" ? data.hostname : data.ip;
   return (
     <div className="text-updater-node">
       <Handle
@@ -18,7 +19,7 @@ const SimpleNode = ({
         isConnectable={isConnectable}
       />
       <Card>
-        <CardHeader>{data.hostname}</CardHeader>
+        <CardHeader>{nodeTitle}</CardHeader>
         {selected && (
           <CardContent>
             <div>
