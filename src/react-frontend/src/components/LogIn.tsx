@@ -250,7 +250,9 @@ const Login = (props: any) => {
               <Button type="button" variant="outline" onClick={switchToLogin}>
                 Back
               </Button>
-              <input disabled={!isPasswordMatch} type="submit" value="Create" />
+              <Button type="submit" disabled={!isPasswordMatch}>
+                Create
+              </Button>
             </CardFooter>
           </form>
         </Card>
