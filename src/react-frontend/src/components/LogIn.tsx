@@ -197,7 +197,7 @@ const Login = (props: any) => {
               <Button type="button" variant="outline" onClick={switchToSignUp}>
                 Sign Up
               </Button>
-              <Button type="submit">Login</Button>
+              <input type="submit" value="Login" />
             </CardFooter>
           </form>
         </Card>
