@@ -51,7 +51,7 @@ const NewNetworkButton = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     if (!loadingBarActive) {
@@ -68,6 +68,76 @@ const NewNetworkButton = (props: any) => {
         });
     }
   }, [loadingBarActive]);
+};
+
+const Dashboard = (props: any) => {
+  const navigate = useNavigate();
+  const [networkListData, setNetworkListData] = useState([
+    { name: "TestName", id: 0 },
+  ]);
+  const [editName, setEditName] = useState(false);
+  const [currentName, setCurrentName] = useState("");
+  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+  const [userListData, setUserListData] = useState<any>();
+  const [newNetworkId, setNewNetworkId] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const NetworkButton = (props: any) => {
+    const clickButton = (id: any) => {
+      if (selectedNetworkID === id) {
+        navigate("/networkView/" + id);
+      } else {
+        setSelectedNetworkID(id);
+      }
+    };
+
+    const { name, id } = props;
+    const buttonClass =
+      selectedNetworkID === id
+        ? "bg-gray-700 text-gray-300"
+        : "bg-gray-300 text-black";
+    return (
+      <button onClick={() => clickButton(id)} className={"w-full"}>
+        <Card className={`${buttonClass}`}>{name}</Card>
+      </button>
+    );
+  };
+
+const NewNetworkButton = (props: any) => {
+  const { setNewNetworkId } = props;
+  const [loadingBarActive, setLoadingBarActive] = useState(false);
+  const [loadingBarProgress, setLoadingBarProgress] = useState({
+    label: " ",
+    progress: 0,
+    total: 100,
+  });
+
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+    console.log("User is logged out!");
+    return;
+  }
+
+  const createNewNetwork = useCallback(() => {
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept" : "application/json",
+      },
+    };
+    if (!loadingBarActive) {
+      setLoadingBarActive(true);
+      fetch(scannerUrl + "daemon/new", options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data["status"] != 200) {
+            console.log(data["status"] + " " + data["message"]);
+          }
+        });
+    }
+  }, [loadingBarActive]);
 
   useEffect(() => {
     let intervalId: string | number | NodeJS.Timeout | undefined;
@@ -76,12 +146,12 @@ const NewNetworkButton = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     if (loadingBarActive) {
       intervalId = setInterval(() => {
-        fetch(scannerUrl + "scan/progress/", options)
+        fetch(scannerUrl + "daemon/progress", options)
           .then((res) => res.json())
           .then((data) => {
             if (data["status"] === 200) {
@@ -101,7 +171,7 @@ const NewNetworkButton = (props: any) => {
           });
       }, 400);
     } else {
-      fetch(scannerUrl + "scan/progress/", options)
+      fetch(scannerUrl + "daemon/progress", options)
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
@@ -144,69 +214,6 @@ const NewNetworkButton = (props: any) => {
   }
 };
 
-const Dashboard = (props: any) => {
-  const navigate = useNavigate();
-  const [networkListData, setNetworkListData] = useState([
-    { name: "TestName", id: 0 },
-  ]);
-  const [editName, setEditName] = useState(false);
-  const [currentName, setCurrentName] = useState("");
-  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-  const [userListData, setUserListData] = useState<any>();
-  const [newNetworkId, setNewNetworkId] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const NetworkButton = (props: any) => {
-    const clickButton = (id: any) => {
-      if (selectedNetworkID === id) {
-        navigate("/networkView/" + id);
-      } else {
-        setSelectedNetworkID(id);
-      }
-    };
-
-    const { name, id } = props;
-    const buttonClass =
-      selectedNetworkID === id
-        ? "bg-gray-700 text-gray-300"
-        : "bg-gray-300 text-black";
-    return (
-      <button onClick={() => clickButton(id)} className={"w-full"}>
-        <Card className={`${buttonClass}`}>{name}</Card>
-      </button>
-    );
-  };
-
-  const shareNetworkWithUser = useCallback(
-    (id: number) => {
-      const authToken = localStorage.getItem("Auth-Token");
-      if (authToken == null) {
-        console.log("User is logged out!");
-        return;
-      }
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Auth-Token": authToken,
-          "Accept": "application/json",
-        },
-      };
-
-      fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status !== 200) {
-            console.log(`${data.status}: ${data["message"]}`);
-          } else {
-            update_share_list();
-          }
-        });
-
-    },
-    [selectedNetworkID]
-  );
-
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -216,13 +223,13 @@ const Dashboard = (props: any) => {
     const options = {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        Accept: "application/json",
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
       },
     };
 
-    fetch(databaseUrl + "networks", options)
+    fetch(databaseUrl + "daemon/networks", options)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
@@ -253,7 +260,7 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
 
@@ -269,33 +276,31 @@ const Dashboard = (props: any) => {
           const options = {
             method: "GET",
             headers: {
-              "Content-Type": "application/json",
-              "Auth-Token": authToken,
-              Accept: "application/json",
+              "Content-Type" : "application/json",
+              "Auth-Token" : authToken,
+              "Accept" : "application/json",
             },
           };
 
-          fetch(databaseUrl + "networks", options)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.status === 200) {
-                let network_list = [];
-                for (let network of data["content"]) {
-                  network_list.push({
-                    name: network.name,
-                    id: network.network_id,
-                  });
-                }
-
-                if (network_list.length > 0) {
-                  setSelectedNetworkID(network_list[0].id);
-                }
-                setNetworkListData(network_list);
-              } else {
-                setNetworkListData([]);
-                console.log(data.status + " " + data["message"]);
+          fetch(databaseUrl + "daemon/networks", options)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 200) {
+              let network_list = [];
+              for (let network of data["content"]) {
+                network_list.push({ name: network.name, id: network.network_id });
               }
-            });
+    
+              if (network_list.length > 0) {
+                setSelectedNetworkID(network_list[0].id);
+              }
+              setNetworkListData(network_list);
+            } else {
+              setNetworkListData([]);
+              console.log(data.status + " " + data["message"]);
+            }
+          });
+
           setCurrentName("");
           setEditName(false);
         }
@@ -319,9 +324,9 @@ const Dashboard = (props: any) => {
     const options = {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        Accept: "application/json",
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
       },
     };
 
@@ -341,6 +346,81 @@ const Dashboard = (props: any) => {
           setUserListData(user_list);
         } else {
           setUserListData([]);
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }
+
+  const start_scan = () => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
+      },
+    };
+
+    fetch(scannerUrl +`daemon/start/${selectedNetworkID}`, options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status != 200) {
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }
+
+  const end_scan = () => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
+      },
+    };
+
+    fetch(scannerUrl +`daemon/end`, options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status != 200) {
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }
+
+  const share_with_user = () => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
+      },
+    };
+
+    fetch(databaseUrl +`daemon/${selectedNetworkID}/share`, options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status != 200) {
           console.log(data.status + " " + data["message"]);
         }
       });
@@ -402,23 +482,24 @@ const Dashboard = (props: any) => {
               )}
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart networkID={selectedNetworkID} />
+              <DashboardChart networkID={selectedNetworkID} mode={"daemon"}/>
             </div>
           </div>
           <div>
-            <Button onClick={createNewNetwork}>
-              <Link to="/PLACEHOLDER"> 
-                <CardHeader>
-                  <CardTitle>Resume Scan</CardTitle>
-                </CardHeader>
-              </Link>
+            <Button onClick={start_scan}>
+              <CardHeader>
+                <CardTitle>Resume Scan</CardTitle>
+              </CardHeader>
             </Button>
-            <Button onClick={createNewNetwork} style={{margin: 10}}>
-              <Link to="/PLACEHOLDER" > 
-                <CardHeader>
-                  <CardTitle>Pause Scan</CardTitle>
-                </CardHeader>
-              </Link>
+            <Button onClick={end_scan} style={{margin: 10}}>
+              <CardHeader>
+                <CardTitle>Pause Scan</CardTitle>
+              </CardHeader>
+            </Button>
+            <Button onClick={share_with_user}>
+              <CardHeader>
+                <CardTitle>Share To Dashboard</CardTitle>
+              </CardHeader>
             </Button>
           </div>
         </Card>

@@ -11,7 +11,7 @@ from config import Config
 from database import PostgreSQL_database as pdb
 from response import Response
 
-TOKEN_EXPIRY_MINS = 60
+TOKEN_EXPIRY_MINS = 360
 
 app = Flask(__name__)
 
@@ -151,7 +151,6 @@ def login():
     if "username" not in user_data.keys() or "password" not in user_data.keys():
         return Response("malformed_user")
     
-    print(user_data["password"])
     res = db.get_user_by_login(user_data["username"], user_data["password"])
     if res.status != 200:
         return res
@@ -170,6 +169,41 @@ def login():
 def get_networks(user_id):
 
     return db.get_networks(user_id)
+
+
+# Gives basic information about all networks accessible by the user.
+@app.get("/daemon/networks")
+@returns_response_obj
+@require_auth
+def get_daemon_networks(user_id):
+
+    return db.get_networks(0)
+
+
+# Retrieves basic information about all snapshots of a certain network in the databsase
+@app.get("/daemon/networks/<network_id>/snapshots")
+@returns_response_obj
+@require_auth
+def get_daemon_snapshots(user_id, network_id):
+
+    args = to_ints([network_id])
+    if not args:
+        return Response("bad_input")
+        
+    return db.get_snapshots(0, args[0])
+
+
+# Shares access to a network with another user
+@app.post("/daemon/<network_id>/share")
+@returns_response_obj
+@require_auth
+def share_daemon_network(user_id, network_id):
+
+    args = to_ints([network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.grant_access(0, user_id, args[0])
     
 
 # Gives basic information about the requested network.

@@ -43,20 +43,32 @@ daemon_scan_rate = 60
 
 # The default settings that a new user gets
 default_settings = {
-    "TCP" : True,
-    "UDP" : True, 
-    "ports": [22,23,80,443],
-    "run_ports": True,
-    "run_os": False,
-    "run_hostname": True,
-    "run_mac_vendor": True,
-    "run_trace": True,
-    "run_vertical_trace": True,
-    "defaultView": "grid",
-    "defaultNodeColour": "0FF54A",
-    "defaultEdgeColour": "32FFAB",
-    "defaultBackgroundColour": "320000"
+    "TCP"                     : True,
+    "UDP"                     : True, 
+    "ports"                   : [22,23,80,443],
+    "run_ports"               : True,
+    "run_os"                  : False,
+    "run_hostname"            : True,
+    "run_mac_vendor"          : True,
+    "run_trace"               : True,
+    "run_vertical_trace"      : True,
+    "defaultView"             : "grid",
+    "defaultNodeColour"       : "0FF54A",
+    "defaultEdgeColour"       : "32FFAB",
+    "defaultBackgroundColour" : "320000"
 }
+
+daemon_settings = {
+    "TCP"                : True,
+    "UDP"                : True, 
+    "ports"              : [22,80,53,5000],
+    "run_ports"          : True,
+    "run_os"             : True,
+    "run_hostname"       : True,
+    "run_mac_vendor"     : True,
+    "run_trace"          : True,
+    "run_vertical_trace" : True,
+    }
 
 
 def create_response(message, code, content=""):
@@ -119,6 +131,7 @@ def run_scan(network_id, settings, auth):
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
+        print(auth)
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
         del loading_bars[auth]
         return
@@ -205,68 +218,69 @@ def scan_network(auth, network_id):
     scan_thread.daemon = True
     scan_thread.start()
     return create_response("Scan has started.", 200)
-    
-
-# Starts an automatic scanning daemon on the network specified.
-# Scans are conducted at the interval specified in the user's settings table (NOT IMPLEMENTED, HARDCODED ABOVE CURRENTLY)
-# The daemon will be shutdown after the end_daemon method is called, or if it encounters a specific number of 
-# consecutive database faults.
-@app.post("/daemon/register")
-@require_auth
-def register_daemon_client(auth):
-
-    res = requests.post(f"{DB_SERVER_URL}/users/id", headers={"Auth-Token" : auth})
-    if res.status_code != 200:
-        return res
-    
-    user_id = json.loads(res.content)
-
-    if user_id in daemon_clients:
-        return create_response("User is already registered with scanning daemon.", 500)
-    
-    daemon_auth_token = daemon_get_auth()
-    if daemon_auth_token == None:
-        return create_response("Failed to retrieve daemon authentication token. Try again.", 500)
-    
-    daemon_clients.add(user_id)
-    res = requests.post(f"{DB_SERVER_URL}/users/{daemon_network_id}/share/{user_id}", headers={"Auth-Token" : daemon_auth_token})
-    if res.status_code != 200:
-        return res
-
-    daemon_sleep.clear()
-    return create_response("Success", 200)
 
 
 @app.post("/daemon/start/<network_id>")
 @require_auth
 def start_daemon(auth, network_id):
 
+    global daemon_running, daemon_network_id, daemon_sleep
+    # Checks that the entered network id is valid
+    network_id = validate_network_id(network_id)
+    if network_id == None:
+        return create_response("Invalid network ID entered.", 500)
+
     if daemon_running:
         return create_response("Daemon already running.", 500)
     
-    res = requests.post(f"{DB_SERVER_URL}/users/{network_id}/share/0", headers={"Auth-Token" : auth})
-    if res.status_code != 200:
-        return res
-    
     daemon_network_id = network_id
     daemon_running = True
-    daemon_sleep.clear()
-    return create_response("Success", 500)
+    daemon_sleep.set()
+    print("[INFO] Daemon started scanning %d..." % network_id)
+    return create_response("Success", 200)
 
 
-# Sets the flag to kill the scanning daemon after it finishes its current operation
-# Note that this doesnt have to be called when ending the program, as the backend is threadsafe and will close 
-# gracefully on its own.
 @app.post("/daemon/end")
 @require_auth
 def end_daemon(auth):
 
+    global daemon_running, daemon_network_id, daemon_sleep
     if daemon_running:
         daemon_running = False
-        daemon_sleep.set()
+        daemon_sleep.clear()
+        print("[INFO] Daemon stopping after current scan...")
         return create_response("Success", 200)
     
     return create_response("Daemon not running", 500)
+
+
+@app.post("/daemon/new")
+@require_auth
+def init_daemon_network(auth):
+
+    global daemon_auth_token
+    daemon_auth_token = daemon_get_auth()
+
+    # Checks if user is already running a scan
+    if daemon_auth_token in loading_bars.keys():
+        return create_response("User is already running a scan.", 500)
+
+    # Dispatches scan
+    scan_thread = threading.Thread(target=run_scan, args=(-1, daemon_settings, daemon_auth_token))
+    scan_thread.daemon = True
+    scan_thread.start()
+    return create_response("Scan has started.", 200)
+
+
+@app.get("/daemon/progress")
+@require_auth
+def get_daemon_progress(auth):
+
+    global daemon_auth_token
+    if daemon_auth_token in loading_bars.keys():
+        return create_response("success", 200, content=loading_bars[daemon_auth_token].get_progress())
+    
+    return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 
 
 @app.get("/progress")
@@ -316,18 +330,6 @@ def daemon_get_auth():
 def run_daemon():
 
     print("[INFO] Daemon is starting!")
-        
-    args = {
-        "TCP"                : True,
-        "UDP"                : True, 
-        "ports"              : [22,80,53,5000],
-        "run_ports"          : True,
-        "run_os"             : True,
-        "run_hostname"       : True,
-        "run_mac_vendor"     : True,
-        "run_trace"          : True,
-        "run_vertical_trace" : True,
-    }
 
     while True:
 
@@ -349,8 +351,9 @@ def run_daemon():
             daemon_sleep.clear()
             daemon_sleep.wait()
 
+        # network_id = daemon_network_id
         # create new network id if doesnt exist, then save to that id just for the daemon account
-        run_scan(daemon_network_id, args, token)
+        run_scan(daemon_network_id, daemon_settings, token)
 
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)

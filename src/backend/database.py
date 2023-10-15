@@ -973,11 +973,16 @@ class PostgreSQL_database:
         }
 
         for user in all_users:
+            # Dont add daemon account to list
+            if user["user_id"] == 0:
+                continue
+
             if user["user_id"] in access:
                 out["shared"].append(user)
 
             else:
                 out["unshared"].append(user)
+
 
         return Response("success", content=out)
 
