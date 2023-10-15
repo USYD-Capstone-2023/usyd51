@@ -56,7 +56,7 @@ const NewNetworkButton = (props: any) => {
     };
     if (!loadingBarActive) {
       setLoadingBarActive(true);
-      fetch(scannerUrl + "scan/-1", options)
+      fetch(scannerUrl + "scan/-1", options) //PLACEHOLDER for the new endpoint to begin a daemon scan
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
@@ -81,7 +81,7 @@ const NewNetworkButton = (props: any) => {
     };
     if (loadingBarActive) {
       intervalId = setInterval(() => {
-        fetch(scannerUrl + "scan/progress/", options)
+        fetch(scannerUrl + "scan/progress/", options) //PLACEHOLDER can delete this????
           .then((res) => res.json())
           .then((data) => {
             if (data["status"] === 200) {
@@ -101,7 +101,7 @@ const NewNetworkButton = (props: any) => {
           });
       }, 400);
     } else {
-      fetch(scannerUrl + "scan/progress/", options)
+      fetch(scannerUrl + "scan/progress/", options) //PLACEHOLDER can delete this
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
@@ -152,7 +152,6 @@ const Dashboard = (props: any) => {
   const [editName, setEditName] = useState(false);
   const [currentName, setCurrentName] = useState("");
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-  const [userListData, setUserListData] = useState<any>();
   const [newNetworkId, setNewNetworkId] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -177,36 +176,6 @@ const Dashboard = (props: any) => {
     );
   };
 
-  const shareNetworkWithUser = useCallback(
-    (id: number) => {
-      const authToken = localStorage.getItem("Auth-Token");
-      if (authToken == null) {
-        console.log("User is logged out!");
-        return;
-      }
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Auth-Token": authToken,
-          "Accept": "application/json",
-        },
-      };
-
-      fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status !== 200) {
-            console.log(`${data.status}: ${data["message"]}`);
-          } else {
-            update_share_list();
-          }
-        });
-
-    },
-    [selectedNetworkID]
-  );
-
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -222,7 +191,7 @@ const Dashboard = (props: any) => {
       },
     };
 
-    fetch(databaseUrl + "networks", options)
+    fetch(databaseUrl + "networks", options) //PLACEHOLDER for the networks that the daemon has
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
@@ -242,111 +211,6 @@ const Dashboard = (props: any) => {
       });
   }, [newNetworkId]);
 
-  const handleNewNetworkName = useCallback(() => {
-    const authToken = localStorage.getItem("Auth-Token");
-    if (authToken == null) {
-      console.log("User is logged out!");
-      return;
-    }
-    const options = {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        Accept: "application/json",
-      },
-    };
-
-    fetch(
-      databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
-      options
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status !== 200) {
-          console.log(`${data.status} ${data.content}`);
-        } else {
-          const options = {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "Auth-Token": authToken,
-              Accept: "application/json",
-            },
-          };
-
-          fetch(databaseUrl + "networks", options)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.status === 200) {
-                let network_list = [];
-                for (let network of data["content"]) {
-                  network_list.push({
-                    name: network.name,
-                    id: network.network_id,
-                  });
-                }
-
-                if (network_list.length > 0) {
-                  setSelectedNetworkID(network_list[0].id);
-                }
-                setNetworkListData(network_list);
-              } else {
-                setNetworkListData([]);
-                console.log(data.status + " " + data["message"]);
-              }
-            });
-          setCurrentName("");
-          setEditName(false);
-        }
-      });
-  }, [selectedNetworkID, currentName]);
-
-  useEffect(() => {
-    if (editName && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [editName]);
-
-  const update_share_list = () => {
-
-    const authToken = localStorage.getItem("Auth-Token");
-    if (authToken == null) {
-      console.log("User is logged out!");
-      return;
-    }
-
-    const options = {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        Accept: "application/json",
-      },
-    };
-
-    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 200) {
-          let user_list = [];
-          for (let user of data["content"]["unshared"]) {
-            user_list.push({
-              username: user.username,
-              id: user.user_id,
-              email: user.email,
-            });
-          }
-
-          setUserListData(user_list);
-        } else {
-          setUserListData([]);
-          console.log(data.status + " " + data["message"]);
-        }
-      });
-  }
-
-  useEffect(() => {update_share_list();}, [selectedNetworkID]);
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
@@ -381,7 +245,6 @@ const Dashboard = (props: any) => {
                   ref={inputRef}
                   value={currentName}
                   onChange={(e) => setCurrentName(e.target.value)}
-                  onBlur={handleNewNetworkName}
                   style={{ backgroundColor: "transparent" }}
                   maxLength={25}
                 />
