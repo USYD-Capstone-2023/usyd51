@@ -238,9 +238,10 @@ def traceroute_helper(ip, gateway, iface):
             hops[answer] = answers.get_trace()[ip][answer][0]
 
     for hop in sorted(hops.keys()):
-        addrs.append(hops[hop])
+        if hops[hop] not in addrs:
+            addrs.append(hops[hop])
 
-    if ip not in addrs:
+    if addrs[-1] != ip:
         addrs.append(ip)
 
     return addrs
@@ -314,7 +315,6 @@ def add_routes(network, tp, lb, iface=conf.iface):
                 break
 
             parent = addr
-
 
         # Updates the devices parent node
         device.parent = parent

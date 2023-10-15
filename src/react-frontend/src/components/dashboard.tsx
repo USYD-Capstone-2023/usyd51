@@ -189,7 +189,7 @@ const Dashboard = (props: any) => {
         headers: {
           "Content-Type": "application/json",
           "Auth-Token": authToken,
-          Accept: "application/json",
+          "Accept": "application/json",
         },
       };
 
@@ -199,9 +199,10 @@ const Dashboard = (props: any) => {
           if (data.status !== 200) {
             console.log(`${data.status}: ${data["message"]}`);
           } else {
-            console.log(`Shared network ${selectedNetworkID} with user ${id}`);
+            update_share_list();
           }
         });
+
     },
     [selectedNetworkID]
   );
@@ -307,12 +308,14 @@ const Dashboard = (props: any) => {
     }
   }, [editName]);
 
-  useEffect(() => {
+  const update_share_list = () => {
+
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       console.log("User is logged out!");
       return;
     }
+
     const options = {
       method: "GET",
       headers: {
@@ -322,12 +325,12 @@ const Dashboard = (props: any) => {
       },
     };
 
-    fetch(databaseUrl + "users", options)
+    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
           let user_list = [];
-          for (let user of data["content"]) {
+          for (let user of data["content"]["unshared"]) {
             user_list.push({
               username: user.username,
               id: user.user_id,
@@ -341,7 +344,9 @@ const Dashboard = (props: any) => {
           console.log(data.status + " " + data["message"]);
         }
       });
-  }, [newNetworkId]);
+  }
+
+  useEffect(() => {update_share_list();}, [selectedNetworkID]);
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">

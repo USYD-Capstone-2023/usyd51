@@ -125,7 +125,7 @@ class PostgreSQL_database:
                 
         # Gets the next valid ID if the ID parameter is unset
         network_id = network["network_id"]
-        if network_id == -1:
+        if network_id <= -1:
             network_id = self.__get_next_network_id()
             network["network_id"] = network_id
             
@@ -225,10 +225,12 @@ class PostgreSQL_database:
         if not response:
             return Response("no_network")
         
-        if user_id not in response[0]:
-            return Response("no_access")
+        for user in response:
+            if user[0] == user_id:
+                return Response("success")
+
+        return Response("no_access")
         
-        return Response("success")
     
 
     # Returns a list of all networks accessible to the given user
@@ -857,7 +859,7 @@ class PostgreSQL_database:
         return Response("success")
     
 
-    # Gets a users ID by their username and password
+    # Gets a user by their username and password
     def get_user_by_login(self, username, password):
 
         if type(username) != str or type(password) != str:
@@ -940,6 +942,45 @@ class PostgreSQL_database:
         return Response("success", content=out)
 
 
+    def get_users_with_access(self, network_id):
+
+        query = f"""
+                SELECT user_id
+                FROM access
+                WHERE network_id = %s;
+                """
+
+        params = (network_id,)
+
+        with_access = self.__query(query, params, res=True)
+        if with_access == False:
+            return Response("db_error")
+
+        all_users = self.get_users()
+        if all_users.status != 200:
+            return all_users
+
+        all_users = all_users.content
+
+        access = set()
+        for user in with_access:
+            access.add(user[0])
+
+        out = {
+            "shared"   : [],
+            "unshared" : []
+        }
+
+        for user in all_users:
+            if user["user_id"] in access:
+                out["shared"].append(user)
+
+            else:
+                out["unshared"].append(user)
+
+        return Response("success", content=out)
+
+
     # Checks if a user has access to a given network
     def __has_access(self, user_id, network_id):
 
@@ -962,8 +1003,12 @@ class PostgreSQL_database:
         if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
             return Response("bad_input")
 
-        if not self.__has_access(user_id, network_id):
-            return Response("no_access")
+        res = self.validate_network_access(user_id, network_id)
+        if res.status != 200:
+            return res 
+
+        if self.__has_access(recipient_id, network_id):
+            return Response("already_authorized")
         
         query = """
                 INSERT INTO access
