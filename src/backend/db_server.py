@@ -11,10 +11,7 @@ from config import Config
 from database import PostgreSQL_database as pdb
 from response import Response
 
-TOKEN_EXPIRY_MINS = 525600
-
-app = None
-db = None
+TOKEN_EXPIRY_MINS = 60
 
 app = Flask(__name__)
 
@@ -154,6 +151,7 @@ def login():
     if "username" not in user_data.keys() or "password" not in user_data.keys():
         return Response("malformed_user")
     
+    print(user_data["password"])
     res = db.get_user_by_login(user_data["username"], user_data["password"])
     if res.status != 200:
         return res
@@ -272,16 +270,12 @@ def share_network(user_id, network_id, recipient_id):
 
 
 # Shares access to a network with another user
-@app.post("/daemon/<network_id>/share/<recipient_auth>")
+@app.post("/users/id")
 @returns_response_obj
 @require_auth
-def share_network(user_id, network_id, recipient_id):
+def get_id_from_auth(user_id):
 
-    args = to_ints([user_id, recipient_id, network_id])
-    if not args:
-        return Response("bad_input")
-    
-    return db.grant_access(args[0], args[1], args[2])
+    return Response("success", content=user_id)
 
 
 # Gets the ID and name of all users
@@ -361,4 +355,3 @@ def get_salt(username):
 
 if __name__=="__main__":
     app.run(host=app.config["SERVER_URI"], port=app.config["SERVER_PORT"])
-

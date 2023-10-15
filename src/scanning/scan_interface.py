@@ -31,9 +31,12 @@ tp = Threadpool(NUM_THREADS)
 daemon_sleep = threading.Event()
 daemon_sleep.set()
 daemon_running = False
+daemon_network_id = -1
+daemon_auth_token = ""
 
-# auth_token : loading_bar
 loading_bars = dict()
+daemon_clients = set()
+pending_daemon_clients = set()
 
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
@@ -85,7 +88,7 @@ def get_settings(auth):
 
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
 
-    if res.status_code != 200:
+    if res.status_code_code != 200:
         return None
 
     settings = json.loads(res.content.decode("utf-8"))["content"]
@@ -105,6 +108,8 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
+    loading_bars[auth] = Loading_bar()
+
     # Initialises network
     network = nt.init_scan(network_id)
     # Retrieves devices
@@ -113,8 +118,8 @@ def run_scan(network_id, settings, auth):
     nt.add_routes(network, tp, loading_bars[auth])
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
-    if res.status_code != 200:
-        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+    if res.status_code_code != 200:
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code_code}]: {res.content.decode('utf-8')}")
         del loading_bars[auth]
         return
 
@@ -133,8 +138,8 @@ def run_scan(network_id, settings, auth):
         if settings[scan["setting"]]:
             scan["func"](*scan["args"])
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
-            if res.status_code != 200:
-                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+            if res.status_code_code != 200:
+                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code_code}]: {res.content.decode('utf-8')}")
                 del loading_bars[auth]
                 return
 
@@ -151,12 +156,12 @@ def verify_current_connection(network_id, auth):
     network = requests.get(DB_SERVER_URL + "/networks/%s" % (network_id), headers={"Auth-Token" : auth})
     
     # Network hasnt been created, so user is trivially connected to the network
-    if network.status_code == 500:
+    if network.status_code_code == 500:
         return create_response("Valid", 200)
     
     # Not authorised for this network, or some other database error code
-    if network.status_code != 200:
-        return network.content.decode("utf8"), network.status_code
+    if network.status_code_code != 200:
+        return network.content.decode("utf8"), network.status_code_code
 
     network = json.loads(network.content.decode("utf-8"))["content"]
 
@@ -195,8 +200,6 @@ def scan_network(auth, network_id):
     if auth in loading_bars.keys():
         return create_response("User is already running a scan.", 500)
 
-    # Creates a loading bar for the scan
-    loading_bars[auth] = Loading_bar()
     # Dispatches scan
     scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth))
     scan_thread.daemon = True
@@ -208,31 +211,47 @@ def scan_network(auth, network_id):
 # Scans are conducted at the interval specified in the user's settings table (NOT IMPLEMENTED, HARDCODED ABOVE CURRENTLY)
 # The daemon will be shutdown after the end_daemon method is called, or if it encounters a specific number of 
 # consecutive database faults.
-@app.post("/daemon/register/<user_id>")
+@app.post("/daemon/register")
 @require_auth
-def start_daemon(auth, user_id):
+def register_daemon_client(auth):
 
-    res = requests.post(f"{DB_SERVER_URL}/users/daemon_network_id/share/{user_id}", headers={"Auth-Token" : auth})
-
-    # Ensures only one daemon is running at a time (Although the backend is built to handle multiple, just need to add
-    # unique IDs for each process if we want this to be a feature).
-    if daemon_sleep.is_set():
-        print("[ERR ] Scan daemon is already running.")
-        return create_response("Daemon already running", 500)
-
-    # Checks network ID is valid
-    network_id = validate_network_id(network_id)
-    if network_id == None or network_id < 0:
-        return create_response("Invalid network ID entered.", 500)
-    
-    # Checks that the server is currently connected to the requested network
-    res = verify_current_connection(network_id, auth)
-    if res[1] != 200:
+    res = requests.post(f"{DB_SERVER_URL}/users/id", headers={"Auth-Token" : auth})
+    if res.status_code != 200:
         return res
     
-    daemon_running = True
-    daemon_sleep.set()
+    user_id = json.loads(res.content)
+
+    if user_id in daemon_clients:
+        return create_response("User is already registered with scanning daemon.", 500)
+    
+    daemon_auth_token = daemon_get_auth()
+    if daemon_auth_token == None:
+        return create_response("Failed to retrieve daemon authentication token. Try again.", 500)
+    
+    daemon_clients.add(user_id)
+    res = requests.post(f"{DB_SERVER_URL}/users/{daemon_network_id}/share/{user_id}", headers={"Auth-Token" : daemon_auth_token})
+    if res.status_code != 200:
+        return res
+
+    daemon_sleep.clear()
     return create_response("Success", 200)
+
+
+@app.post("/daemon/start/<network_id>")
+@require_auth
+def start_daemon(auth, network_id):
+
+    if daemon_running:
+        return create_response("Daemon already running.", 500)
+    
+    res = requests.post(f"{DB_SERVER_URL}/users/{network_id}/share/0", headers={"Auth-Token" : auth})
+    if res.status_code != 200:
+        return res
+    
+    daemon_network_id = network_id
+    daemon_running = True
+    daemon_sleep.clear()
+    return create_response("Success", 500)
 
 
 # Sets the flag to kill the scanning daemon after it finishes its current operation
@@ -273,70 +292,68 @@ def get_current_ssid():
     return create_response("success", 200, nt.get_ssid())
 
 
+def daemon_get_auth():
+    # Retrieve salt
+    res = requests.get(DB_SERVER_URL + "/users/daemon/salt")
+    if res.status_code != 200:
+        return None
+
+    content = json.loads(res.content)
+    salt = content["content"]["salt"]
+    hash = SHA256.new()
+    hash.update(bytes("password" + salt, "utf-8"))
+
+    # Retrieve auth token each scan, as token expires after set time and needs to be refreshed
+    res = requests.post(DB_SERVER_URL + "/login", json={"username" : "daemon", "password" : str(hash.hexdigest())})
+    if res.status_code != 200:
+        return None
+
+    content = json.loads(res.content)
+    return content["content"]["Auth-Token"]
+
+
 # Starts the scanning daemon for the network that this server is connected to
 def run_daemon():
 
     print("[INFO] Daemon is starting!")
-
-    salt = "tesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn"
-
-    hash = SHA256.new()
-    hash.update(b"passwordtesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn")
-
-    res = requests.post(DB_SERVER_URL + "/signup", 
-                      json={"username" : "daemon", "password" : str(hash.hexdigest()), "email" : "sam@same", "salt" : salt})
         
+    args = {
+        "TCP"                : True,
+        "UDP"                : True, 
+        "ports"              : [22,80,53,5000],
+        "run_ports"          : True,
+        "run_os"             : True,
+        "run_hostname"       : True,
+        "run_mac_vendor"     : True,
+        "run_trace"          : True,
+        "run_vertical_trace" : True,
+    }
 
     while True:
 
-        res = requests.post(DB_SERVER_URL + "/login", 
-                            json={"username" : "sam", "password" : "passwd"})
-        
-        token = res.content.decode("utf-8")
-        res = requests.post(DB_SERVER_URL + "/login", 
-                            json={"username" : "daemon", "password" : str(hash.hexdigest())})
-        
-        content = json.loads(res.content)
-        token = content["content"]["Auth-Token"]
-        loading_bars[token] = Loading_bar()
+        token = daemon_get_auth()
+        if not token:
+            count = 0
+            total = 5
+            while count <= total:
+                sys.stdout.write("[ERR ] Failed to connect to remote server, retrying in %d seconds... \r" % (total - count))
+                time.sleep(1)
+                count += 1
+
+            sys.stdout.write("\n")
+            continue
+
         # Sleeps until there is a client to scan for
         if not daemon_running:
-            print("[INFO] Daemon is waiting for clients...")
+            print("[INFO] Daemon is waiting...")
             daemon_sleep.clear()
             daemon_sleep.wait()
 
-        # Constructs the lowest possible settings to satisfy the settings of all clients in one scan
-        # args = {
-        #     "TCP"                : False,
-        #     "UDP"                : False, 
-        #     "ports"              : [],
-        #     "run_ports"          : False,
-        #     "run_os"             : False,
-        #     "run_hostname"       : False,
-        #     "run_mac_vendor"     : False,
-        #     "run_trace"          : False,
-        #     "run_vertical_trace" : False,
-        # }
-
-        args = {
-            "TCP"                : True,
-            "UDP"                : True, 
-            "ports"              : [22,80,53,5000],
-            "run_ports"          : True,
-            "run_os"             : True,
-            "run_hostname"       : True,
-            "run_mac_vendor"     : True,
-            "run_trace"          : True,
-            "run_vertical_trace" : True,
-        }
-
         # create new network id if doesnt exist, then save to that id just for the daemon account
-        run_scan(9999, args, token)
+        run_scan(daemon_network_id, args, token)
 
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)
-        if token in loading_bars.keys():
-            del loading_bars[token]
 
 
 if __name__ == "__main__":
