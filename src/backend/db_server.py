@@ -11,7 +11,7 @@ from config import Config
 from database import PostgreSQL_database as pdb
 from response import Response
 
-TOKEN_EXPIRY_MINS = 30
+TOKEN_EXPIRY_MINS = 525600
 
 app = None
 db = None
@@ -260,6 +260,19 @@ def delete_network(user_id, network_id):
 
 # Shares access to a network with another user
 @app.post("/networks/<network_id>/share/<recipient_id>")
+@returns_response_obj
+@require_auth
+def share_network(user_id, network_id, recipient_id):
+
+    args = to_ints([user_id, recipient_id, network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.grant_access(args[0], args[1], args[2])
+
+
+# Shares access to a network with another user
+@app.post("/daemon/<network_id>/share/<recipient_auth>")
 @returns_response_obj
 @require_auth
 def share_network(user_id, network_id, recipient_id):

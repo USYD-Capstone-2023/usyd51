@@ -24,7 +24,8 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
+    expose_headers="Auth-Token")
 
 tp = Threadpool(NUM_THREADS)
 daemon_sleep = threading.Event()
@@ -249,7 +250,7 @@ def end_daemon(auth):
     return create_response("Daemon not running", 500)
 
 
-@app.get("/scan/progress/")
+@app.get("/progress")
 @require_auth
 def get_progress(auth):
 

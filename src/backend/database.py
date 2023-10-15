@@ -1089,7 +1089,8 @@ class PostgreSQL_database:
         except Exception as e:
 
             print(e)
-            conn.close()
+            if conn:
+                conn.close()
             return False
         
         return True

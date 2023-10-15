@@ -51,7 +51,7 @@ const NewNetworkButton = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     if (!loadingBarActive) {
@@ -61,7 +61,6 @@ const NewNetworkButton = (props: any) => {
         .then((data) => {
           if (data["status"] === 200) {
             setNewNetworkId(parseInt(data["content"]));
-            console.log("tester");
           } else {
             console.log(data["status"] + " " + data["message"]);
           }
@@ -76,12 +75,12 @@ const NewNetworkButton = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     if (loadingBarActive) {
       intervalId = setInterval(() => {
-        fetch(scannerUrl + "scan/progress/", options)
+        fetch(scannerUrl + "progress", options)
           .then((res) => res.json())
           .then((data) => {
             if (data["status"] === 200) {
@@ -101,7 +100,7 @@ const NewNetworkButton = (props: any) => {
           });
       }, 400);
     } else {
-      fetch(scannerUrl + "scan/progress/", options)
+      fetch(scannerUrl + "progress", options)
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
