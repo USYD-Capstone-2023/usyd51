@@ -29,10 +29,11 @@ const Sidebar = (props: any) => {
             <Cog></Cog>
           </Button>
         </Link>
-
-        <Button className="py-10 text-gray-900 shadow-none">
-          <BarChart2></BarChart2>
-        </Button>
+        <Link to="/Daemon">
+          <Button className="py-10 text-gray-900 shadow-none">
+            <BarChart2></BarChart2>
+          </Button>
+        </Link>
         <DarkMode></DarkMode>
       </div>
       <div className="flex flex-col justify-end items-center">
