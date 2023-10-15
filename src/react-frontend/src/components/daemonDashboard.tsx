@@ -389,8 +389,6 @@ const NewNetworkButton = (props: any) => {
       });
   }
 
-  useEffect(() => {update_share_list();}, [selectedNetworkID]);
-
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
       <div className="h-full flex gap-10 w-full">
