@@ -13,22 +13,32 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { databaseUrl } from "@/servers";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import { AlertCircle, FileWarning, Terminal } from "lucide-react"
 
 const Login = (props: any) => {
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState('');
   const isPasswordMatch = password === confirmPassword;
   const navigate = useNavigate();
 
   const switchToSignUp = () => {
     setIsSignUp(true);
+    setIsErrorVisible(false);
     clearFields();
   };
 
   const switchToLogin = () => {
     setIsSignUp(false);
+    setIsErrorVisible(false);
     clearFields();
   };
 
@@ -42,40 +52,55 @@ const Login = (props: any) => {
     var salt = "";
     // Retrieve salt associated with entered user
     fetch(databaseUrl + "users/" + username + "/salt")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data["status"] === 200) {
-          salt = data["content"]["salt"];
-          const credentials = {
-            username: username,
-            password: CryptoJS.SHA256(password + salt).toString(),
-          };
-          const options = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify(credentials),
-          };
-          fetch(databaseUrl + "login", options)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data["status"] === 200) {
-                localStorage.setItem(
-                  "Auth-Token",
-                  data["content"]["Auth-Token"]
-                );
-                navigate("/dashboard");
-              } else {
-                console.log(data["status"] + " " + data["message"]);
-              }
+    .then((res) => {
+        if (!res.ok) {
+            return res.json().then((errorData) => {
+                throw new Error(errorData.message);
             });
-        } else {
-          console.log(data["status"] + " " + data["message"]);
-          return;
         }
-      });
+        return res.json();
+    })
+    .then((data) => {
+        if (data["status"] === 200) {
+            salt = data["content"]["salt"];
+            const credentials = {
+                username: username,
+                password: CryptoJS.SHA256(password + salt).toString(),
+            };
+            const options = {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify(credentials),
+            };
+            return fetch(databaseUrl + "login", options);
+        } else {
+            throw new Error(data["message"]);
+        }
+    })
+    .then((res) => {
+        if (!res.ok) {
+            return res.json().then((errorData) => {
+                throw new Error(errorData.message);
+            });
+        }
+        return res.json();
+    })
+    .then((data) => {
+        if (data["status"] === 200) {
+            localStorage.setItem("Auth-Token", data["content"]["Auth-Token"]);
+            navigate("/dashboard");
+        } else {
+            throw new Error(data["message"]);
+        }
+    })
+    .catch((error) => {
+        console.error('Fetch error:', error.message);
+        setIsErrorVisible(true);
+        setErrorMessage(error.message);
+    });
   };
 
   const signUp = () => {
@@ -95,14 +120,28 @@ const Login = (props: any) => {
       body: JSON.stringify(credentials),
     };
     fetch(databaseUrl + "signup", options)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {  // Check if the request was successful
+          return res.json().then((errorData) => {
+            setIsErrorVisible(true);
+            setErrorMessage(errorData.message);
+          });
+        }
+        return res.json();  // Return the JSON data if the request was successful
+      })
       .then((data) => {
         if (data["status"] === 200) {
           login();
         } else {
-          console.log(data["status"] + " " + data["message"]);
+          setIsErrorVisible(true);
+          setErrorMessage(data["message"]);
         }
+      })
+      .catch((error) => {
+        setIsErrorVisible(true);
+        setErrorMessage(error.message);
       });
+
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
@@ -193,14 +232,23 @@ const Login = (props: any) => {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button type="button" variant="outline" onClick={switchToSignUp}>
-                Sign Up
-              </Button>
-              <Button type="submit" value="Login" variant="outline">
-                login
-              </Button>
-              
+            <CardFooter style={{ flexDirection: 'column' }}>
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={switchToSignUp}>
+                  Sign Up
+                </Button>
+                <Button type="submit" value="Login" variant="outline">
+                  login
+                </Button>
+              </div>
+              <div id="error-UserOrPass" style={{ marginTop: 40, display: isErrorVisible ? 'block' : 'none' }}>
+                <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription style={{ marginTop: 6}}>
+                  <b>ERROR:</b> {errorMessage}
+                </AlertDescription>
+                </Alert>
+              </div>
             </CardFooter>
           </form>
         </Card>
@@ -246,13 +294,23 @@ const Login = (props: any) => {
                 <p className="text-red-500">Passwords do not match!</p>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button type="button" variant="outline" onClick={switchToLogin}>
-                Back
-              </Button>
-              <Button type="submit" disabled={!isPasswordMatch}>
-                Create
-              </Button>
+            <CardFooter style={{ flexDirection: 'column' }}>
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={switchToLogin}>
+                  Back
+                </Button>
+                <Button type="submit" disabled={!isPasswordMatch}>
+                  Create
+                </Button>
+              </div>
+              <div id="error-UserOrPass" style={{ marginTop: 4, display: isErrorVisible ? 'block' : 'none' }}>
+                <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription style={{ marginTop: 6}}>
+                  <b>ERROR:</b> {errorMessage}
+                </AlertDescription>
+                </Alert>
+              </div>
             </CardFooter>
           </form>
         </Card>
