@@ -217,7 +217,7 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
 
@@ -252,7 +252,7 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
 
@@ -270,7 +270,7 @@ const Dashboard = (props: any) => {
             headers: {
               "Content-Type": "application/json",
               "Auth-Token": authToken,
-              Accept: "application/json",
+              "Accept" : "application/json",
             },
           };
 
@@ -320,7 +320,7 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
 
