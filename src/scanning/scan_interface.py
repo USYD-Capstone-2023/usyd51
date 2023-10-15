@@ -88,7 +88,7 @@ def get_settings(auth):
 
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
 
-    if res.status_code_code != 200:
+    if res.status_code != 200:
         return None
 
     settings = json.loads(res.content.decode("utf-8"))["content"]
@@ -118,8 +118,8 @@ def run_scan(network_id, settings, auth):
     nt.add_routes(network, tp, loading_bars[auth])
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
-    if res.status_code_code != 200:
-        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code_code}]: {res.content.decode('utf-8')}")
+    if res.status_code != 200:
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
         del loading_bars[auth]
         return
 
@@ -138,8 +138,8 @@ def run_scan(network_id, settings, auth):
         if settings[scan["setting"]]:
             scan["func"](*scan["args"])
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
-            if res.status_code_code != 200:
-                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code_code}]: {res.content.decode('utf-8')}")
+            if res.status_code != 200:
+                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
                 del loading_bars[auth]
                 return
 
@@ -156,12 +156,12 @@ def verify_current_connection(network_id, auth):
     network = requests.get(DB_SERVER_URL + "/networks/%s" % (network_id), headers={"Auth-Token" : auth})
     
     # Network hasnt been created, so user is trivially connected to the network
-    if network.status_code_code == 500:
+    if network.status_code == 500:
         return create_response("Valid", 200)
     
     # Not authorised for this network, or some other database error code
-    if network.status_code_code != 200:
-        return network.content.decode("utf8"), network.status_code_code
+    if network.status_code != 200:
+        return network.content.decode("utf8"), network.status_code
 
     network = json.loads(network.content.decode("utf-8"))["content"]
 
