@@ -9,6 +9,7 @@ import ListView from "./pages/ListView";
 import NewNetwork from "./pages/NewNetwork";
 import DeviceListView from "./pages/DeviceListView";
 import Login from "./pages/LogIn"
+import DaemonPage from "./pages/Daemon";
 
 function App() {
     // const [count, setCount] = useState(0);
@@ -30,6 +31,7 @@ function App() {
                         path="newNetwork/"
                         element={<NewNetwork />}
                     />
+                    <Route path="Daemon" element={<DaemonPage />} />
                 </Route>
             </Routes>
         </BrowserRouter>
