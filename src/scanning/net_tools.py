@@ -99,7 +99,16 @@ def get_ssid(iface=conf.iface):
 
     elif current_system == "Windows":
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
-        return out.split(":")[-1][1:]
+        ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            out = os.popen('netsh lan show interfaces | findstr /c:" SSID"').read()[:-1]
+            ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            return "new network"
+        
+        return ssid
 
     return "OS UNSUPPORTED"
 
