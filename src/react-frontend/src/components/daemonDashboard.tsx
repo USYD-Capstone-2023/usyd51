@@ -313,43 +313,6 @@ const NewNetworkButton = (props: any) => {
     }
   }, [editName]);
 
-  const update_share_list = () => {
-
-    const authToken = localStorage.getItem("Auth-Token");
-    if (authToken == null) {
-      console.log("User is logged out!");
-      return;
-    }
-
-    const options = {
-      method: "GET",
-      headers: {
-        "Content-Type" : "application/json",
-        "Auth-Token" : authToken,
-        "Accept" : "application/json",
-      },
-    };
-
-    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 200) {
-          let user_list = [];
-          for (let user of data["content"]["unshared"]) {
-            user_list.push({
-              username: user.username,
-              id: user.user_id,
-              email: user.email,
-            });
-          }
-
-          setUserListData(user_list);
-        } else {
-          setUserListData([]);
-          console.log(data.status + " " + data["message"]);
-        }
-      });
-  }
 
   const start_scan = () => {
     const authToken = localStorage.getItem("Auth-Token");
