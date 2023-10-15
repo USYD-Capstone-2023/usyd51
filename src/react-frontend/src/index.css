@@ -91,3 +91,15 @@ h1 {
     font-size: 3.2em;
     line-height: 1.1;
 }
+
+.light-active {
+    background-color:#d0b2fb;
+}
+
+.dark-active {
+    background-color:#a76ef7;
+}
+
+.system-active {
+    background-color:#a76ef7;
+}
