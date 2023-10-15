@@ -207,9 +207,11 @@ def scan_network(auth, network_id):
 # Scans are conducted at the interval specified in the user's settings table (NOT IMPLEMENTED, HARDCODED ABOVE CURRENTLY)
 # The daemon will be shutdown after the end_daemon method is called, or if it encounters a specific number of 
 # consecutive database faults.
-@app.post("/daemon/start/<network_id>")
+@app.post("/daemon/register/<user_id>")
 @require_auth
-def start_daemon(auth, network_id):
+def start_daemon(auth, user_id):
+
+    res = requests.post(f"{DB_SERVER_URL}/users/daemon_network_id/share/{user_id}", headers={"Auth-Token" : auth})
 
     # Ensures only one daemon is running at a time (Although the backend is built to handle multiple, just need to add
     # unique IDs for each process if we want this to be a feature).
