@@ -11,6 +11,18 @@ import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
 import ShareNetworkDropdown from "./ShareNetworkDropdown";
 
+function throwCustomError(message: any) {
+  console.log("errorEvent");
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  console.log(errorEvent);
+  window.dispatchEvent(errorEvent);
+}
+
+
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
   return (
@@ -41,7 +53,7 @@ const NewNetworkButton = (props: any) => {
   // const [networkId, setNetworkId] = useState(-1);
   const authToken = localStorage.getItem("Auth-Token");
   if (authToken == null) {
-    console.log("User is logged out!");
+    throwCustomError("User has been logged out.");
     return;
   }
 
@@ -57,14 +69,22 @@ const NewNetworkButton = (props: any) => {
     if (!loadingBarActive) {
       setLoadingBarActive(true);
       fetch(scannerUrl + "scan/-1", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data["status"] === 200) {
-            setNewNetworkId(parseInt(data["content"]));
-          } else {
-            console.log(data["status"] + " " + data["message"]);
-          }
-        });
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data["status"] === 200) {
+          setNewNetworkId(parseInt(data["content"]));
+        } else {
+          throwCustomError(data["status"] + " " + data["message"]);
+        }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
+      });
     }
   }, [loadingBarActive]);
 
@@ -81,7 +101,12 @@ const NewNetworkButton = (props: any) => {
     if (loadingBarActive) {
       intervalId = setInterval(() => {
         fetch(scannerUrl + "progress", options)
-          .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throwCustomError(res.status + ":" + res.statusText);
+          }
+          return res.json();
+        })
           .then((data) => {
             if (data["status"] === 200) {
               if (data["message"] == "Scan finished.") {
@@ -97,19 +122,12 @@ const NewNetworkButton = (props: any) => {
             } else {
               clearInterval(intervalId);
             }
+          })
+          .catch((error) => {
+            throwCustomError("Scanning server is unreachable. Please check it is running.");
           });
       }, 400);
-    } else {
-      fetch(scannerUrl + "progress", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data["status"] === 200) {
-            if (data["message"] != "Scan finished.") {
-              setLoadingBarActive(true);
-            }
-          }
-        });
-    }
+    } 
 
     // Cleanup
     return () => {
@@ -180,7 +198,7 @@ const Dashboard = (props: any) => {
     (id: number) => {
       const authToken = localStorage.getItem("Auth-Token");
       if (authToken == null) {
-        console.log("User is logged out!");
+        throwCustomError("User has been logged out.");
         return;
       }
       const options = {
@@ -193,14 +211,22 @@ const Dashboard = (props: any) => {
       };
 
       fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
-        .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
         .then((data) => {
           if (data.status !== 200) {
-            console.log(`${data.status}: ${data["message"]}`);
+            throwCustomError(data["status"] + " " + data["message"]);
           } else {
             update_share_list();
           }
-        });
+        })
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
+        });;
 
     },
     [selectedNetworkID]
@@ -209,7 +235,7 @@ const Dashboard = (props: any) => {
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -222,7 +248,12 @@ const Dashboard = (props: any) => {
     };
 
     fetch(databaseUrl + "networks", options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status === 200) {
           let network_list = [];
@@ -236,15 +267,18 @@ const Dashboard = (props: any) => {
           setNetworkListData(network_list);
         } else {
           setNetworkListData([]);
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data.status + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Scanning server is unreachable. Please check it is running.");
       });
   }, [newNetworkId]);
 
   const handleNewNetworkName = useCallback(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -260,10 +294,16 @@ const Dashboard = (props: any) => {
       databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
       options
     )
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status !== 200) {
-          console.log(`${data.status} ${data.content}`);
+          //console.log(`${data.status} ${data.content}`);
+          throwCustomError(data["status"] + " " + data["message"]);
         } else {
           const options = {
             method: "GET",
@@ -275,7 +315,12 @@ const Dashboard = (props: any) => {
           };
 
           fetch(databaseUrl + "networks", options)
-            .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) {
+              throwCustomError(res.status + ":" + res.statusText);
+            }
+            return res.json();
+          })
             .then((data) => {
               if (data.status === 200) {
                 let network_list = [];
@@ -292,12 +337,15 @@ const Dashboard = (props: any) => {
                 setNetworkListData(network_list);
               } else {
                 setNetworkListData([]);
-                console.log(data.status + " " + data["message"]);
+                throwCustomError(data.status + ":" + data.message);
               }
             });
           setCurrentName("");
           setEditName(false);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }, [selectedNetworkID, currentName]);
 
@@ -311,7 +359,7 @@ const Dashboard = (props: any) => {
 
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
 
@@ -323,48 +371,58 @@ const Dashboard = (props: any) => {
         "Accept" : "application/json",
       },
     };
-
-    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 200) {
-          let user_list = [];
-          for (let user of data["content"]["unshared"]) {
-            user_list.push({
-              username: user.username,
-              id: user.user_id,
-              email: user.email,
-            });
-          }
-
-          setUserListData(user_list);
-        } else {
-          setUserListData([]);
-          console.log(data.status + " " + data["message"]);
+    if(selectedNetworkID){
+      fetch(databaseUrl +`users/${selectedNetworkID}`, options)
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
         }
-      });
+        return res.json();
+      })
+        .then((data) => {
+          if (data.status === 200) {
+            let user_list = [];
+            for (let user of data["content"]["unshared"]) {
+              user_list.push({
+                username: user.username,
+                id: user.user_id,
+                email: user.email,
+              });
+            }
+
+            setUserListData(user_list);
+          } else {
+            setUserListData([]);
+            throwCustomError(data["status"] + " " + data["message"]);
+          }
+        })
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
+        });
+    }
   }
 
   useEffect(() => {update_share_list();}, [selectedNetworkID]);
 
+  /*<div className="h-1/6 w-full flex items-center justify-center">
+  <div className="w-full h-full flex gap-10 justify-between items-center">
+    <CustomCard title="5/5" subtitle="All Networks Live">
+      <Heart className="text-red-500 fill-current" />
+    </CustomCard>
+    <CustomCard title="178" subtitle="Scans Last Week">
+      <Search />
+    </CustomCard>
+    <CustomCard title="190" subtitle="New Devices Found">
+      <Plus />
+    </CustomCard>
+    <CustomCard title="100%" subtitle="Uptime">
+      <Clock />
+    </CustomCard>
+  </div>
+</div>*/
+
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
-      <div className="h-1/6 w-full flex items-center justify-center">
-        <div className="w-full h-full flex gap-10 justify-between items-center">
-          <CustomCard title="5/5" subtitle="All Networks Live">
-            <Heart className="text-red-500 fill-current" />
-          </CustomCard>
-          <CustomCard title="178" subtitle="Scans Last Week">
-            <Search />
-          </CustomCard>
-          <CustomCard title="190" subtitle="New Devices Found">
-            <Plus />
-          </CustomCard>
-          <CustomCard title="100%" subtitle="Uptime">
-            <Clock />
-          </CustomCard>
-        </div>
-      </div>
       <div className="h-full flex gap-10 w-full">
         <Card className="w-1/3   opacity-80 rounded-xl">
           <ScrollArea>
@@ -420,13 +478,6 @@ const Dashboard = (props: any) => {
               <DashboardChart networkID={selectedNetworkID} />
             </div>
           </div>
-          <Button onClick={createNewNetwork}>
-            <Link to="/newNetwork">
-              <CardHeader>
-                <CardTitle>Create New Network</CardTitle>
-              </CardHeader>
-            </Link>
-          </Button>
           <ShareNetworkDropdown
             userList={userListData}
             onSelect={shareNetworkWithUser}
@@ -435,10 +486,6 @@ const Dashboard = (props: any) => {
       </div>
     </div>
   );
-};
-
-const createNewNetwork = () => {
-  console.log("Make a network");
 };
 
 export default Dashboard;
