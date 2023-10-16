@@ -25,6 +25,16 @@ import {
 // fails to retrieve the data and resorts to defaults, itll fill the settings with incorrect data
 let settings_json = {};
 
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
+
 const SettingsSwitch = (props: any) => {
   return (
     <div className="flex items-center justify-start space-x-2 w-1/3 p-4 m-0">
@@ -52,13 +62,21 @@ const SettingsSwitch = (props: any) => {
             },
             body: JSON.stringify(settings_json),
           };
-          fetch(`${databaseUrl}settings/set`, options).then((res) =>
-            res.json().then((data) => {
+          fetch(`${databaseUrl}settings/set`, options)
+          .then((res) => {
+            if (!res.ok) {
+              throwCustomError(res.status + ":" + res.statusText);
+            }
+            return res.json();
+          })
+          .then((data) => {
               if (data["status"] != 200) {
-                console.log(data["status"] + " " + data["message"]);
+                throwCustomError(data["status"] + " " + data["message"]);
               }
             })
-          );
+            .catch((error) => {
+              throwCustomError("Network Error: Something has gone wrong.");
+            });
         }}
       />
     </div>
@@ -81,16 +99,24 @@ const SettingsMenu = (props: any) => {
         },
       };
       fetch(`${databaseUrl}settings`, options)
-        .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
         .then((data) => {
           if (data["status"] === 200) {
             settings_json = data["content"];
           } else {
-            console.log(data["status"] + " " + data["message"]);
+            throwCustomError(data["status"] + " " + data["message"]);
             console.log(
               "System will break here, need to figure out what to do if database goes offline or errors"
             );
           }
+        })
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
         });
     }
   }, []);
@@ -130,7 +156,12 @@ const SettingsMenu = (props: any) => {
       },
     };
     fetch(`${databaseUrl}settings`, options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data["status"] === 200) {
           setUDP(data["content"]["UDP"]);
@@ -143,8 +174,11 @@ const SettingsMenu = (props: any) => {
           setVertTrace(data["content"]["run_vertical_trace"]);
           setPorts(data["content"]["ports"]);
         } else {
-          console.log(data["status"] + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }, []);
 
@@ -251,7 +285,9 @@ const SettingsMenu = (props: any) => {
                             },
                             body: JSON.stringify(settings_json),
                           };
-                          fetch(`${databaseUrl}settings/set`, options);
+                          fetch(`${databaseUrl}settings/set`, options).catch((error) => {
+                            throwCustomError("Network Error: Something has gone wrong.");
+                          });
                         }}
                       >
                         <SelectTrigger>
