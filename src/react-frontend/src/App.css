@@ -6,3 +6,14 @@
     padding: 2rem;
     text-align: center;
 }
+
+.error-notification {
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: red;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    z-index: 1000;
+  }
