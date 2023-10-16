@@ -42,23 +42,6 @@ function throwCustomError(message: any) {
     });
     window.dispatchEvent(errorEvent);
   }
-  /*      fetch(scannerUrl + "scan/-1", options)
-      .then((res) => {
-        if (!res.ok) {
-          throwCustomError(res.status + ":" + res.statusText);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (data["status"] === 200) {
-          setNewNetworkId(parseInt(data["content"]));
-        } else {
-          throwCustomError(data["status"] + " " + data["message"]);
-        }
-      })
-      .catch((error) => {
-        throwCustomError("Network Error: Something has gone wrong.");
-      });;*/
 
 let desc = true;
 
