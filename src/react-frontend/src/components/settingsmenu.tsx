@@ -1,3 +1,5 @@
+"use client"
+
 import {
   Card,
   CardDescription,
@@ -5,14 +7,17 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
+import { X, ChevronsUpDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { databaseUrl, scannerUrl } from "@/servers";
+import { ToastAction } from "@/components/ui/toast"
+import { useToast } from "@/components/ui/use-toast";
 import {
   Select,
   SelectContent,
@@ -20,6 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 // Filled on load, dont put default values here, they are already set in the db so in the event it
 // fails to retrieve the data and resorts to defaults, itll fill the settings with incorrect data
@@ -66,6 +76,8 @@ const SettingsSwitch = (props: any) => {
 };
 
 const SettingsMenu = (props: any) => {
+  const { toast } = useToast();
+
   // Retrieves stored settings from database
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -95,10 +107,10 @@ const SettingsMenu = (props: any) => {
     }
   }, []);
 
+  // SCAN SETTINGS
   const [udpSetting, setUDP] = useState(settings_json["UDP"]);
   const [tcpSetting, setTCP] = useState(settings_json["TCP"]);
-  const [portscanSetting, setPortScan] = useState(settings_json["run_ports"]);
-  const [portsSetting, setPorts] = useState(settings_json["ports"]);
+  const [portsSetting, setPorts] = useState([]);
   const [osSetting, setOS] = useState(settings_json["run_os"]);
   const [hostnameSetting, setHostname] = useState(
     settings_json["run_hostname"]
@@ -106,11 +118,29 @@ const SettingsMenu = (props: any) => {
   const [macvendorSetting, setMacVendor] = useState(
     settings_json["run_mac_vendor"]
   );
-  const [traceSetting, setTrace] = useState(settings_json["run_trace"]);
   const [verttraceSetting, setVertTrace] = useState(
     settings_json["run_vertical_trace"]
   );
   const [defaultviewSetting, setDefaultView] = useState(
+    settings_json["defaultView"]
+  );
+
+  // DAEMON SETTINGS
+  const [d_scanrateSetting, setdScanrate] = useState(settings_json["UDP"]);
+  const [d_udpSetting, setcUDP] = useState(settings_json["UDP"]);
+  const [d_tcpSetting, setcTCP] = useState(settings_json["TCP"]);
+  const [d_portsSetting, setcPorts] = useState(settings_json["ports"]);
+  const [d_osSetting, setdOS] = useState(settings_json["run_os"]);
+  const [d_hostnameSetting, setdHostname] = useState(
+    settings_json["run_hostname"]
+  );
+  const [d_macvendorSetting, setdMacVendor] = useState(
+    settings_json["run_mac_vendor"]
+  );
+  const [d_verttraceSetting, setdVertTrace] = useState(
+    settings_json["run_vertical_trace"]
+  );
+  const [d_defaultviewSetting, setdDefaultView] = useState(
     settings_json["defaultView"]
   );
 
@@ -135,11 +165,9 @@ const SettingsMenu = (props: any) => {
         if (data["status"] === 200) {
           setUDP(data["content"]["UDP"]);
           setTCP(data["content"]["TCP"]);
-          setPortScan(data["content"]["run_ports"]);
           setOS(data["content"]["run_os"]);
           setHostname(data["content"]["run_hostname"]);
           setMacVendor(data["content"]["run_mac_vendor"]);
-          setTrace(data["content"]["run_trace"]);
           setVertTrace(data["content"]["run_vertical_trace"]);
           setPorts(data["content"]["ports"]);
         } else {
@@ -150,47 +178,139 @@ const SettingsMenu = (props: any) => {
 
   return (
     <div className="w-full flex flex-col justify-start items-start h-full gap-3 px-3">
-      <ScrollArea className="h-full w-full rounded-xl">
-        <Card className="w-full">
+      <ScrollArea className={cn("h-full w-full rounded-xl")}>
+        <Card className={cn("w-full")}>
           <CardHeader>
-            <CardTitle className="text-left text-2xl">Settings</CardTitle>
+            <CardTitle className={cn("text-left text-2xl")}>Settings</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-1/6 w-full flex flex-col items-start justify-start space-y-4">
-              <Card className="w-full">
+              <Card className={cn("w-full")}>
                 <CardHeader>
-                  <CardTitle className="text-left">Network Protocols</CardTitle>
+                  <CardTitle className={cn("text-left")}>Scan Settings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-start items-center flex-wrap">
-                    <SettingsSwitch
-                      switchName="TCP"
-                      settingname="TCP"
-                      c={tcpSetting}
-                      onc={setTCP}
-                    />
-                    <SettingsSwitch
-                      switchName="UDP"
-                      settingname="UDP"
-                      c={udpSetting}
-                      onc={setUDP}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="w-full">
-                <CardHeader>
-                  <CardTitle className="text-left">Scans</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-start items-center flex-wrap">
-                    <SettingsSwitch
-                      switchName="Port Scan"
-                      settingname="run_ports"
-                      c={portscanSetting}
-                      onc={setPortScan}
-                    />
-                    <SettingsSwitch
+                
+                  
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className={cn("text-left")}>Port Scanning</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <div className="flex justify-start items-center flex-wrap">
+                      <SettingsSwitch
+                        switchName="TCP"
+                        settingname="TCP"
+                        c={tcpSetting}
+                        onc={setTCP}
+                      />
+                      <SettingsSwitch
+                        switchName="UDP"
+                        settingname="UDP"
+                        c={udpSetting}
+                        onc={setUDP}
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild className={cn("w-1/3")}><Button className={cn("justify-between")} variant="outline">{"Ports: " + portsSetting.join(', ')}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0" /></Button></PopoverTrigger>
+                        <PopoverContent>
+                          <div className="flex flex-col justify-start space-y-1">
+                          {portsSetting.map((port) => (
+                            <Button key={port} className={cn("justify-between w-full")} variant="outline"
+                            onClick={() => {
+                              console.log(port, settings_json["ports"].indexOf(port));
+
+                              settings_json["ports"].splice(settings_json["ports"].indexOf(port), 1);
+                              setPorts(settings_json["ports"]);
+                              console.log(settings_json["ports"]);
+
+
+                              const authToken = localStorage.getItem("Auth-Token");
+                              if (authToken == null) {
+                                console.log("User is logged out!");
+                                return;
+                              }
+
+                              const options = {
+                                method: "PUT",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  "Auth-Token": authToken,
+                                  "Accept" : "application/json",
+                                },
+                                body: JSON.stringify(settings_json),
+                              };
+
+                              fetch(`${databaseUrl}settings/set`, options).then((res) =>
+                                res.json().then((data) => {
+                                  if (data["status"] != 200) {
+                                    console.log(data["status"] + " " + data["message"]);
+                                  }
+                                })
+                              );
+
+                            }}>
+                              {port}
+                              <X />
+                            </Button>
+                            ))}
+
+                            <div className="flex w-full max-w-sm items-center space-x-2">
+                              <Input id="newport" type="email" placeholder="Enter port #..." />
+                              <Button variant="outline" onClick={() => {
+
+                                toast({
+                                  title: "Scheduled: Catch up ",
+                                  description: "Friday, February 10, 2023 at 5:57 PM"
+                                })
+
+                                let val = parseInt(document.getElementById("newport").value);
+                                if (Number.isInteger(val)) {
+                                  if(val >= 0 && val <= 65535) {
+                                    settings_json["ports"].push(val);
+                                    setPorts(settings_json["ports"]);
+                                    document.getElementById("newport").value = '';
+
+                                    const authToken = localStorage.getItem("Auth-Token");
+                                    if (authToken == null) {
+                                      console.log("User is logged out!");
+                                      return;
+                                    }
+      
+                                    const options = {
+                                      method: "PUT",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        "Auth-Token": authToken,
+                                        "Accept" : "application/json",
+                                      },
+                                      body: JSON.stringify(settings_json),
+                                    };
+      
+                                    fetch(`${databaseUrl}settings/set`, options).then((res) =>
+                                      res.json().then((data) => {
+                                        if (data["status"] != 200) {
+                                          console.log(data["status"] + " " + data["message"]);
+                                        }
+                                      })
+                                    );
+                                    
+                                  }
+                                } else {
+                                }
+                              }}
+                              >
+                                Add
+                              </Button>
+                            </div>
+
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    </CardContent>
+                  </Card>
+                <div className="flex justify-start items-center flex-wrap">
+                  <SettingsSwitch
                       switchName="OS Scan"
                       settingname="run_os"
                       c={osSetting}
@@ -209,20 +329,16 @@ const SettingsMenu = (props: any) => {
                       onc={setMacVendor}
                     />
                     <SettingsSwitch
-                      switchName="Traceroute"
-                      settingname="run_trace"
-                      c={traceSetting}
-                      onc={setTrace}
-                    />
-                    <SettingsSwitch
                       switchName="Vertical Traceroute"
                       settingname="run_vertical_trace"
                       c={verttraceSetting}
                       onc={setVertTrace}
                     />
-                  </div>
+
+                  </div>             
                 </CardContent>
               </Card>
+
               <Card className="w-full">
                 <CardHeader>
                   <CardTitle className="text-left">View</CardTitle>
@@ -232,7 +348,7 @@ const SettingsMenu = (props: any) => {
                     <div className="flex flex-col items-baseline justify-start space-y-2 w-1/3 p-4 m-0">
                       <Label>Default View</Label>
                       <Select
-                        defaultValue={defaultviewSetting}
+                        value={defaultviewSetting}
                         onValueChange={(value) => {
                           const authToken = localStorage.getItem("Auth-Token");
                           if (authToken == null) {
@@ -261,7 +377,9 @@ const SettingsMenu = (props: any) => {
                           <SelectItem value="Hierarchical">
                             Hierarchical
                           </SelectItem>
-                          <SelectItem value="Cluster">Cluster</SelectItem>
+                          <SelectItem value="Cluster">
+                            Cluster
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
