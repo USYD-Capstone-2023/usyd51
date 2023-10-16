@@ -2,8 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { redirect } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ReactFlow, {
   ReactFlowProvider,
@@ -70,12 +69,12 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       Dagre.layout(g);
 
       nodes.forEach((node: any) => {
-        const nodeWithPosition = g.node(node.id);
         node.targetPosition = isHorizontal ? "left" : "top";
         node.sourcePosition = isHorizontal ? "right" : "bottom";
 
         // We are shifting the dagre node position (anchor=center center) to the top left
         // so it matches the React Flow node anchor point (top left).
+        const nodeWithPosition = g.node(node.id);
         node.position = {
           x: nodeWithPosition.x - nodeWidth / 2,
           y: nodeWithPosition.y - nodeHeight / 2,
