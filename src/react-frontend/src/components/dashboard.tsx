@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
-import { Heart, Search, Plus, Clock } from "lucide-react";
+import { Heart, Search, Plus, Clock, Edit2} from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
 import ShareNetworkDropdown from "./ShareNetworkDropdown";
 
@@ -345,7 +345,7 @@ const Dashboard = (props: any) => {
         }
       })
       .catch((error) => {
-        throwCustomError("Network Error: Something has gone wrong.");
+        throwCustomError("Something has gone wrong.");
       });
   }, [selectedNetworkID, currentName]);
 
@@ -448,7 +448,8 @@ const Dashboard = (props: any) => {
         <Card className="flex flex-col justify-between items-center w-2/3 gap-10 pb-8">
           <div className="h-full w-full  rounded-xl">
             <div className="h-1/8 font-medium text-2xl p-8 text-left">
-              {editName && (
+            
+            {editName && (
                 <input
                   type="text"
                   ref={inputRef}
@@ -465,7 +466,8 @@ const Dashboard = (props: any) => {
                     setEditName(true);
                     inputRef.current !== null && inputRef.current.focus();
                   }}
-                >
+                  style={{ display: 'flex', alignItems: 'center' }}>
+                  <Edit2 className="w-4 h-4"></Edit2>
                   {
                     networkListData?.find(
                       (element) => element.id === selectedNetworkID
