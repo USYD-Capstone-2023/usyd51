@@ -16,7 +16,7 @@ from scapy.all import (
     # dev_from_index,
 )
 
-import nmap, netifaces, requests
+import nmap3, netifaces
 
 # Local
 from job import Job
@@ -30,7 +30,6 @@ import socket, threading, subprocess, os
 from datetime import datetime
 
 MAC_TABLE_FP = "../cache/oui.csv"
-NUM_THREADS = 50
 
 mac_table = MAC_table(MAC_TABLE_FP)
 
@@ -100,7 +99,16 @@ def get_ssid(iface=conf.iface):
 
     elif current_system == "Windows":
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
-        return out.split(":")[-1][1:]
+        ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            out = os.popen('netsh lan show interfaces | findstr /c:" SSID"').read()[:-1]
+            ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            return "new network"
+        
+        return ssid
 
     return "OS UNSUPPORTED"
 
@@ -228,24 +236,21 @@ def add_devices(network, tp, lb, iface=conf.iface):
 # Thread worker to get path to provided ip address
 def traceroute_helper(ip, gateway, iface):
 
-    # Remove loops on gateway
-    if ip == gateway:
-        return []
-
     # Emits UDP packets with incrementing ttl until the target is reached
-    # answers = traceroute(ip, l4=UDP(sport=RandShort()), maxttl=10, iface=self.iface, verbose=False)[0]
     answers = traceroute(ip, maxttl=10, iface=iface, verbose=False)[0]
     addrs = [gateway]
 
+    # Responses return out of order so we reorder them by ttl
+    hops = {}
     if ip in answers.get_trace().keys():
         for answer in answers.get_trace()[ip].keys():
+            hops[answer] = answers.get_trace()[ip][answer][0]
 
-            hop_ip = answers.get_trace()[ip][answer][0]
-            # Dont register if the packet hit the same router again
-            if hop_ip not in addrs:
-                addrs.append(hop_ip)
+    for hop in sorted(hops.keys()):
+        if hops[hop] not in addrs:
+            addrs.append(hops[hop])
 
-    if ip not in addrs:
+    if addrs[-1] != ip:
         addrs.append(ip)
 
     return addrs
@@ -301,10 +306,11 @@ def add_routes(network, tp, lb, iface=conf.iface):
     mutex.release()
     print("[INFO] Traceroute complete!")
 
+    to_add = []
     # Parses output
     job_counter = 0
     for device in network.devices.values():
-        parent = ""
+        parent = gateway
         for addr in returns[job_counter]:
             # Adds devices if they don't already exist
             if addr not in device_addrs:
@@ -312,18 +318,20 @@ def add_routes(network, tp, lb, iface=conf.iface):
                 mac = arp_helper(addr, iface)[1]
                 new_device = Device(addr, mac)
                 new_device.parent = parent
-                network.devices[mac] = new_device
+                to_add.append(new_device)
+
+            if addr == device.ip:
+                break
 
             parent = addr
 
-
         # Updates the devices parent node
-        if len(returns[job_counter]) > 0:
-            device.parent = returns[job_counter][-2]
-        else:
-            device.parent = "unknown"
-
+        device.parent = parent
         job_counter += 1
+
+    for device in to_add:
+        network.devices[device.mac] = device
+
     lb.reset()
 
 
@@ -345,7 +353,7 @@ def add_routes(network, tp, lb, iface=conf.iface):
 def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
 
     # Run traceroute to google's DNS server
-    traceroute_results = [network.dhcp_server_info["router"], *traceroute_helper(target_host, network.dhcp_server_info["router"], iface)]
+    traceroute_results = traceroute_helper(target_host, network.dhcp_server_info["router"], iface)
     # Print the traceroute results
     for i in range(len(traceroute_results) - 1):
         ip = traceroute_results[i]
@@ -369,10 +377,9 @@ def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
 # Thread worker to get os info from the provided ip address
 def os_helper(ip):
 
-    nm = nmap.PortScanner()
+    nm = nmap3.Nmap()
     # Performs scan
-    data = nm.scan(ip, arguments="-O")
-    data = data["scan"]
+    data = nm.nmap_os_detection(ip, args="--script-timeout 20")
 
     os_info = {"os_type": "unknown", "os_vendor": "unknown", "os_family": "unknown"}
 
@@ -380,8 +387,8 @@ def os_helper(ip):
     if ip in data.keys():
         if "osmatch" in data[ip] and len(data[ip]["osmatch"]) > 0:
             osmatch = data[ip]["osmatch"][0]
-            if "osclass" in osmatch and len(osmatch["osclass"]) > 0:
-                osclass = osmatch["osclass"][0]
+            if "osclass" in osmatch:
+                osclass = osmatch["osclass"]
 
                 os_info["os_type"] = osclass["type"]
                 os_info["os_vendor"] = osclass["vendor"]

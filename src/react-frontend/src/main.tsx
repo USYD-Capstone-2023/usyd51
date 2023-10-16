@@ -6,10 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ThemeProvider
-    attribute="class"
     defaultTheme="system"
-    enableSystem
-    disableTransitionOnChange
+    storageKey="vite-ui-theme"
   >
     <App />
   </ThemeProvider>

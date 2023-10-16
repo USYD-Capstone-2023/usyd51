@@ -75,7 +75,7 @@ export function DataTable<TData, TValue>({
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {cell.column.columnDef.accessorKey === 'name' ? ( 
-                      <Link to={`/networkView/${row.original.id}`} style={{ color: 'blue' }}>
+                      <Link to={`/networkView/${row.original.network_id}`} style={{ color: 'blue' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </Link>
                     ) : (

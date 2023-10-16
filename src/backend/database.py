@@ -4,6 +4,7 @@ import sys
 
 from response import Response
 from datetime import datetime
+from Crypto.Hash import SHA256
 
 class PostgreSQL_database:
     
@@ -125,7 +126,7 @@ class PostgreSQL_database:
                 
         # Gets the next valid ID if the ID parameter is unset
         network_id = network["network_id"]
-        if network_id == -1:
+        if network_id <= -1:
             network_id = self.__get_next_network_id()
             network["network_id"] = network_id
             
@@ -215,7 +216,7 @@ class PostgreSQL_database:
 
         query = """
                 SELECT user_id
-                FROM networks
+                FROM access
                 WHERE network_id = %s;
                 """
         
@@ -225,10 +226,12 @@ class PostgreSQL_database:
         if not response:
             return Response("no_network")
         
-        if response[0][0] != user_id:
-            return Response("no_access")
+        for user in response:
+            if user[0] == user_id:
+                return Response("success")
+
+        return Response("no_access")
         
-        return Response("success")
     
 
     # Returns a list of all networks accessible to the given user
@@ -238,11 +241,13 @@ class PostgreSQL_database:
             return Response("bad_input")
         
         attrs = "network_id, ssid, gateway_mac, name, n_alive"
+        attrs_q = "".join(["networks.%s, " % x for x in attrs.split(", ")])[:-2]
         
         query = f"""
-                SELECT {attrs}
-                FROM networks
-                WHERE user_id = %s;
+                SELECT {attrs_q}
+                FROM networks JOIN access
+                ON networks.network_id = access.network_id
+                WHERE access.user_id = %s;
                 """
         
         params = (user_id,)
@@ -282,10 +287,10 @@ class PostgreSQL_database:
         query = f"""
                 SELECT {attrs}
                 FROM networks
-                WHERE network_id = %s and user_id = %s;
+                WHERE network_id = %s;
                 """
         
-        params = (network_id, user_id,)
+        params = (network_id,)
 
         res = self.__query(query, params, res=True)[0]
         if not res:
@@ -327,15 +332,26 @@ class PostgreSQL_database:
     def __register_network(self, user_id, network):
 
         query = """
-                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive, user_id)
-                VALUES (%s, %s, %s, %s, %s, %s);
+                INSERT INTO networks (network_id, gateway_mac, name, ssid, n_alive)
+                VALUES (%s, %s, %s, %s, %s);
                 """
         
         params = (network["network_id"],
                   network["gateway_mac"],
                   network["name"],
                   network["ssid"],
-                  len(network["devices"]),
+                  len(network["devices"]),)
+        
+        if not self.__query(query, params):
+            return False
+        
+        # Gives the current user access to the network
+        query = """
+                INSERT INTO access (network_id, user_id)
+                VALUES (%s, %s);
+                """
+        
+        params = (network["network_id"],
                   user_id,)
         
         return self.__query(query, params)
@@ -373,7 +389,7 @@ class PostgreSQL_database:
         # Searches for the maximum ID
         # TODO Make a generator for ids to more efficiently find the next id
         # TODO - SAM, remove the ability to define your own network id. Dumbest feature ive added 
-        next = -1
+        next = 0
         for r in response:
             next = max(next, r[0])
 
@@ -844,7 +860,7 @@ class PostgreSQL_database:
         return Response("success")
     
 
-    # Gets a users ID by their username and password
+    # Gets a user by their username and password
     def get_user_by_login(self, username, password):
 
         if type(username) != str or type(password) != str:
@@ -904,7 +920,115 @@ class PostgreSQL_database:
             return None
         
         return res[0][0]
+
+
+    # Retrieves all users from the database
+    def get_users(self):
+
+        args = "user_id, username, email"
+
+        query = f"""
+                SELECT {args}
+                FROM users;
+                """
+
+        res = self.__query(query, (), res=True)
+        if res == False:
+            return Response("db_error")
+
+        out = []
+        for user in res:
+            out.append(dict(zip(args.split(", "), user)))
+
+        return Response("success", content=out)
+
+
+    def get_users_with_access(self, network_id):
+
+        query = f"""
+                SELECT user_id
+                FROM access
+                WHERE network_id = %s;
+                """
+
+        params = (network_id,)
+
+        with_access = self.__query(query, params, res=True)
+        if with_access == False:
+            return Response("db_error")
+
+        all_users = self.get_users()
+        if all_users.status != 200:
+            return all_users
+
+        all_users = all_users.content
+
+        access = set()
+        for user in with_access:
+            access.add(user[0])
+
+        out = {
+            "shared"   : [],
+            "unshared" : []
+        }
+
+        for user in all_users:
+            # Dont add daemon account to list
+            if user["user_id"] == 0:
+                continue
+
+            if user["user_id"] in access:
+                out["shared"].append(user)
+
+            else:
+                out["unshared"].append(user)
+
+
+        return Response("success", content=out)
+
+
+    # Checks if a user has access to a given network
+    def __has_access(self, user_id, network_id):
+
+        query = """
+                SELECT 1
+                FROM networks JOIN access
+                ON networks.network_id = access.network_id
+                WHERE access.user_id = %s and networks.network_id = %s;
+                """
+
+        params = (user_id, network_id,)
+
+        res = self.__query(query, params, res=True)
+        return res and len(res) > 0
     
+
+    # Gives a user access to the given network
+    def grant_access(self, user_id, recipient_id, network_id):
+
+        if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
+            return Response("bad_input")
+
+        res = self.validate_network_access(user_id, network_id)
+        if res.status != 200:
+            return res 
+
+        if self.__has_access(recipient_id, network_id):
+            return Response("already_authorized")
+        
+        query = """
+                INSERT INTO access
+                    (user_id, network_id)
+                VALUES (%s, %s);
+                """
+
+        params = (recipient_id, network_id,)
+
+        if not self.__query(query, params):
+            return Response("db_error")
+
+        return Response("success")
+
     
     # Retrieves the next assignable user ID
     def __get_next_user_id(self):
@@ -971,7 +1095,8 @@ class PostgreSQL_database:
         except Exception as e:
 
             print(e)
-            conn.close()
+            if conn:
+                conn.close()
             return False
         
         return True
@@ -984,12 +1109,18 @@ class PostgreSQL_database:
         init_networks = """
                         CREATE TABLE IF NOT EXISTS networks
                             (network_id INTEGER PRIMARY KEY,
-                            user_id INTEGER REFERENCES users (user_id),
                             gateway_mac TEXT,
                             name TEXT,
                             ssid TEXT,
                             n_alive INTEGER);
                         """
+
+        init_access = """
+                      CREATE TABLE IF NOT EXISTS access
+                        (network_id INTEGER REFERENCES networks (network_id),
+                        user_id INTEGER REFERENCES users (user_id),
+                        PRIMARY KEY (network_id, user_id));
+                      """ 
 
 
         init_settings = """
@@ -1044,12 +1175,49 @@ class PostgreSQL_database:
                         salt TEXT NOT NULL);              
                     """
 
-
-
         val = self.__query(init_users, ())
         val &=  self.__query(init_networks, ())
         val &= self.__query(init_snapshots, ())
         val &= self.__query(init_devices, ())
         val &= self.__query(init_settings, ())
+        val &= self.__query(init_access, ())
+
+        if not self.contains_user("daemon"):
+            salt = "tesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn"
+            hash = SHA256.new()
+            hash.update(b"passwordtesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn")
+
+            query = """
+                    INSERT INTO users (user_id, username, password, email, salt)
+                    VALUES (%s, %s, %s, %s, %s);
+                    """
+            
+            params = ("0", "daemon", str(hash.hexdigest()), "email@address", salt)
+            val &= self.__query(query, params)
 
         return val
+    
+
+    # --------------------------------------------- TESTING TEARDOWN ------------------------------------------ #
+
+    # Drops the current db
+    def drop_db(self):
+
+        conn = None
+        try:
+            # Connects to default schema to drop the current database
+            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host="localhost")
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            with conn.cursor() as cur:
+                # Run query
+                cur.execute(f"DROP DATABASE {self.db};")
+            conn.close()
+
+        except Exception as e:
+            print(e)
+            if conn:
+                conn.close()
+            return False
+        
+        return True

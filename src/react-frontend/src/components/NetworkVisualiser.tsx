@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { redirect } from "react-router";
 import { Link } from "react-router-dom";
 import ReactFlow, {
@@ -35,45 +35,48 @@ const nodeHeight = 36;
 const maxNum = 10;
 
 import "reactflow/dist/style.css";
+import SimpleNode from "./network/SimpleNode";
 
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-const getLayoutedElements = (nodes: any, edges: any, options: any) => {
-  const isHorizontal = options.direction === "LR";
-
-  g.setGraph({ rankdir: options.direction });
-
-  edges.forEach((edge: any) => g.setEdge(edge.source, edge.target));
-  nodes.forEach((node: any) => g.setNode(node.id, node));
-
-  Dagre.layout(g);
-
-  nodes.forEach((node: any) => {
-    const nodeWithPosition = g.node(node.id);
-    node.targetPosition = isHorizontal ? "left" : "top";
-    node.sourcePosition = isHorizontal ? "right" : "bottom";
-
-    // We are shifting the dagre node position (anchor=center center) to the top left
-    // so it matches the React Flow node anchor point (top left).
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
-    };
-
-    return node;
-  });
-
-  return { nodes, edges };
-};
-
 const LayoutFlow = (params: LayoutFlowProps) => {
-  const [showReactFlow, setShowReactFlow] = useState(true);
   const [num, setNum] = useState(0);
   const { networkID } = params;
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const getLayoutedElements = useCallback(
+    (nodes: any, edges: any, options: any) => {
+      const isHorizontal = options.direction === "LR";
+
+      g.setGraph({ rankdir: options.direction });
+
+      edges.forEach((edge: any) => g.setEdge(edge.source, edge.target));
+      nodes.forEach((node: any) => g.setNode(node.id, node));
+
+      Dagre.layout(g);
+
+      nodes.forEach((node: any) => {
+        const nodeWithPosition = g.node(node.id);
+        node.targetPosition = isHorizontal ? "left" : "top";
+        node.sourcePosition = isHorizontal ? "right" : "bottom";
+
+        // We are shifting the dagre node position (anchor=center center) to the top left
+        // so it matches the React Flow node anchor point (top left).
+        node.position = {
+          x: nodeWithPosition.x - nodeWidth / 2,
+          y: nodeWithPosition.y - nodeHeight / 2,
+        };
+
+        return node;
+      });
+
+      return { nodes, edges };
+    },
+    [nodes]
+  );
 
   const onLayout = useCallback(
     (direction: any) => {
@@ -89,10 +92,6 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     [nodes, edges, setNodes, setEdges, fitView]
   );
 
-  const toggleReactFlowVisibility = () => {
-    setShowReactFlow(!showReactFlow);
-  };
-
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -104,7 +103,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     fetch(databaseUrl + `networks/${networkID}/devices`, options)
@@ -128,8 +127,9 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     for (let device of networkData) {
       let node = {
         id: device.ip,
-        data: { label: device.hostname },
+        data: { ...device },
         position: { x: 100, y: 100 },
+        type: "simpleNode",
       };
       newNodes.push(node);
       if (device.parent === "unknown") {
@@ -158,11 +158,16 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     }
   }, [nodes, edges, onLayout, num]);
 
+  const nodeTypes = useMemo(() => {
+    return { simpleNode: SimpleNode };
+  }, []);
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      nodeTypes={nodeTypes}
       onEdgesChange={onEdgesChange}
       fitView
     >
