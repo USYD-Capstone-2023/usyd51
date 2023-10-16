@@ -61,7 +61,78 @@ const NewNetworkButton = (props: any) => {
         .then((data) => {
           if (data["status"] === 200) {
             setNewNetworkId(parseInt(data["content"]));
+            console.log("tester");
           } else {
+            console.log(data["status"] + " " + data["message"]);
+          }
+        });
+    }
+  }, [loadingBarActive]);
+};
+
+const Dashboard = (props: any) => {
+  const navigate = useNavigate();
+  const [networkListData, setNetworkListData] = useState([
+    { name: "TestName", id: 0 },
+  ]);
+  const [editName, setEditName] = useState(false);
+  const [currentName, setCurrentName] = useState("");
+  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+  const [userListData, setUserListData] = useState<any>();
+  const [newNetworkId, setNewNetworkId] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const NetworkButton = (props: any) => {
+    const clickButton = (id: any) => {
+      if (selectedNetworkID === id) {
+        navigate("/networkView/" + id);
+      } else {
+        setSelectedNetworkID(id);
+      }
+    };
+
+    const { name, id } = props;
+    const buttonClass =
+      selectedNetworkID === id
+        ? "bg-gray-700 text-gray-300"
+        : "bg-gray-300 text-black";
+    return (
+      <button onClick={() => clickButton(id)} className={"w-full"}>
+        <Card className={`${buttonClass}`}>{name}</Card>
+      </button>
+    );
+  };
+
+const NewNetworkButton = (props: any) => {
+  const { setNewNetworkId } = props;
+  const [loadingBarActive, setLoadingBarActive] = useState(false);
+  const [loadingBarProgress, setLoadingBarProgress] = useState({
+    label: " ",
+    progress: 0,
+    total: 100,
+  });
+
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+    console.log("User is logged out!");
+    return;
+  }
+
+  const createNewNetwork = useCallback(() => {
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept" : "application/json",
+      },
+    };
+    if (!loadingBarActive) {
+      setLoadingBarActive(true);
+      fetch(scannerUrl + "daemon/new", options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data["status"] != 200) {
             console.log(data["status"] + " " + data["message"]);
           }
         });
@@ -80,7 +151,7 @@ const NewNetworkButton = (props: any) => {
     };
     if (loadingBarActive) {
       intervalId = setInterval(() => {
-        fetch(scannerUrl + "progress", options)
+        fetch(scannerUrl + "daemon/progress", options)
           .then((res) => res.json())
           .then((data) => {
             if (data["status"] === 200) {
@@ -100,7 +171,7 @@ const NewNetworkButton = (props: any) => {
           });
       }, 400);
     } else {
-      fetch(scannerUrl + "progress", options)
+      fetch(scannerUrl + "daemon/progress", options)
         .then((res) => res.json())
         .then((data) => {
           if (data["status"] === 200) {
@@ -143,69 +214,6 @@ const NewNetworkButton = (props: any) => {
   }
 };
 
-const Dashboard = (props: any) => {
-  const navigate = useNavigate();
-  const [networkListData, setNetworkListData] = useState([
-    { name: "TestName", id: 0 },
-  ]);
-  const [editName, setEditName] = useState(false);
-  const [currentName, setCurrentName] = useState("");
-  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-  const [userListData, setUserListData] = useState<any>();
-  const [newNetworkId, setNewNetworkId] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const NetworkButton = (props: any) => {
-    const clickButton = (id: any) => {
-      if (selectedNetworkID === id) {
-        navigate("/networkView/" + id);
-      } else {
-        setSelectedNetworkID(id);
-      }
-    };
-
-    const { name, id } = props;
-    const buttonClass =
-      selectedNetworkID === id
-        ? "bg-gray-700 text-gray-300"
-        : "bg-gray-300 text-black";
-    return (
-      <button onClick={() => clickButton(id)} className={"w-full"}>
-        <Card className={`${buttonClass}`}>{name}</Card>
-      </button>
-    );
-  };
-
-  const shareNetworkWithUser = useCallback(
-    (id: number) => {
-      const authToken = localStorage.getItem("Auth-Token");
-      if (authToken == null) {
-        console.log("User is logged out!");
-        return;
-      }
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Auth-Token": authToken,
-          "Accept": "application/json",
-        },
-      };
-
-      fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status !== 200) {
-            console.log(`${data.status}: ${data["message"]}`);
-          } else {
-            update_share_list();
-          }
-        });
-
-    },
-    [selectedNetworkID]
-  );
-
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
@@ -215,13 +223,13 @@ const Dashboard = (props: any) => {
     const options = {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
         "Accept" : "application/json",
       },
     };
 
-    fetch(databaseUrl + "networks", options)
+    fetch(databaseUrl + "daemon/networks", options)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {
@@ -268,33 +276,31 @@ const Dashboard = (props: any) => {
           const options = {
             method: "GET",
             headers: {
-              "Content-Type": "application/json",
-              "Auth-Token": authToken,
+              "Content-Type" : "application/json",
+              "Auth-Token" : authToken,
               "Accept" : "application/json",
             },
           };
 
-          fetch(databaseUrl + "networks", options)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.status === 200) {
-                let network_list = [];
-                for (let network of data["content"]) {
-                  network_list.push({
-                    name: network.name,
-                    id: network.network_id,
-                  });
-                }
-
-                if (network_list.length > 0) {
-                  setSelectedNetworkID(network_list[0].id);
-                }
-                setNetworkListData(network_list);
-              } else {
-                setNetworkListData([]);
-                console.log(data.status + " " + data["message"]);
+          fetch(databaseUrl + "daemon/networks", options)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 200) {
+              let network_list = [];
+              for (let network of data["content"]) {
+                network_list.push({ name: network.name, id: network.network_id });
               }
-            });
+    
+              if (network_list.length > 0) {
+                setSelectedNetworkID(network_list[0].id);
+              }
+              setNetworkListData(network_list);
+            } else {
+              setNetworkListData([]);
+              console.log(data.status + " " + data["message"]);
+            }
+          });
+
           setCurrentName("");
           setEditName(false);
         }
@@ -307,8 +313,8 @@ const Dashboard = (props: any) => {
     }
   }, [editName]);
 
-  const update_share_list = () => {
 
+  const start_scan = () => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       console.log("User is logged out!");
@@ -316,61 +322,81 @@ const Dashboard = (props: any) => {
     }
 
     const options = {
-      method: "GET",
+      method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
         "Accept" : "application/json",
       },
     };
 
-    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
+    fetch(scannerUrl +`daemon/start/${selectedNetworkID}`, options)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === 200) {
-          let user_list = [];
-          for (let user of data["content"]["unshared"]) {
-            user_list.push({
-              username: user.username,
-              id: user.user_id,
-              email: user.email,
-            });
-          }
-
-          setUserListData(user_list);
-        } else {
-          setUserListData([]);
+        if (data.status != 200) {
           console.log(data.status + " " + data["message"]);
         }
       });
   }
 
-  useEffect(() => {update_share_list();}, [selectedNetworkID]);
+  const end_scan = () => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
+      },
+    };
+
+    fetch(scannerUrl +`daemon/end`, options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status != 200) {
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }
+
+  const share_with_user = () => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      console.log("User is logged out!");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
+      },
+    };
+
+    fetch(databaseUrl +`daemon/${selectedNetworkID}/share`, options)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status != 200) {
+          console.log(data.status + " " + data["message"]);
+        }
+      });
+  }
 
   return (
     <div className="w-full flex flex-col justify-center items-center h-full gap-10">
-      <div className="h-1/6 w-full flex items-center justify-center">
-        <div className="w-full h-full flex gap-10 justify-between items-center">
-          <CustomCard title="5/5" subtitle="All Networks Live">
-            <Heart className="text-red-500 fill-current" />
-          </CustomCard>
-          <CustomCard title="178" subtitle="Scans Last Week">
-            <Search />
-          </CustomCard>
-          <CustomCard title="190" subtitle="New Devices Found">
-            <Plus />
-          </CustomCard>
-          <CustomCard title="100%" subtitle="Uptime">
-            <Clock />
-          </CustomCard>
-        </div>
-      </div>
       <div className="h-full flex gap-10 w-full">
         <Card className="w-1/3   opacity-80 rounded-xl">
           <ScrollArea>
             <div>
               <h1 className="text-2xl font-medium leading-none  py-4 px-8">
-                Networks
+                Daemon Networks
                 <Separator />
               </h1>
               <div className="flex justify-center items-center gap-3 flex-col px-8">
@@ -417,20 +443,26 @@ const Dashboard = (props: any) => {
               )}
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart networkID={selectedNetworkID} />
+              <DashboardChart networkID={selectedNetworkID} mode={"daemon"}/>
             </div>
           </div>
-          <Button onClick={createNewNetwork}>
-            <Link to="/newNetwork">
+          <div>
+            <Button onClick={start_scan}>
               <CardHeader>
-                <CardTitle>Create New Network</CardTitle>
+                <CardTitle>Resume Scan</CardTitle>
               </CardHeader>
-            </Link>
-          </Button>
-          <ShareNetworkDropdown
-            userList={userListData}
-            onSelect={shareNetworkWithUser}
-          />
+            </Button>
+            <Button onClick={end_scan} style={{margin: 10}}>
+              <CardHeader>
+                <CardTitle>Pause Scan</CardTitle>
+              </CardHeader>
+            </Button>
+            <Button onClick={share_with_user}>
+              <CardHeader>
+                <CardTitle>Share To Dashboard</CardTitle>
+              </CardHeader>
+            </Button>
+          </div>
         </Card>
       </div>
     </div>

@@ -4,6 +4,7 @@ import sys
 
 from response import Response
 from datetime import datetime
+from Crypto.Hash import SHA256
 
 class PostgreSQL_database:
     
@@ -388,7 +389,7 @@ class PostgreSQL_database:
         # Searches for the maximum ID
         # TODO Make a generator for ids to more efficiently find the next id
         # TODO - SAM, remove the ability to define your own network id. Dumbest feature ive added 
-        next = -1
+        next = 0
         for r in response:
             next = max(next, r[0])
 
@@ -972,11 +973,16 @@ class PostgreSQL_database:
         }
 
         for user in all_users:
+            # Dont add daemon account to list
+            if user["user_id"] == 0:
+                continue
+
             if user["user_id"] in access:
                 out["shared"].append(user)
 
             else:
                 out["unshared"].append(user)
+
 
         return Response("success", content=out)
 
@@ -1089,7 +1095,8 @@ class PostgreSQL_database:
         except Exception as e:
 
             print(e)
-            conn.close()
+            if conn:
+                conn.close()
             return False
         
         return True
@@ -1168,14 +1175,25 @@ class PostgreSQL_database:
                         salt TEXT NOT NULL);              
                     """
 
-
-
         val = self.__query(init_users, ())
         val &=  self.__query(init_networks, ())
         val &= self.__query(init_snapshots, ())
         val &= self.__query(init_devices, ())
         val &= self.__query(init_settings, ())
         val &= self.__query(init_access, ())
+
+        if not self.contains_user("daemon"):
+            salt = "tesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn"
+            hash = SHA256.new()
+            hash.update(b"passwordtesolkansdjonasdkjanbsdjnaflksndfkjnsdifjnsdkfgjnsfkgjn")
+
+            query = """
+                    INSERT INTO users (user_id, username, password, email, salt)
+                    VALUES (%s, %s, %s, %s, %s);
+                    """
+            
+            params = ("0", "daemon", str(hash.hexdigest()), "email@address", salt)
+            val &= self.__query(query, params)
 
         return val
     
