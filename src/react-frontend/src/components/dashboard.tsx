@@ -99,17 +99,7 @@ const NewNetworkButton = (props: any) => {
             }
           });
       }, 400);
-    } else {
-      fetch(scannerUrl + "progress", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data["status"] === 200) {
-            if (data["message"] != "Scan finished.") {
-              setLoadingBarActive(true);
-            }
-          }
-        });
-    }
+    } 
 
     // Cleanup
     return () => {
@@ -323,26 +313,27 @@ const Dashboard = (props: any) => {
         "Accept" : "application/json",
       },
     };
+    if(selectedNetworkID){
+      fetch(databaseUrl +`users/${selectedNetworkID}`, options)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status === 200) {
+            let user_list = [];
+            for (let user of data["content"]["unshared"]) {
+              user_list.push({
+                username: user.username,
+                id: user.user_id,
+                email: user.email,
+              });
+            }
 
-    fetch(databaseUrl +`users/${selectedNetworkID}`, options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === 200) {
-          let user_list = [];
-          for (let user of data["content"]["unshared"]) {
-            user_list.push({
-              username: user.username,
-              id: user.user_id,
-              email: user.email,
-            });
+            setUserListData(user_list);
+          } else {
+            setUserListData([]);
+            console.log(data.status + " " + data["message"]);
           }
-
-          setUserListData(user_list);
-        } else {
-          setUserListData([]);
-          console.log(data.status + " " + data["message"]);
-        }
-      });
+        });
+    }
   }
 
   useEffect(() => {update_share_list();}, [selectedNetworkID]);
