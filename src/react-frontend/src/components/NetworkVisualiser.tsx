@@ -2,11 +2,8 @@
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import React, { useCallback, useEffect, useRef, useMemo, useState, Component } from "react";
-import { redirect } from "react-router";
 import { Link } from "react-router-dom";
-import * as d3 from "d3";
 import Tree from 'react-d3-tree';
-import { Console } from "console";
 
 type NodeData = {
   mac: string;
@@ -22,20 +19,23 @@ type NodeData = {
 const renderNodeWithCustomEvents = ({
   nodeDatum,
   toggleNode,
-}) => (
+}) => {
+  const text = nodeDatum.attributes?.hostname;
+  return (
+  
   <g>
     <circle r="15" onClick={toggleNode}/>
     {(nodeDatum.__rd3t.collapsed || (!nodeDatum.__rd3t.collapsed && nodeDatum.children.length == 0)) ? (
       <text fill="black" x="20" dy="5" strokeWidth="1">
-        {nodeDatum.attributes?.hostname}
+        {text}
       </text>
     ) : (
-      <text fill="black" x={-nodeDatum.attributes?.hostname.length*10 - 15} dy="5" strokeWidth="1">
-        {nodeDatum.attributes?.hostname}
+      <text fill="black" x={-text.length*10 - 15} dy="5" strokeWidth="1">
+        {text}
       </text>
     )}
   </g>
-);
+)};
 
 const NetworkTree = (params : any) => {
 
@@ -43,7 +43,7 @@ const NetworkTree = (params : any) => {
   const separation = {siblings:0.5, nonSiblings:1};
 
   const {innerWidth: x, innerHeight: y} = window;
-  const translate = {x: x/10, y: y/2};
+  const translate = {x: x/5, y: y/2};
   
   let state = {
     name: "loading",
@@ -132,26 +132,32 @@ const NetworkTree = (params : any) => {
 
 
   return (
-    <div id="treeWrapper" style={{ width: '100%', height: '100%' }}>
-    <Tree 
-      data={networkData} 
-      hasInteractiveNodes
-      renderCustomNodeElement={(rd3tProps) =>
+    <div className="w-full h-full flex flex-col justify-start items-start h-full gap-3 px-3 text-left">
+      <Button style={{display: "flex", marginLeft: "auto"}}>
+        <Link to={"../../DeviceListView/" + networkID}>List View </Link>
+      </Button>
+      <div id="treeWrapper" style={{ width: '100%', height: '100%' }}>
+      <Tree 
+        data={networkData} 
+        hasInteractiveNodes
+        renderCustomNodeElement={(rd3tProps) =>
           renderNodeWithCustomEvents({ ...rd3tProps })
-      }
-      onNodeMouseOver={(...args) => {
-        console.log('onNodeMouseOver', args);
-      }}
-      enableLegacyTransitions={true}
-      transitionDuration={500}
-      centeringTransitionDuration={800}
-      collapsible={true}
-      zoomable={true}
-      draggable={true}
-      separation={separation}
-      translate={translate}
-
-      />
+        }
+        onNodeMouseOver={(...args) => {
+          console.log('onNodeMouseOver', args);
+        }}
+        enableLegacyTransitions={true}
+        transitionDuration={500}
+        centeringTransitionDuration={800}
+        collapsible={true}
+        zoomable={true}
+        draggable={true}
+        separation={separation}
+        translate={translate}
+        depthFactor={200}
+        
+        />
+    </div>
   </div>)
 }
 
