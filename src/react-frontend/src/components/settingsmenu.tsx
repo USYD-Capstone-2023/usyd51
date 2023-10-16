@@ -217,11 +217,9 @@ const SettingsMenu = (props: any) => {
                           {portsSetting.map((port) => (
                             <Button key={port} className={cn("justify-between w-full")} variant="outline"
                             onClick={() => {
-                              console.log(port, settings_json["ports"].indexOf(port));
 
                               settings_json["ports"].splice(settings_json["ports"].indexOf(port), 1);
-                              setPorts(settings_json["ports"]);
-                              console.log(settings_json["ports"]);
+                              setPorts([...settings_json["ports"]]);
 
 
                               const authToken = localStorage.getItem("Auth-Token");
@@ -267,7 +265,7 @@ const SettingsMenu = (props: any) => {
                                 if (Number.isInteger(val)) {
                                   if(val >= 0 && val <= 65535) {
                                     settings_json["ports"].push(val);
-                                    setPorts(settings_json["ports"]);
+                                    setPorts([...settings_json["ports"]]);
                                     document.getElementById("newport").value = '';
 
                                     const authToken = localStorage.getItem("Auth-Token");
