@@ -5,17 +5,36 @@ const SimpleNode = ({
   data,
   isConnectable,
   selected,
+  targetPosition,
+  sourcePosition,
 }: {
   data: any;
   isConnectable: boolean;
   selected: boolean;
+  targetPosition?: Position;
+  sourcePosition?: Position;
 }) => {
   const nodeTitle = data.hostname !== "unknown" ? data.hostname : data.ip;
+  // const source = vertLayout ? Position.Bottom : Position.Right;
+  // const target = vertLayout ? Position.Top : Position.Left;
+
+  // want a node to have left/right or top/bottom target/source
+  if (targetPosition === Position.Left) {
+    sourcePosition = Position.Right;
+  }
+  else if (sourcePosition === Position.Right) {
+    targetPosition = Position.Left;
+  }
+  if (targetPosition == undefined || sourcePosition == undefined) {
+    targetPosition = Position.Top;
+    sourcePosition = Position.Bottom;
+  }
+  
   return (
     <div className="text-updater-node">
       <Handle
         type="target"
-        position={Position.Top}
+        position={targetPosition}
         isConnectable={isConnectable}
       />
       <Card>
@@ -50,13 +69,13 @@ const SimpleNode = ({
       </Card>
       <Handle
         type="source"
-        position={Position.Bottom}
+        position={sourcePosition}
         id="a"
         isConnectable={isConnectable}
       />
       <Handle
         type="source"
-        position={Position.Top}
+        position={targetPosition}
         id="b"
         isConnectable={isConnectable}
       />
