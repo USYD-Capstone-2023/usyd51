@@ -15,8 +15,6 @@ const SimpleNode = ({
   sourcePosition?: Position;
 }) => {
   const nodeTitle = data.hostname !== "unknown" ? data.hostname : data.ip;
-  // const source = vertLayout ? Position.Bottom : Position.Right;
-  // const target = vertLayout ? Position.Top : Position.Left;
 
   // want a node to have left/right or top/bottom target/source
   if (targetPosition === Position.Left) {
