@@ -34,6 +34,31 @@ const columnDisplayNames: { [key: string]: string } = {
     parent: "Parent",
     ports: "Ports",
 };
+function throwCustomError(message: any) {
+    const errorEvent = new CustomEvent('customError', {
+      detail: {
+        message: message
+      }
+    });
+    window.dispatchEvent(errorEvent);
+  }
+  /*      fetch(scannerUrl + "scan/-1", options)
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data["status"] === 200) {
+          setNewNetworkId(parseInt(data["content"]));
+        } else {
+          throwCustomError(data["status"] + " " + data["message"]);
+        }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
+      });;*/
 
 let desc = true;
 
@@ -160,15 +185,23 @@ const ListView = () => {
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
         fetch(databaseUrl + `networks/${networkID}/devices`, options)
-            .then((res) => (res.json()))
+        .then((res) => {
+            if (!res.ok) {
+              throwCustomError(res.status + ":" + res.statusText);
+            }
+            return res.json();
+          })
             .then((data) => {
                 if (data["status"] === 200) {
                     setNetworkDevices(data["content"]);
                 } else {
                     setNetworkDevices([]);
-                    console.log(data["status"] + " " + data["message"])
+                    throwCustomError(data["status"] + " " + data["message"]);
                 }
-            });
+            })
+            .catch((error) => {
+                throwCustomError("Network Error: Something has gone wrong.");
+              });
         }, []);
 
     const filteredDevices = networkDevices.filter(device => 
