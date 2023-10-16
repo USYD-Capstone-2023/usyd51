@@ -14,6 +14,15 @@ type NetworkElement = {
   parent: string;
   ports: string[];
 };
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 
 export default function NewNetwork() {
   const [networkId, setNetworkId] = useState(-1);
@@ -28,13 +37,21 @@ export default function NewNetwork() {
     const options = {method: "POST", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
 
     fetch(scannerUrl + "scan/-1", options)
-      .then((res) => (res.json()))
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data["status"] === 200) {
           setNetworkId(parseInt(data["content"]));
         } else {
-          console.log(data["status"] + " " + data["message"]);
-        }});
+          throwCustomError(data["status"] + " " + data["message"]);
+        }})
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
+        });
   }, []);
 
   return (
