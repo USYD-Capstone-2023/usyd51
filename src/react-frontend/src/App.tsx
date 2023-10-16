@@ -36,7 +36,6 @@ function App() {
               errorMessage = detail.message;
             }
             setError(errorMessage);
-            console.log("throwing error: " + errorMessage)
           };
         
 

@@ -53,7 +53,7 @@ const NewNetworkButton = (props: any) => {
   // const [networkId, setNetworkId] = useState(-1);
   const authToken = localStorage.getItem("Auth-Token");
   if (authToken == null) {
-    console.log("User is logged out!");
+    throwCustomError("User has been logged out.");
     return;
   }
 
@@ -84,7 +84,7 @@ const NewNetworkButton = (props: any) => {
       })
       .catch((error) => {
         throwCustomError("Network Error: Something has gone wrong.");
-      });;
+      });
     }
   }, [loadingBarActive]);
 
@@ -198,7 +198,7 @@ const Dashboard = (props: any) => {
     (id: number) => {
       const authToken = localStorage.getItem("Auth-Token");
       if (authToken == null) {
-        console.log("User is logged out!");
+        throwCustomError("User has been logged out.");
         return;
       }
       const options = {
@@ -235,7 +235,7 @@ const Dashboard = (props: any) => {
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -278,7 +278,7 @@ const Dashboard = (props: any) => {
   const handleNewNetworkName = useCallback(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -359,7 +359,7 @@ const Dashboard = (props: any) => {
 
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
 
