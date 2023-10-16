@@ -34,10 +34,12 @@
     "random-bytes": "^1.0.0",
     "react": "^18.2.0",
     "react-cytoscapejs": "^2.0.0",
+    "react-d3-tree": "^3.6.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
     "reactflow": "^11.8.3",
     "recharts": "^2.8.0",
+    "regraph": "^0.0.1",
     "shadcn-ui": "latest",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.7"

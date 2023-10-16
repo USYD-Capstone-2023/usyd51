@@ -1,21 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
-import Dagre from "dagre";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useMemo, useState, Component } from "react";
 import { redirect } from "react-router";
 import { Link } from "react-router-dom";
-import ReactFlow, {
-  ReactFlowProvider,
-  Panel,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  Background,
-  Controls,
-} from "reactflow";
+import * as d3 from "d3";
+import Tree from 'react-d3-tree';
+import { Console } from "console";
 
-type NetworkElement = {
+type NodeData = {
   mac: string;
   ip: string;
   mac_vendor: string;
@@ -24,73 +17,50 @@ type NetworkElement = {
   hostname: string;
   parent: string;
   ports: string;
-};
-
-interface LayoutFlowProps {
-  networkID: string | undefined;
 }
 
-const nodeWidth = 500;
-const nodeHeight = 36;
-const maxNum = 10;
+const renderNodeWithCustomEvents = ({
+  nodeDatum,
+  toggleNode,
+}) => (
+  <g>
+    <circle r="15" onClick={toggleNode}/>
+    {(nodeDatum.__rd3t.collapsed || (!nodeDatum.__rd3t.collapsed && nodeDatum.children.length == 0)) ? (
+      <text fill="black" x="20" dy="5" strokeWidth="1">
+        {nodeDatum.attributes?.hostname}
+      </text>
+    ) : (
+      <text fill="black" x={-nodeDatum.attributes?.hostname.length*10 - 15} dy="5" strokeWidth="1">
+        {nodeDatum.attributes?.hostname}
+      </text>
+    )}
+  </g>
+);
 
-import "reactflow/dist/style.css";
-import SimpleNode from "./network/SimpleNode";
+const NetworkTree = (params : any) => {
 
-const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-
-const LayoutFlow = (params: LayoutFlowProps) => {
-  const [num, setNum] = useState(0);
   const { networkID } = params;
-  const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
-  const { fitView } = useReactFlow();
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const separation = {siblings:0.5, nonSiblings:1};
 
-  const getLayoutedElements = useCallback(
-    (nodes: any, edges: any, options: any) => {
-      const isHorizontal = options.direction === "LR";
-
-      g.setGraph({ rankdir: options.direction });
-
-      edges.forEach((edge: any) => g.setEdge(edge.source, edge.target));
-      nodes.forEach((node: any) => g.setNode(node.id, node));
-
-      Dagre.layout(g);
-
-      nodes.forEach((node: any) => {
-        const nodeWithPosition = g.node(node.id);
-        node.targetPosition = isHorizontal ? "left" : "top";
-        node.sourcePosition = isHorizontal ? "right" : "bottom";
-
-        // We are shifting the dagre node position (anchor=center center) to the top left
-        // so it matches the React Flow node anchor point (top left).
-        node.position = {
-          x: nodeWithPosition.x - nodeWidth / 2,
-          y: nodeWithPosition.y - nodeHeight / 2,
-        };
-
-        return node;
-      });
-
-      return { nodes, edges };
-    },
-    [nodes]
-  );
-
-  const onLayout = useCallback(
-    (direction: any) => {
-      const layouted = getLayoutedElements(nodes, edges, { direction });
-
-      setNodes([...layouted.nodes]);
-      setEdges([...layouted.edges]);
-
-      window.requestAnimationFrame(() => {
-        fitView();
-      });
-    },
-    [nodes, edges, setNodes, setEdges, fitView]
-  );
+  const {innerWidth: x, innerHeight: y} = window;
+  const translate = {x: x/10, y: y/2};
+  
+  let state = {
+    name: "loading",
+    children: [],
+    attributes: {
+      mac: "loading",
+      ip: "loading",
+      mac_vendor: "loading",
+      os_vendor: "loading",
+      os_type: "loading",
+      hostname: "loading",
+      parent: "loading",
+      ports: "loading"
+    }
+  }
+  
+  const [networkData, setNetworkData] = useState(state);
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -110,86 +80,86 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       .then((res) => res.json())
       .then((data) => {
         if (data["status"] === 200) {
-          setNetworkData(data["content"]);
+          let devices = new Map<string, any>();
+          for (let device of data["content"]) {
+            
+            let dev_obj = {
+              name: device["hostname"],
+              children: [],
+              attributes: {
+                mac: device["mac"],
+                ip: device["ip"],
+                mac_vendor: device["mac_vendor"],
+                os_vendor: device["os_vendor"],
+                os_type: device["os_type"],
+                hostname: device["hostname"],
+                parent: device["parent"],
+                ports: device["ports"]
+              }
+            }
+            
+            devices.set(device["ip"], dev_obj);
+          }
+
+          let root = null;
+          
+          for (let [k, v] of devices) {
+            let parent = v.attributes.parent;
+            if (devices.has(parent)) {
+              devices.get(parent).children.push(v);
+            
+            } else {
+              root = k;
+            }
+          }
+
+          if (root == null) {
+            const empty = {name: "No Devices", attributes: {parent: "0"}, children: []}
+            setNetworkData(empty);
+            
+          } else {
+            const rootNode = devices.get(root);
+            setNetworkData(rootNode);
+          }
+
         } else {
-          setNetworkData([]);
+          const empty = {name: "No Devices", attributes: {parent: "0"}, children: []}
+          setNetworkData(empty);
           console.log(data["status"] + " " + data["message"]);
         }
       });
-  }, []);
+  }, [networkID]);
 
-  useEffect(() => {
-    let newNodes = [];
-    let newEdges = [];
-    if (networkData.length == 0) {
-      return;
-    }
-    for (let device of networkData) {
-      let node = {
-        id: device.ip,
-        data: { ...device },
-        position: { x: 100, y: 100 },
-        type: "simpleNode",
-      };
-      newNodes.push(node);
-      if (device.parent === "unknown") {
-        continue;
-      }
-      let edge = {
-        id: `${device.parent}-${device.ip}`,
-        source: device.parent,
-        target: device.ip,
-      };
-      newEdges.push(edge);
-    }
-
-    //console.log(newNodes);
-    //console.log(newEdges);
-
-    setNodes(newNodes);
-    setEdges(newEdges);
-  }, [networkData, setEdges, setNodes]);
-
-  useEffect(() => {
-    if (nodes.length > 0 && edges.length > 0 && num < maxNum) {
-      onLayout("LR");
-      onLayout("TB");
-      setNum(num + 1);
-    }
-  }, [nodes, edges, onLayout, num]);
-
-  const nodeTypes = useMemo(() => {
-    return { simpleNode: SimpleNode };
-  }, []);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      nodeTypes={nodeTypes}
-      onEdgesChange={onEdgesChange}
-      fitView
-    >
-      <Background />
-      <Controls />
-      <Panel position="top-right">
-        <Button onClick={() => onLayout("TB")}>vertical layout</Button>
-        <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
-        <Button>
-          {" "}
-          <Link to={"../../DeviceListView/" + networkID}>List View </Link>
-        </Button>
-      </Panel>
-    </ReactFlow>
-  );
-};
+    <div id="treeWrapper" style={{ width: '100%', height: '100%' }}>
+    <Tree 
+      data={networkData} 
+      hasInteractiveNodes
+      renderCustomNodeElement={(rd3tProps) =>
+          renderNodeWithCustomEvents({ ...rd3tProps })
+      }
+      onNodeMouseOver={(...args) => {
+        console.log('onNodeMouseOver', args);
+      }}
+      enableLegacyTransitions={true}
+      transitionDuration={500}
+      centeringTransitionDuration={800}
+      collapsible={true}
+      zoomable={true}
+      draggable={true}
+      separation={separation}
+      translate={translate}
 
-export default function (params: LayoutFlowProps) {
+      />
+  </div>)
+}
+
+
+export default function (params: any) {
+
   const { networkID } = params;
   return (
-    <ReactFlowProvider>
-      <LayoutFlow networkID={networkID} />
-    </ReactFlowProvider>
+    <NetworkTree networkID={networkID} />
   );
 }

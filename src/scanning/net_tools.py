@@ -379,7 +379,7 @@ def os_helper(ip):
 
     nm = nmap3.Nmap()
     # Performs scan
-    data = nm.nmap_os_detection(ip, args="--script-timeout 20")
+    data = nm.nmap_os_detection(ip, args="--script-timeout 20 --host-timeout 20")
 
     os_info = {"os_type": "unknown", "os_vendor": "unknown", "os_family": "unknown"}
 
