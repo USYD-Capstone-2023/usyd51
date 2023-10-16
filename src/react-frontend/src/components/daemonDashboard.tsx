@@ -10,6 +10,17 @@ import { Link } from "react-router-dom";
 import { Heart, Search, Plus, Clock } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
 import ShareNetworkDropdown from "./ShareNetworkDropdown";
+//import throwCustomError from "./dashboard"
+
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -41,9 +52,10 @@ const NewNetworkButton = (props: any) => {
   // const [networkId, setNetworkId] = useState(-1);
   const authToken = localStorage.getItem("Auth-Token");
   if (authToken == null) {
-    console.log("User is logged out!");
+    throwCustomError("User has been logged out.");
     return;
   }
+
 
   const createNewNetwork = useCallback(() => {
     const options = {
@@ -57,14 +69,21 @@ const NewNetworkButton = (props: any) => {
     if (!loadingBarActive) {
       setLoadingBarActive(true);
       fetch(scannerUrl + "scan/-1", options)
-        .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
         .then((data) => {
           if (data["status"] === 200) {
             setNewNetworkId(parseInt(data["content"]));
-            console.log("tester");
           } else {
-            console.log(data["status"] + " " + data["message"]);
+            throwCustomError(data["status"] + " " + data["message"]);
           }
+        })
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
         });
     }
   }, [loadingBarActive]);
@@ -114,7 +133,7 @@ const NewNetworkButton = (props: any) => {
 
   const authToken = localStorage.getItem("Auth-Token");
   if (authToken == null) {
-    console.log("User is logged out!");
+    throwCustomError("User has been logged out.");
     return;
   }
 
@@ -130,12 +149,20 @@ const NewNetworkButton = (props: any) => {
     if (!loadingBarActive) {
       setLoadingBarActive(true);
       fetch(scannerUrl + "daemon/new", options)
-        .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
         .then((data) => {
           if (data["status"] != 200) {
-            console.log(data["status"] + " " + data["message"]);
+            throwCustomError(data["status"] + " " + data["message"]);
           }
-        });
+        })
+        .catch((error) => {
+          throwCustomError("Network Error: Something has gone wrong.");
+        });;
     }
   }, [loadingBarActive]);
 
@@ -152,7 +179,12 @@ const NewNetworkButton = (props: any) => {
     if (loadingBarActive) {
       intervalId = setInterval(() => {
         fetch(scannerUrl + "daemon/progress", options)
-          .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throwCustomError(res.status + ":" + res.statusText);
+          }
+          return res.json();
+        })
           .then((data) => {
             if (data["status"] === 200) {
               if (data["message"] == "Scan finished.") {
@@ -168,18 +200,42 @@ const NewNetworkButton = (props: any) => {
             } else {
               clearInterval(intervalId);
             }
+          })
+          .catch((error) => {
+            throwCustomError("Network Error: Something has gone wrong.");
           });
       }, 400);
     } else {
       fetch(scannerUrl + "daemon/progress", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data["status"] === 200) {
-            if (data["message"] != "Scan finished.") {
-              setLoadingBarActive(true);
-            }
+      .catch(error => {
+        // This will be triggered by network errors, including CORS issues
+        throwCustomError("Network Error: Something has gone wrong.");
+      })
+      .then((res) => {
+        if (!res) {
+          // This block is necessary because the `then` block will still be entered with an undefined `res` even after a network error
+          return;
+        }
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data) {
+          // This block is necessary because the `then` block will still be entered with an undefined `data` even after a network error
+          return;
+        }
+        if (data["status"] === 200) {
+          if (data["message"] != "Scan finished.") {
+            setLoadingBarActive(true);
           }
-        });
+        }
+      })
+      .catch((error) => {
+        // This will catch any errors thrown in the preceding `then` blocks
+        throwCustomError("Network Error: Something has gone wrong.");
+      });
     }
 
     // Cleanup
@@ -217,7 +273,7 @@ const NewNetworkButton = (props: any) => {
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -230,7 +286,12 @@ const NewNetworkButton = (props: any) => {
     };
 
     fetch(databaseUrl + "daemon/networks", options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status === 200) {
           let network_list = [];
@@ -244,7 +305,7 @@ const NewNetworkButton = (props: any) => {
           setNetworkListData(network_list);
         } else {
           setNetworkListData([]);
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
       });
   }, [newNetworkId]);
@@ -252,7 +313,7 @@ const NewNetworkButton = (props: any) => {
   const handleNewNetworkName = useCallback(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
     const options = {
@@ -268,10 +329,15 @@ const NewNetworkButton = (props: any) => {
       databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
       options
     )
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status !== 200) {
-          console.log(`${data.status} ${data.content}`);
+          throwCustomError(data.status + " " + data.content);
         } else {
           const options = {
             method: "GET",
@@ -283,7 +349,12 @@ const NewNetworkButton = (props: any) => {
           };
 
           fetch(databaseUrl + "daemon/networks", options)
-          .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) {
+              throwCustomError(res.status + ":" + res.statusText);
+            }
+            return res.json();
+          })
           .then((data) => {
             if (data.status === 200) {
               let network_list = [];
@@ -297,8 +368,11 @@ const NewNetworkButton = (props: any) => {
               setNetworkListData(network_list);
             } else {
               setNetworkListData([]);
-              console.log(data.status + " " + data["message"]);
+              throwCustomError(data["status"] + " " + data["message"]);
             }
+          })
+          .catch((error) => {
+            throwCustomError("Network Error: Something has gone wrong.");
           });
 
           setCurrentName("");
@@ -317,7 +391,7 @@ const NewNetworkButton = (props: any) => {
   const start_scan = () => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
 
@@ -331,10 +405,15 @@ const NewNetworkButton = (props: any) => {
     };
 
     fetch(scannerUrl +`daemon/start/${selectedNetworkID}`, options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status != 200) {
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
       });
   }
@@ -342,7 +421,7 @@ const NewNetworkButton = (props: any) => {
   const end_scan = () => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
 
@@ -356,18 +435,26 @@ const NewNetworkButton = (props: any) => {
     };
 
     fetch(scannerUrl +`daemon/end`, options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status != 200) {
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }
 
   const share_with_user = () => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-      console.log("User is logged out!");
+      throwCustomError("User has been logged out.");
       return;
     }
 
@@ -381,11 +468,19 @@ const NewNetworkButton = (props: any) => {
     };
 
     fetch(databaseUrl +`daemon/${selectedNetworkID}/share`, options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status != 200) {
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }
 
@@ -467,10 +562,6 @@ const NewNetworkButton = (props: any) => {
       </div>
     </div>
   );
-};
-
-const createNewNetwork = () => {
-  console.log("Make a network");
 };
 
 export default Dashboard;

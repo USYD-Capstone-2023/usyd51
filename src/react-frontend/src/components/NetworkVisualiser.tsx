@@ -2,8 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { redirect } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ReactFlow, {
   ReactFlowProvider,
@@ -14,6 +13,10 @@ import ReactFlow, {
   Background,
   Controls,
 } from "reactflow";
+import "reactflow/dist/style.css";
+import SimpleNode from "./network/SimpleNode";
+
+
 
 type NetworkElement = {
   mac: string;
@@ -34,8 +37,15 @@ const nodeWidth = 500;
 const nodeHeight = 36;
 const maxNum = 10;
 
-import "reactflow/dist/style.css";
-import SimpleNode from "./network/SimpleNode";
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -59,12 +69,12 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       Dagre.layout(g);
 
       nodes.forEach((node: any) => {
-        const nodeWithPosition = g.node(node.id);
         node.targetPosition = isHorizontal ? "left" : "top";
         node.sourcePosition = isHorizontal ? "right" : "bottom";
 
         // We are shifting the dagre node position (anchor=center center) to the top left
         // so it matches the React Flow node anchor point (top left).
+        const nodeWithPosition = g.node(node.id);
         node.position = {
           x: nodeWithPosition.x - nodeWidth / 2,
           y: nodeWithPosition.y - nodeHeight / 2,
@@ -107,14 +117,22 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       },
     };
     fetch(databaseUrl + `networks/${networkID}/devices`, options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data["status"] === 200) {
           setNetworkData(data["content"]);
         } else {
           setNetworkData([]);
-          console.log(data["status"] + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }, []);
 

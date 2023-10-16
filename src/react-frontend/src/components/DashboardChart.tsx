@@ -20,6 +20,15 @@ const timeFormat = {
   hour: "numeric",
   minute: "numeric",
 };
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 
 const DashboardChart = ({ networkID, mode="normal" }) => {
   const [data, setData] = useState([
@@ -52,7 +61,12 @@ const DashboardChart = ({ networkID, mode="normal" }) => {
     }
 
     fetch(url + networkID + "/snapshots", options)
-      .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
         if (data.status === 200) {
           data["content"].forEach((element: any) => {
@@ -64,8 +78,11 @@ const DashboardChart = ({ networkID, mode="normal" }) => {
           setData(data["content"]);
         } else {
           setData([]);
-          console.log(data.status + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }, [networkID]);
 

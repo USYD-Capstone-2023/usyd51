@@ -5,6 +5,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { databaseUrl } from "../../servers.tsx";
 
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 // Mock async data fetching function
 async function fetchData(): Promise<Payment[]> {
   // Simulate an API call or fetch data from your source
@@ -14,8 +23,18 @@ async function fetchData(): Promise<Payment[]> {
       return [];
   }
   const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-  let retval = fetch(databaseUrl + "networks", options)
-    .then((res) => res.json())
+
+
+  let retval = fetch(databaseUrl + "networks", options)    
+  .catch((error) => {
+    throwCustomError("Network Error: Something has gone wrong.");
+  })
+  .then((res) => {
+    if (!res.ok) {
+      throwCustomError(res.status + ":" + res.statusText);
+    }
+    return res.json();
+  })
     .then((data) => {
 
       if (data["status"] === 200) {
@@ -30,14 +49,12 @@ async function fetchData(): Promise<Payment[]> {
         return retval;
 
       } else {
-        console.log(data["status"] + " " + data["message"]);
         return [];
       }
-    })
-    .catch(() => []);
-
+    });
+  
   return retval;
-
+}
   // return [
   //   {
   //     id: "0",
@@ -67,7 +84,7 @@ async function fetchData(): Promise<Payment[]> {
   //     encrypted: true,
   //   },
   // ];
-}
+
 
 export default function Table() {
   const [data, setData] = useState<Payment[]>([]);
@@ -79,7 +96,7 @@ export default function Table() {
         setData(result);
       })
       .catch((error) => {
-        console.error("Error fetching data:", error);
+        throwCustomError("Error fetching data:", error);
       });
   }, []);
 
