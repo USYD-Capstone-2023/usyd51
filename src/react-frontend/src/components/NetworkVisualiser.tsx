@@ -103,7 +103,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     fetch(databaseUrl + `networks/${networkID}/devices`, options)

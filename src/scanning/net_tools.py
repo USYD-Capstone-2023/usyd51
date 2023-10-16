@@ -16,7 +16,7 @@ from scapy.all import (
     # dev_from_index,
 )
 
-import nmap, netifaces, requests
+import nmap3, netifaces
 
 # Local
 from job import Job
@@ -99,7 +99,16 @@ def get_ssid(iface=conf.iface):
 
     elif current_system == "Windows":
         out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
-        return out.split(":")[-1][1:]
+        ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            out = os.popen('netsh lan show interfaces | findstr /c:" SSID"').read()[:-1]
+            ssid = out.split(":")[-1][1:]
+
+        if len(ssid) == 0:
+            return "new network"
+        
+        return ssid
 
     return "OS UNSUPPORTED"
 
@@ -368,10 +377,9 @@ def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
 # Thread worker to get os info from the provided ip address
 def os_helper(ip):
 
-    nm = nmap.PortScanner()
+    nm = nmap3.Nmap()
     # Performs scan
-    data = nm.scan(ip, arguments="-O")
-    data = data["scan"]
+    data = nm.nmap_os_detection(ip)
 
     os_info = {"os_type": "unknown", "os_vendor": "unknown", "os_family": "unknown"}
 
@@ -379,8 +387,8 @@ def os_helper(ip):
     if ip in data.keys():
         if "osmatch" in data[ip] and len(data[ip]["osmatch"]) > 0:
             osmatch = data[ip]["osmatch"][0]
-            if "osclass" in osmatch and len(osmatch["osclass"]) > 0:
-                osclass = osmatch["osclass"][0]
+            if "osclass" in osmatch:
+                osclass = osmatch["osclass"]
 
                 os_info["os_type"] = osclass["type"]
                 os_info["os_vendor"] = osclass["vendor"]

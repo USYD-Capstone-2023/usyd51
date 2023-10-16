@@ -11,10 +11,7 @@ from config import Config
 from database import PostgreSQL_database as pdb
 from response import Response
 
-TOKEN_EXPIRY_MINS = 30
-
-app = None
-db = None
+TOKEN_EXPIRY_MINS = 360
 
 app = Flask(__name__)
 
@@ -172,6 +169,41 @@ def login():
 def get_networks(user_id):
 
     return db.get_networks(user_id)
+
+
+# Gives basic information about all networks accessible by the user.
+@app.get("/daemon/networks")
+@returns_response_obj
+@require_auth
+def get_daemon_networks(user_id):
+
+    return db.get_networks(0)
+
+
+# Retrieves basic information about all snapshots of a certain network in the databsase
+@app.get("/daemon/networks/<network_id>/snapshots")
+@returns_response_obj
+@require_auth
+def get_daemon_snapshots(user_id, network_id):
+
+    args = to_ints([network_id])
+    if not args:
+        return Response("bad_input")
+        
+    return db.get_snapshots(0, args[0])
+
+
+# Shares access to a network with another user
+@app.post("/daemon/<network_id>/share")
+@returns_response_obj
+@require_auth
+def share_daemon_network(user_id, network_id):
+
+    args = to_ints([network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.grant_access(0, user_id, args[0])
     
 
 # Gives basic information about the requested network.
@@ -271,6 +303,15 @@ def share_network(user_id, network_id, recipient_id):
     return db.grant_access(args[0], args[1], args[2])
 
 
+# Shares access to a network with another user
+@app.post("/users/id")
+@returns_response_obj
+@require_auth
+def get_id_from_auth(user_id):
+
+    return Response("success", content=user_id)
+
+
 # Gets the ID and name of all users
 @app.get("/users/<network_id>")
 @returns_response_obj
@@ -348,4 +389,3 @@ def get_salt(username):
 
 if __name__=="__main__":
     app.run(host=app.config["SERVER_URI"], port=app.config["SERVER_PORT"])
-

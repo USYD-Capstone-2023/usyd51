@@ -21,7 +21,7 @@ const timeFormat = {
   minute: "numeric",
 };
 
-const DashboardChart = ({ networkID }) => {
+const DashboardChart = ({ networkID, mode="normal" }) => {
   const [data, setData] = useState([
     { time: "Page A", uv: 400, pv: 2400, amt: 2400 },
   ]);
@@ -40,11 +40,18 @@ const DashboardChart = ({ networkID }) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
 
-    fetch(databaseUrl + "networks/" + networkID + "/snapshots", options)
+    let url;
+    if (mode == "daemon") {
+      url = databaseUrl + "daemon/networks/"
+    } else {
+      url = databaseUrl + "networks/"
+    }
+
+    fetch(url + networkID + "/snapshots", options)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 200) {

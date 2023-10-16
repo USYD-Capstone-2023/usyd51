@@ -48,7 +48,7 @@ const SettingsSwitch = (props: any) => {
             headers: {
               "Content-Type": "application/json",
               "Auth-Token": authToken,
-              Accept: "application/json",
+              "Accept" : "application/json",
             },
             body: JSON.stringify(settings_json),
           };
@@ -77,7 +77,7 @@ const SettingsMenu = (props: any) => {
         headers: {
           "Content-Type": "application/json",
           "Auth-Token": authToken,
-          Accept: "application/json",
+          "Accept" : "application/json",
         },
       };
       fetch(`${databaseUrl}settings`, options)
@@ -126,7 +126,7 @@ const SettingsMenu = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        Accept: "application/json",
+        "Accept" : "application/json",
       },
     };
     fetch(`${databaseUrl}settings`, options)
@@ -247,7 +247,7 @@ const SettingsMenu = (props: any) => {
                             headers: {
                               "Content-Type": "application/json",
                               "Auth-Token": authToken,
-                              Accept: "application/json",
+                              "Accept" : "application/json",
                             },
                             body: JSON.stringify(settings_json),
                           };
