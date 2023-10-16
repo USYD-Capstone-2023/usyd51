@@ -21,6 +21,7 @@ function throwCustomError(message: any) {
   window.dispatchEvent(errorEvent);
 }
 
+
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
   return (
@@ -54,23 +55,7 @@ const NewNetworkButton = (props: any) => {
     throwCustomError("User has been logged out.");
     return;
   }
-  /*      fetch(scannerUrl + "scan/-1", options)
-      .then((res) => {
-        if (!res.ok) {
-          throwCustomError(res.status + ":" + res.statusText);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (data["status"] === 200) {
-          setNewNetworkId(parseInt(data["content"]));
-        } else {
-          throwCustomError(data["status"] + " " + data["message"]);
-        }
-      })
-      .catch((error) => {
-        throwCustomError("Network Error: Something has gone wrong.");
-      });;*/
+
 
   const createNewNetwork = useCallback(() => {
     const options = {
