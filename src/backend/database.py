@@ -768,8 +768,6 @@ class PostgreSQL_database:
                   settings["daemon_scan_rate"],
                   settings["scan_server_ip"])
 
-        print(params)
-            
         # Create settings entry for user if they dont exist
         if not self.__contains_settings(user_id):
 

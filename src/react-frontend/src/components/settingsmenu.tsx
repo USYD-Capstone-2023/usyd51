@@ -61,7 +61,6 @@ const SettingsSwitch = (props: any) => {
             return; 
           }
 
-          console.log(settings_json);
           const options = {
             method: "PUT",
             headers: {
@@ -208,7 +207,6 @@ const SettingsMenu = (props: any) => {
           setdPorts(data["content"]["daemon_ports"]);
 
           setScanIP(data["content"]["scan_server_ip"]);
-          console.log(data["content"]);
         } else {
           throwCustomError(data["status"] + " " + data["message"]);
         }
