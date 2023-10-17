@@ -96,7 +96,7 @@ def require_auth(func):
 
 
 # Retrieves a given user's settings from the database, adds them if they are non existent
-def get_settings(auth):
+def get_settings(auth, daemon=False):
 
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
 
@@ -104,7 +104,8 @@ def get_settings(auth):
         return None
 
     settings = json.loads(res.content.decode("utf-8"))["content"]
-    return settings
+
+    return settings["daemon"] if daemon else settings["user"]
 
 
 # Checks if a given network ID is valid and numeric
@@ -232,7 +233,8 @@ def start_daemon(auth, network_id):
 
     if daemon_running:
         return create_response("Daemon already running.", 500)
-    
+
+    daemon_settings = get_settings(auth, daemon=True);    
     daemon_network_id = network_id
     daemon_running = True
     daemon_sleep.set()

@@ -148,23 +148,22 @@ const SettingsMenu = (props: any) => {
   );
 
   // DAEMON SETTINGS
-  const [d_scanrateSetting, setdScanrate] = useState(0);
-  //const [d_scanrateSetting, setdScanrate] = useState(settings_json["d_scan_rate"]);
-  const [d_udpSetting, setdUDP] = useState(settings_json["d_UDP"]);
-  const [d_tcpSetting, setdTCP] = useState(settings_json["d_TCP"]);
-  const [d_portsSetting, setdPorts] = useState([80]);
-  const [d_osSetting, setdOS] = useState(settings_json["d_run_os"]);
+  const [d_scanrateSetting, setdScanrate] = useState(settings_json["daemon_scan_rate"]);
+  const [d_udpSetting, setdUDP] = useState(settings_json["daemon_UDP"]);
+  const [d_tcpSetting, setdTCP] = useState(settings_json["daemon_TCP"]);
+  const [d_portsSetting, setdPorts] = useState(settings_json["daemon_ports"]);
+  const [d_osSetting, setdOS] = useState(settings_json["daemon_run_os"]);
   const [d_hostnameSetting, setdHostname] = useState(
-    settings_json["d_run_hostname"]
+    settings_json["daemon_run_hostname"]
   );
   const [d_macvendorSetting, setdMacVendor] = useState(
-    settings_json["d_run_mac_vendor"]
+    settings_json["daemon_run_mac_vendor"]
   );
   const [d_verttraceSetting, setdVertTrace] = useState(
-    settings_json["d_run_vertical_trace"]
+    settings_json["daemon_run_vertical_trace"]
   );
 
-  const [ scanIP, setScanIP ] = useState(settings_json["scanserver_ip"]);
+  const [ scanIP, setScanIP ] = useState(settings_json["scan_server_ip"]);
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -198,16 +197,16 @@ const SettingsMenu = (props: any) => {
           setVertTrace(data["content"]["run_vertical_trace"]);
           setPorts(data["content"]["ports"]);
 
-          //setdScanrate(data["content"]["d_scan_rate"]);
-          setdUDP(data["content"]["d_UDP"]);
-          setdTCP(data["content"]["d_TCP"]);
-          setdOS(data["content"]["d_run_os"]);
-          setdHostname(data["content"]["d_run_hostname"]);
-          setdMacVendor(data["content"]["d_run_mac_vendor"]);
-          setdVertTrace(data["content"]["d_run_vertical_trace"]);
-          //setdPorts(data["content"]["d_ports"]);
+          setdScanrate(data["content"]["daemon_scan_rate"]);
+          setdUDP(data["content"]["daemon_UDP"]);
+          setdTCP(data["content"]["daemon_TCP"]);
+          setdOS(data["content"]["daemon_run_os"]);
+          setdHostname(data["content"]["daemon_run_hostname"]);
+          setdMacVendor(data["content"]["daemon_run_mac_vendor"]);
+          setdVertTrace(data["content"]["daemon_run_vertical_trace"]);
+          setdPorts(data["content"]["daemon_ports"]);
 
-          setScanIP(data["content"]["scanserver_ip"]);
+          setScanIP(data["content"]["scan_server_ip"]);
         } else {
           throwCustomError(data["status"] + " " + data["message"]);
         }
@@ -410,8 +409,8 @@ const SettingsMenu = (props: any) => {
                             <Button key={port} className={cn("justify-between w-full")} variant="outline"
                             onClick={() => {
 
-                              settings_json["d_ports"].splice(settings_json["d_ports"].indexOf(port), 1);
-                              setPorts([...settings_json["d_ports"]]);
+                              settings_json["daemon_ports"].splice(settings_json["daemon_ports"].indexOf(port), 1);
+                              setPorts([...settings_json["daemon_ports"]]);
 
 
                               const authToken = localStorage.getItem("Auth-Token");
@@ -445,15 +444,15 @@ const SettingsMenu = (props: any) => {
                             ))}
 
                             <div className="flex w-full max-w-sm items-center space-x-2">
-                              <Input id="d_newport" type="email" placeholder="Enter port #..." />
+                              <Input id="daemon_newport" type="email" placeholder="Enter port #..." />
                               <Button variant="outline" onClick={() => {
 
-                                let val = parseInt(document.getElementById("d_newport").value);
+                                let val = parseInt(document.getElementById("daemon_newport").value);
                                 if (Number.isInteger(val)) {
                                   if(val >= 0 && val <= 65535) {
-                                    settings_json["d_ports"].push(val);
-                                    setPorts([...settings_json["d_ports"]]);
-                                    document.getElementById("d_newport").value = '';
+                                    settings_json["daemon_ports"].push(val);
+                                    setdPorts([...settings_json["daemon_ports"]]);
+                                    document.getElementById("daemon_newport").value = '';
 
                                     const authToken = localStorage.getItem("Auth-Token");
                                     if (authToken == null) {
@@ -532,10 +531,7 @@ const SettingsMenu = (props: any) => {
                       <Input className={cn("w-1/3 text-right")} value={d_scanrateSetting} onChange={(e) => {
                         if (Number.isInteger(parseInt(e.target.value))) {
                           setdScanrate(parseInt(e.target.value));
-                          settings_json["d_scan_rate"] = parseInt(e.target.value);
-                        } else {
-                          setdScanrate(0);
-                          settings_json["d_scan_rate"] = 0;
+                          settings_json["daemon_scan_rate"] = parseInt(e.target.value);
                         }
                           const authToken = localStorage.getItem("Auth-Token");
                           if (authToken == null) {

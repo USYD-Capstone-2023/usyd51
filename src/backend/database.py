@@ -36,9 +36,6 @@ class PostgreSQL_database:
                         "run_trace"                 : bool,
                         "run_vertical_trace"        : bool,
                         "defaultView"               : str,
-                        "defaultNodeColour"         : str,
-                        "defaultEdgeColour"         : str,
-                        "defaultBackgroundColour"   : str,
                         "daemon_TCP"                : bool,
                         "daemon_UDP"                : bool,
                         "daemon_ports"              : list,
@@ -48,22 +45,31 @@ class PostgreSQL_database:
                         "daemon_run_mac_vendor"     : bool,
                         "daemon_run_trace"          : bool,
                         "daemon_run_vertical_trace" : bool,
-                        "daemon_scan_rate"          : int
+                        "daemon_scan_rate"          : int,
+                        "scan_server_ip"            : str
                        }
     
-    default_settings = {"TCP"                     : True,
-                        "UDP"                     : True, 
-                        "ports"                   : [22,23,80,443],
-                        "run_ports"               : True,
-                        "run_os"                  : False,
-                        "run_hostname"            : True,
-                        "run_mac_vendor"          : True,
-                        "run_trace"               : True,
-                        "run_vertical_trace"      : True,
-                        "defaultView"             : "cluster",
-                        "defaultNodeColour"       : "0FF54A",
-                        "defaultEdgeColour"       : "32FFAB",
-                        "defaultBackgroundColour" : "320000"}
+    default_settings = {"TCP"                       : True,
+                        "UDP"                       : True, 
+                        "ports"                     : [22,23,80,443],
+                        "run_ports"                 : True,
+                        "run_os"                    : True,
+                        "run_hostname"              : True,
+                        "run_mac_vendor"            : True,
+                        "run_trace"                 : True,
+                        "run_vertical_trace"        : True,
+                        "defaultView"               : "cluster",
+                        "daemon_TCP"                : True,
+                        "daemon_UDP"                : True,
+                        "daemon_ports"              : [22,23,80,443],
+                        "daemon_run_ports"          : True,
+                        "daemon_run_os"             : True,
+                        "daemon_run_hostname"       : True,
+                        "daemon_run_mac_vendor"     : True,
+                        "daemon_run_trace"          : True,
+                        "daemon_run_vertical_trace" : True,
+                        "daemon_scan_rate"          : 120,
+                        "scan_server_ip"            : "127.0.0.1:5002"}
 
     user_format = {"user_id"  : int,
                    "username" : str,
@@ -691,9 +697,9 @@ class PostgreSQL_database:
             return Response("no_user")
 
         attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, " + \
-                "run_trace, run_vertical_trace, defaultView, defaultNodeColour, defaultEdgeColour, " + \
-                "defaultBackgroundColour, daemon_TCP, daemon_UDP, daemon_ports, daemon_run_ports, daemon_run_os," + \
-                "deamon_run_hostname, daemon_run_mac_vendor, daemon_run_trace, deamon_run_vertical_trace, daemon_scan_rate"
+                "run_trace, run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
+                "daemon_run_ports, daemon_run_os, daemon_run_hostname, daemon_run_mac_vendor, daemon_run_trace, " + \
+                "daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
         
         query = f"""
                 SELECT {attrs}
@@ -716,6 +722,8 @@ class PostgreSQL_database:
             # Formats port string into a list
             settings["ports"] = settings["ports"].replace("{", "").replace("}", "").split(",")
             settings["ports"] = [int(x) for x in settings["ports"]]
+            settings["daemon_ports"] = settings["daemon_ports"].replace("{", "").replace("}", "").split(",")
+            settings["daemon_ports"] = [int(x) for x in settings["daemon_ports"]]
         except:
             return Response("malformed_settings")
 
@@ -738,8 +746,6 @@ class PostgreSQL_database:
                 #TODO - Check ports formats, frontend settings format
                 return Response("malformed_settings")
 
-        print(settings);
-
         params = (settings["TCP"],
                   settings["UDP"], 
                   settings["ports"],
@@ -750,19 +756,19 @@ class PostgreSQL_database:
                   settings["run_trace"],
                   settings["run_vertical_trace"],
                   settings["defaultView"],
-                  settings["defaultNodeColour"],
-                  settings["defaultEdgeColour"],
-                  settings["defaultBackgroundColour"],
                   settings["daemon_TCP"],
                   settings["daemon_UDP"],
                   settings["daemon_ports"],
                   settings["daemon_run_ports"],
                   settings["daemon_run_os"],
-                  settings["deamon_run_hostname"],
+                  settings["daemon_run_hostname"],
                   settings["daemon_run_mac_vendor"],
                   settings["daemon_run_trace"],
-                  settings["deamon_run_vertical_trace"],
-                  settings["daemon_scan_rate"],)
+                  settings["daemon_run_vertical_trace"],
+                  settings["daemon_scan_rate"],
+                  settings["scan_server_ip"])
+
+        print(params)
             
         # Create settings entry for user if they dont exist
         if not self.__contains_settings(user_id):
@@ -780,21 +786,19 @@ class PostgreSQL_database:
                         run_trace,
                         run_vertical_trace,
                         defaultView,
-                        defaultNodeColour,
-                        defaultEdgeColour,
-                        defaultBackgroundColour,
                         daemon_TCP,
                         daemon_UDP,
                         daemon_ports,
                         daemon_run_ports,
                         daemon_run_os,
-                        deamon_run_hostname,
+                        daemon_run_hostname,
                         daemon_run_mac_vendor,
                         daemon_run_trace,
-                        deamon_run_vertical_trace,
-                        daemon_scan_rate)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                        daemon_run_vertical_trace,
+                        daemon_scan_rate,
+                        scan_server_ip)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
             
             params = (user_id, *params)
@@ -814,19 +818,17 @@ class PostgreSQL_database:
                         run_trace = %s,
                         run_vertical_trace = %s,
                         defaultView = %s,
-                        defaultNodeColour = %s,
-                        defaultEdgeColour = %s,
-                        defaultBackgroundColour = %s
                         daemon_TCP = %s,
                         daemon_UDP = %s,
                         daemon_ports = %s,
                         daemon_run_ports = %s,
                         daemon_run_os = %s,
-                        deamon_run_hostname = %s,
+                        daemon_run_hostname = %s,
                         daemon_run_mac_vendor = %s,
                         daemon_run_trace = %s,
-                        deamon_run_vertical_trace = %s,
-                        daemon_scan_rate = %s
+                        daemon_run_vertical_trace = %s,
+                        daemon_scan_rate = %s,
+                        scan_server_ip = %s
                     WHERE user_id = %s;
                     """
             
@@ -1181,9 +1183,17 @@ class PostgreSQL_database:
                             run_trace BOOLEAN NOT NULL,
                             run_vertical_trace BOOLEAN NOT NULL,
                             defaultView TEXT NOT NULL,
-                            defaultNodeColour TEXT NOT NULL,
-                            defaultEdgeColour TEXT NOT NULL,
-                            defaultBackgroundColour TEXT NOT NULL);
+                            daemon_TCP BOOLEAN NOT NULL,
+                            daemon_UDP BOOLEAN NOT NULL,
+                            daemon_ports TEXT NOT NULL,
+                            daemon_run_ports BOOLEAN NOT NULL,
+                            daemon_run_os BOOLEAN NOT NULL,
+                            daemon_run_hostname BOOLEAN NOT NULL,
+                            daemon_run_mac_vendor BOOLEAN NOT NULL,
+                            daemon_run_trace BOOLEAN NOT NULL,
+                            daemon_run_vertical_trace BOOLEAN NOT NULL,
+                            daemon_scan_rate INTEGER NOT NULL,
+                            scan_server_ip TEXT NOT NULL);
                         """
 
         init_snapshots = """
