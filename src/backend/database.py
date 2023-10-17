@@ -25,19 +25,31 @@ class PostgreSQL_database:
                      "parent"     : str,
                      "ports"      : list}
 
-    settings_format = {"TCP"                     : bool,
-                       "UDP"                     : bool,
-                       "ports"                   : list,
-                       "run_ports"               : bool,
-                       "run_os"                  : bool,
-                       "run_hostname"            : bool,
-                       "run_mac_vendor"          : bool,
-                       "run_trace"               : bool,
-                       "run_vertical_trace"      : bool,
-                       "defaultView"             : str,
-                       "defaultNodeColour"       : str,
-                       "defaultEdgeColour"       : str,
-                       "defaultBackgroundColour" : str}
+    settings_format = {
+                        "TCP"                       : bool,
+                        "UDP"                       : bool,
+                        "ports"                     : list,
+                        "run_ports"                 : bool,
+                        "run_os"                    : bool,
+                        "run_hostname"              : bool,
+                        "run_mac_vendor"            : bool,
+                        "run_trace"                 : bool,
+                        "run_vertical_trace"        : bool,
+                        "defaultView"               : str,
+                        "defaultNodeColour"         : str,
+                        "defaultEdgeColour"         : str,
+                        "defaultBackgroundColour"   : str,
+                        "daemon_TCP"                : bool,
+                        "daemon_UDP"                : bool,
+                        "daemon_ports"              : list,
+                        "daemon_run_ports"          : bool,
+                        "daemon_run_os"             : bool,
+                        "daemon_run_hostname"       : bool,
+                        "daemon_run_mac_vendor"     : bool,
+                        "daemon_run_trace"          : bool,
+                        "daemon_run_vertical_trace" : bool,
+                        "daemon_scan_rate"          : int
+                       }
     
     default_settings = {"TCP"                     : True,
                         "UDP"                     : True, 
@@ -680,7 +692,8 @@ class PostgreSQL_database:
 
         attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, " + \
                 "run_trace, run_vertical_trace, defaultView, defaultNodeColour, defaultEdgeColour, " + \
-                "defaultBackgroundColour"
+                "defaultBackgroundColour, daemon_TCP, daemon_UDP, daemon_ports, daemon_run_ports, daemon_run_os," + \
+                "deamon_run_hostname, daemon_run_mac_vendor, daemon_run_trace, deamon_run_vertical_trace, daemon_scan_rate"
         
         query = f"""
                 SELECT {attrs}
@@ -724,7 +737,8 @@ class PostgreSQL_database:
             if key not in settings.keys() or not isinstance(settings[key], datatype):
                 #TODO - Check ports formats, frontend settings format
                 return Response("malformed_settings")
-            
+
+        print(settings);
 
         params = (settings["TCP"],
                   settings["UDP"], 
@@ -738,7 +752,17 @@ class PostgreSQL_database:
                   settings["defaultView"],
                   settings["defaultNodeColour"],
                   settings["defaultEdgeColour"],
-                  settings["defaultBackgroundColour"],)
+                  settings["defaultBackgroundColour"],
+                  settings["daemon_TCP"],
+                  settings["daemon_UDP"],
+                  settings["daemon_ports"],
+                  settings["daemon_run_ports"],
+                  settings["daemon_run_os"],
+                  settings["deamon_run_hostname"],
+                  settings["daemon_run_mac_vendor"],
+                  settings["daemon_run_trace"],
+                  settings["deamon_run_vertical_trace"],
+                  settings["daemon_scan_rate"],)
             
         # Create settings entry for user if they dont exist
         if not self.__contains_settings(user_id):
@@ -758,8 +782,19 @@ class PostgreSQL_database:
                         defaultView,
                         defaultNodeColour,
                         defaultEdgeColour,
-                        defaultBackgroundColour)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                        defaultBackgroundColour,
+                        daemon_TCP,
+                        daemon_UDP,
+                        daemon_ports,
+                        daemon_run_ports,
+                        daemon_run_os,
+                        deamon_run_hostname,
+                        daemon_run_mac_vendor,
+                        daemon_run_trace,
+                        deamon_run_vertical_trace,
+                        daemon_scan_rate)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
             
             params = (user_id, *params)
@@ -782,6 +817,16 @@ class PostgreSQL_database:
                         defaultNodeColour = %s,
                         defaultEdgeColour = %s,
                         defaultBackgroundColour = %s
+                        daemon_TCP = %s,
+                        daemon_UDP = %s,
+                        daemon_ports = %s,
+                        daemon_run_ports = %s,
+                        daemon_run_os = %s,
+                        deamon_run_hostname = %s,
+                        daemon_run_mac_vendor = %s,
+                        daemon_run_trace = %s,
+                        deamon_run_vertical_trace = %s,
+                        daemon_scan_rate = %s
                     WHERE user_id = %s;
                     """
             
