@@ -61,6 +61,7 @@ const SettingsSwitch = (props: any) => {
             return; 
           }
 
+          console.log(settings_json);
           const options = {
             method: "PUT",
             headers: {
@@ -151,7 +152,7 @@ const SettingsMenu = (props: any) => {
   const [d_scanrateSetting, setdScanrate] = useState(settings_json["daemon_scan_rate"]);
   const [d_udpSetting, setdUDP] = useState(settings_json["daemon_UDP"]);
   const [d_tcpSetting, setdTCP] = useState(settings_json["daemon_TCP"]);
-  const [d_portsSetting, setdPorts] = useState(settings_json["daemon_ports"]);
+  const [d_portsSetting, setdPorts] = useState([]);
   const [d_osSetting, setdOS] = useState(settings_json["daemon_run_os"]);
   const [d_hostnameSetting, setdHostname] = useState(
     settings_json["daemon_run_hostname"]
@@ -207,6 +208,7 @@ const SettingsMenu = (props: any) => {
           setdPorts(data["content"]["daemon_ports"]);
 
           setScanIP(data["content"]["scan_server_ip"]);
+          console.log(data["content"]);
         } else {
           throwCustomError(data["status"] + " " + data["message"]);
         }
@@ -391,13 +393,13 @@ const SettingsMenu = (props: any) => {
                     <div className="flex justify-start items-center flex-wrap">
                       <SettingsSwitch
                         switchName="TCP"
-                        settingname="TCP"
+                        settingname="daemon_TCP"
                         c={d_tcpSetting}
                         onc={setdTCP}
                       />
                       <SettingsSwitch
                         switchName="UDP"
-                        settingname="UDP"
+                        settingname="daemon_UDP"
                         c={d_udpSetting}
                         onc={setdUDP}
                       />
@@ -410,7 +412,7 @@ const SettingsMenu = (props: any) => {
                             onClick={() => {
 
                               settings_json["daemon_ports"].splice(settings_json["daemon_ports"].indexOf(port), 1);
-                              setPorts([...settings_json["daemon_ports"]]);
+                              setdPorts([...settings_json["daemon_ports"]]);
 
 
                               const authToken = localStorage.getItem("Auth-Token");
@@ -502,25 +504,25 @@ const SettingsMenu = (props: any) => {
                 <div className="flex justify-start items-center flex-wrap">
                   <SettingsSwitch
                       switchName="OS Scan"
-                      settingname="run_os"
+                      settingname="daemon_run_os"
                       c={d_osSetting}
                       onc={setdOS}
                     />
                     <SettingsSwitch
                       switchName="Hostname Scan"
-                      settingname="run_hostname"
+                      settingname="daemon_run_hostname"
                       c={d_hostnameSetting}
                       onc={setdHostname}
                     />
                     <SettingsSwitch
                       switchName="MAC Vendor Scan"
-                      settingname="run_mac_vendor"
+                      settingname="daemon_run_mac_vendor"
                       c={d_macvendorSetting}
                       onc={setdMacVendor}
                     />
                     <SettingsSwitch
                       switchName="Vertical Traceroute"
-                      settingname="run_vertical_trace"
+                      settingname="daemon_run_vertical_trace"
                       c={d_verttraceSetting}
                       onc={setdVertTrace}
                     />
