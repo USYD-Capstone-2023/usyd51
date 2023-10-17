@@ -155,6 +155,7 @@ const NetworkTree = (params : any) => {
         separation={separation}
         translate={translate}
         depthFactor={200}
+        pathFunc={'step'}
         
         />
     </div>
