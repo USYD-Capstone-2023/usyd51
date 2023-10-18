@@ -58,7 +58,7 @@ class PostgreSQL_database:
                         "run_mac_vendor"            : True,
                         "run_trace"                 : True,
                         "run_vertical_trace"        : True,
-                        "defaultView"               : "cluster",
+                        "defaultView"               : "Horizontal",
                         "daemon_TCP"                : True,
                         "daemon_UDP"                : True,
                         "daemon_ports"              : [22,23,80,443],
