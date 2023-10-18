@@ -194,6 +194,42 @@ const Dashboard = (props: any) => {
     );
   };
 
+  const rescanNetwork = (networkId: number) => {
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      throwCustomError("User has been logged out.");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept": "application/json",
+      },
+    };
+
+    fetch(scannerUrl + "scan/" + networkId, options)
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ": " + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data["status"] === 200) {
+          console.log("Rescan initiated successfully");
+
+        } else {
+          throwCustomError(data["status"] + " " + data["message"]);
+        }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
+      });
+  };
+
   const shareNetworkWithUser = useCallback(
     (id: number) => {
       const authToken = localStorage.getItem("Auth-Token");
@@ -480,6 +516,7 @@ const Dashboard = (props: any) => {
               <DashboardChart networkID={selectedNetworkID} />
             </div>
           </div>
+          <Button onClick={() => rescanNetwork(selectedNetworkID)}>Rescan</Button>
           <ShareNetworkDropdown
             userList={userListData}
             onSelect={shareNetworkWithUser}
