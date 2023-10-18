@@ -3,6 +3,7 @@ from flask import Flask, request
 from flask_cors import CORS
 import jwt
 import sys
+import os
 from functools import wraps
 from datetime import timedelta, datetime
 
@@ -39,7 +40,10 @@ else:
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
-db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
+print(os.environ["POSTGRES_DB"])
+print(os.environ["POSTGRES_USER"])
+print(os.environ["POSTGRES_PASSWORD"])
+db = pdb(os.environ["POSTGRES_DB"], os.environ["POSTGRES_USER"], os.environ["POSTGRES_PASSWORD"])
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 
