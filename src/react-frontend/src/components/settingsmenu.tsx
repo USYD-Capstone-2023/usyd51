@@ -143,9 +143,7 @@ const SettingsMenu = (props: any) => {
   const [verttraceSetting, setVertTrace] = useState(
     settings_json["run_vertical_trace"]
   );
-  const [defaultviewSetting, setDefaultView] = useState(
-    settings_json["defaultView"]
-  );
+  const [defaultviewSetting, setDefaultView] = useState(settings_json["defaultView"]);
 
   // DAEMON SETTINGS
   const [d_scanrateSetting, setdScanrate] = useState('');
@@ -207,6 +205,7 @@ const SettingsMenu = (props: any) => {
           setdPorts(data["content"]["daemon_ports"]);
 
           setScanIP(data["content"]["scan_server_ip"]);
+          setDefaultView(data["content"]["defaultView"])
         } else {
           throwCustomError(data["status"] + " " + data["message"]);
         }
@@ -601,14 +600,14 @@ const SettingsMenu = (props: any) => {
                         }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder={defaultviewSetting} />
+                          <SelectValue/>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Hierarchical">
-                            Hierarchical
+                          <SelectItem value="Vertical">
+                            Vertical
                           </SelectItem>
-                          <SelectItem value="Cluster">
-                            Cluster
+                          <SelectItem value="Horizontal">
+                            Horizontal
                           </SelectItem>
                         </SelectContent>
                       </Select>
