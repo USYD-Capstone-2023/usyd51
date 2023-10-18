@@ -161,7 +161,7 @@ const SettingsMenu = (props: any) => {
     settings_json["daemon_run_vertical_trace"]
   );
 
-  const [ scanIP, setScanIP ] = useState(settings_json["scan_server_ip"]);
+  const [ scanIP, setScanIP ] = useState("");
 
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
@@ -568,10 +568,10 @@ const SettingsMenu = (props: any) => {
 
               <Card className="w-full">
                 <CardHeader>
-                  <CardTitle className="text-left">View</CardTitle>
+                  <CardTitle className="text-left">Miscellaneous</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-start items-center flex-wrap">
+                  <div className="flex justify-start items-start flex-wrap">
                     <div className="flex flex-col items-baseline justify-start space-y-2 w-1/3 p-4 m-0">
                       <Label>Default View</Label>
                       <Select
@@ -612,6 +612,42 @@ const SettingsMenu = (props: any) => {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="flex items-center justify-start space-x-2 w-1/3 p-4 m-0">
+                      <Label>Scan Server IP</Label>
+                      
+                      <Input className={cn("w-1/3 text-right")} value={scanIP} onChange={(e) => {
+                        if (Number.isInteger(parseInt(e.target.value))) {
+                          setScanIP(parseInt(e.target.value));
+                          settings_json["scan_server_ip"] = parseInt(e.target.value);
+                        }
+                          const authToken = localStorage.getItem("Auth-Token");
+                          if (authToken == null) {
+                            console.log("User is logged out!");
+                            return;
+                          }
+
+                          const options = {
+                            method: "PUT",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "Auth-Token": authToken,
+                              "Accept" : "application/json",
+                            },
+                            body: JSON.stringify(settings_json),
+                          };
+
+                          fetch(`${databaseUrl}settings/set`, options).then((res) =>
+                            res.json().then((data) => {
+                              if (data["status"] != 200) {
+                                console.log(data["status"] + " " + data["message"]);
+                              }
+                            })
+                          );
+
+                        }
+                      }
+                      />
+                      </div>
                   </div>
                 </CardContent>
               </Card>
