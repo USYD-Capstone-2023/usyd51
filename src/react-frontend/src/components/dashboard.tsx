@@ -229,7 +229,7 @@ const Dashboard = (props: any) => {
                 if (selectedNetworkID === rescanningNetworkID) {
                   setRescanIteration((prev) => prev + 1);
                 }
-                ///TODO A COMPLETED RESCAN POPUP OR SOMETHING?
+                throwCustomError("Rescan Complete");
                 ///If we stay on the same network then it auto reloads anyways
                 return;
               }
@@ -278,7 +278,7 @@ const Dashboard = (props: any) => {
       .then((data) => {
         if (data["status"] === 200) {
           console.log("Rescan initiated successfully");
-          ///TODO A INITIATED RESCAN POPUP?
+          throwCustomError("Rescan started");
           setRescanInitiated(true);
 
         } else {
