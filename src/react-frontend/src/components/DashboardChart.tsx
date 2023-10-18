@@ -75,6 +75,7 @@ const DashboardChart = ({ networkID, mode="normal" }) => {
             const minutes = date.getMinutes().toString().padStart(2, "0");
             element.time = hours + ":" + minutes;
           });
+          data["content"].sort((a: any, b: any) => a.timestamp - b.timestamp);
           setData(data["content"]);
         } else {
           setData([]);
