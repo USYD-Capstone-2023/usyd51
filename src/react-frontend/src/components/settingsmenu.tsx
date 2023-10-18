@@ -148,7 +148,7 @@ const SettingsMenu = (props: any) => {
   );
 
   // DAEMON SETTINGS
-  const [d_scanrateSetting, setdScanrate] = useState(settings_json["daemon_scan_rate"]);
+  const [d_scanrateSetting, setdScanrate] = useState('');
   const [d_udpSetting, setdUDP] = useState(settings_json["daemon_UDP"]);
   const [d_tcpSetting, setdTCP] = useState(settings_json["daemon_TCP"]);
   const [d_portsSetting, setdPorts] = useState([]);
