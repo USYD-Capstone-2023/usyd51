@@ -616,8 +616,8 @@ const SettingsMenu = (props: any) => {
                       <Label>Scan Server IP</Label>
                       
                       <Input className={cn("w-1/3")} value={scanIP} onChange={(e) => {
-                          setScanIP(parseInt(e.target.value));
-                          settings_json["scan_server_ip"] = parseInt(e.target.value);
+                          setScanIP(e.target.value);
+                          settings_json["scan_server_ip"] = e.target.value;
                         
                           const authToken = localStorage.getItem("Auth-Token");
                           if (authToken == null) {
