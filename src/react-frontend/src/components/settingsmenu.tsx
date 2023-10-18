@@ -612,14 +612,13 @@ const SettingsMenu = (props: any) => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center justify-start space-x-2 w-1/3 p-4 m-0">
+                    <div className="flex flex-col items-baseline justify-start space-y-2 w-1/3 p-4 m-0">
                       <Label>Scan Server IP</Label>
                       
-                      <Input className={cn("w-1/3 text-right")} value={scanIP} onChange={(e) => {
-                        if (Number.isInteger(parseInt(e.target.value))) {
+                      <Input className={cn("w-1/3")} value={scanIP} onChange={(e) => {
                           setScanIP(parseInt(e.target.value));
                           settings_json["scan_server_ip"] = parseInt(e.target.value);
-                        }
+                        
                           const authToken = localStorage.getItem("Auth-Token");
                           if (authToken == null) {
                             console.log("User is logged out!");
