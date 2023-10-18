@@ -10,3 +10,4 @@
 | 8               | 6             |React Transition - home page and figma mockups|Front end scanning transition|Front end scanning transition, Local config setup|React Transition|React Transition - List view|React Transition|Front end scanning transition, Postgres server setup|   |
 | 9               | 7             |Dark mode|New network setup|Password management|Settings page with new settings components|Dark mode, list sorting and filtering, sign up page|New network setup|Accounts and groups, settings page backend links|   |
 | 10              | 8             |Dashboard widgets|Testing|Password management|Dark mode|Dark mode, list sorting and filtering|Timeline fixes, daemon scanning|daemon scanning, dashboard widgets|   |
+| 11              | 9             |Testing|Testing|Error Messages, Daemon UI| Other Fixes|Hover text descriptions|Better loading bar, deleting networks|Daemon, Error message returns from API, better loading bar|
