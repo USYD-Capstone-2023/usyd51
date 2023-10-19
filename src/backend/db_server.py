@@ -33,6 +33,9 @@ elif sys.argv[1] == "local":
 elif sys.argv[1] == "testing":
     app.config.from_object("config.TestingConfig")
 
+elif sys.argv[1] == "docker-local":
+    app.config.from_object("config.DockerLocalConfig")
+
 else:
     print("Please enter either 'remote' or 'local'")
     sys.exit(-1)
@@ -40,10 +43,7 @@ else:
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
-print(os.environ["POSTGRES_DB"])
-print(os.environ["POSTGRES_USER"])
-print(os.environ["POSTGRES_PASSWORD"])
-db = pdb(os.environ["POSTGRES_DB"], os.environ["POSTGRES_USER"], os.environ["POSTGRES_PASSWORD"])
+db = pdb(app.config["POSTGRES_DB"], app.config["POSTGRES_USER"], app.config["POSTGRES_PASSWORD"], app.config["POSTGRES_HOST"], app.config["POSTGRES_PORT"])
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 

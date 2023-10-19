@@ -9,12 +9,14 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
     ports:
       - 5002:5002
     volumes:
       - .:/usr/src/app
     restart: always
-    command: "python3 db_server.py local"
+    command: "python3 db_server.py docker-local"
     depends_on:
       - db
 
@@ -24,14 +26,14 @@ services:
     image: postgres:latest
     # user: postgres
     environment:
-      - DATABASE_PORT=${DATABASE_PORT}
+      - PGPORT=${POSTGRES_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-    - 5432:5432
+    - ${POSTGRES_PORT}:${POSTGRES_PORT}
 
 volumes:
   pgdata: {}

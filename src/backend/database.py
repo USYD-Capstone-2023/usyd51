@@ -60,11 +60,13 @@ class PostgreSQL_database:
                    "salt"     : str}
 
 
-    def __init__(self, database, user, password):
+    def __init__(self, database, user, password, host, port):
 
         self.db = database
         self.user = user
         self.password = password
+        self.host = host
+        self.port = port
 
         # Creates database if it doesnt exist, creates table if they dont exist
         if not (self.__init_db() and self.__init_tables()):
@@ -79,7 +81,7 @@ class PostgreSQL_database:
         response = None
         try:
             # Open db connection
-            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host="postgres_db") as conn:
+            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host=self.host, port=self.port) as conn:
                 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
                 with conn.cursor() as cur:
@@ -1071,7 +1073,7 @@ class PostgreSQL_database:
         conn = None
         try:
             # Open Database Connection
-            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host="postgres_db")
+            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host=self.host, port=self.port)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             # Create Cursor Object
@@ -1206,7 +1208,7 @@ class PostgreSQL_database:
         conn = None
         try:
             # Connects to default schema to drop the current database
-            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host="postgres_db")
+            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host=self.host, port=self.port)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             with conn.cursor() as cur:
