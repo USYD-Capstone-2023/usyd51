@@ -29,7 +29,7 @@ from platform import system
 import socket, threading, subprocess, os
 from datetime import datetime
 
-MAC_TABLE_FP = "../cache/oui.csv"
+MAC_TABLE_FP = "./oui/oui.csv"
 
 mac_table = MAC_table(MAC_TABLE_FP)
 
