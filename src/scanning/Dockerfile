@@ -6,4 +6,5 @@ RUN apk add --no-cache zeromq-dev linux-headers python3 python3-dev libc-dev gcc
 RUN python3 -m ensurepip
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir -r requirements.txt
+EXPOSE 5001
 COPY . .

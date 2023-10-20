@@ -9,13 +9,15 @@ class Config(object):
 
 class DockerLocalConfig(Config):
 
+    valid = True
     for req in ["POSTGRES_URI", "SERVER_HOST", "SERVER_HOST"]:
         if req not in os.environ.keys():
-            exit()
-            
-    POSTGRES_URI = os.environ["POSTGRES_URI"]
-    SERVER_HOST = os.environ["SERVER_HOST"]
-    SERVER_PORT = os.environ["SERVER_PORT"]
+            valid = False
+
+    if valid:
+        POSTGRES_URI = os.environ["POSTGRES_URI"]
+        SERVER_HOST = os.environ["SERVER_HOST"]
+        SERVER_PORT = os.environ["SERVER_PORT"]
 
 # Uses remote production server
 class RemoteConfig(Config):

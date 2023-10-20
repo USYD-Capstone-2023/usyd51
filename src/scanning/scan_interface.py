@@ -113,14 +113,15 @@ def require_auth(func):
     @wraps(func)
     def decorated(*args, **kwargs):
         
-        auth = None
-        if "Auth-Token" in request.headers:
-            auth = request.headers["Auth-Token"]
-        else:
-            return create_response("Authentication token not in request headers.", 401)
+        # auth = None
+        # if "Auth-Token" in request.headers:
+        #     auth = request.headers["Auth-Token"]
+        # else:
+        #     return create_response("Authentication token not in request headers.", 401)
         
-        # Run the decorated function
-        return func(auth, *args, **kwargs)
+        # # Run the decorated function
+        # return func(auth, *args, **kwargs)
+        return func("auf", *args, **kwargs)
     
     return decorated
 
@@ -224,24 +225,38 @@ def verify_current_connection(network_id, auth):
 @require_auth
 def scan_network(auth, network_id):
 
-    # Checks that the entered network id is valid
-    network_id = validate_network_id(network_id)
-    if network_id == None:
-        return create_response("Invalid network ID entered.", 500)
+    # # Checks that the entered network id is valid
+    # network_id = validate_network_id(network_id)
+    # if network_id == None:
+    #     return create_response("Invalid network ID entered.", 500)
     
-    # Checks that the user is connected to the network they are trying to scan
-    res = verify_current_connection(network_id, auth)
-    if res[1] != 200:
-        return res[0], res[1]
+    # # Checks that the user is connected to the network they are trying to scan
+    # res = verify_current_connection(network_id, auth)
+    # if res[1] != 200:
+    #     return res[0], res[1]
     
-    # Retrieves users scanning preferences
-    settings = get_settings(auth)
-    if settings == None:
-        return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
+    # # Retrieves users scanning preferences
+    # settings = get_settings(auth)
+    # if settings == None:
+    #     return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
 
-    # Checks if user is already running a scan
-    if auth in loading_bars.keys():
-        return create_response("User is already running a scan.", 500)
+    # # Checks if user is already running a scan
+    # if auth in loading_bars.keys():
+    #     return create_response("User is already running a scan.", 500)
+
+    settings = {"TCP"                     : True,
+                "UDP"                     : True, 
+                "ports"                   : [22,23,80,443],
+                "run_ports"               : True,
+                "run_os"                  : False,
+                "run_hostname"            : True,
+                "run_mac_vendor"          : True,
+                "run_trace"               : True,
+                "run_vertical_trace"      : True,
+                "defaultView"             : "cluster",
+                "defaultNodeColour"       : "0FF54A",
+                "defaultEdgeColour"       : "32FFAB",
+                "defaultBackgroundColour" : "320000"}
 
     # Dispatches scan
     scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth))
@@ -389,6 +404,8 @@ def run_daemon():
 
 
 if __name__ == "__main__":
+
+    nt.show_int()
 
     daemon_thread = threading.Thread(target=run_daemon)
     daemon_thread.daemon = True

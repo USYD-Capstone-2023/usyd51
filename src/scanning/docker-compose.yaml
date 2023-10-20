@@ -3,7 +3,7 @@ version: "3.9"
 services:
   scanning_api_server:
     container_name: scanning_api
-    image: alpine:latest
+    image: dockerhub-flask_live_app:1.0.0
     build: .
     network_mode: "host"
     environment:

@@ -12,7 +12,7 @@ from scapy.all import (
     sr1,
     get_if_addr,
     sniff,
-    # show_interfaces,
+    show_interfaces,
     # dev_from_index,
 )
 
@@ -33,10 +33,15 @@ MAC_TABLE_FP = "./oui/oui.csv"
 
 mac_table = MAC_table(MAC_TABLE_FP)
 
+def show_int():
+    show_interfaces()
+    print(conf.iface)
+
 
 def init_scan(network_id, iface=conf.iface):
 
     ts = int(datetime.now().timestamp())
+
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
@@ -521,7 +526,7 @@ def add_hostnames(network, tp, lb):
 # Gets the gateway, interface, subnet mask and domain name of the current network
 def get_dhcp_server_info():
 
-    print("[INFO] Retrieveing DHCP server info...")
+    print("[INFO] Retrieving DHCP server info...")
 
     gws = netifaces.gateways()
 
