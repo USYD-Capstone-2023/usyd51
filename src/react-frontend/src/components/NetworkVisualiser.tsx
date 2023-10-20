@@ -87,7 +87,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]); 
 
   const [allSnapshots, setAllSnapshots] = useState([]);
-  const [currSnapshot, setCurrSnapshot] = useState(-1);
+  const [currSnapshot, setCurrSnapshot] = useState(0);
 
   useEffect(() => { 
     const fetchData = async () => {
@@ -324,9 +324,6 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     return;
 
   }
-  
-
-  
 
 
 
@@ -345,10 +342,11 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       <Panel position="top-right">
         <Button onClick={() => onLayout("TB")}>vertical layout</Button>
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
+        {allSnapshots && allSnapshots[currSnapshot] && allSnapshots[currSnapshot]["timestamp"] ? (
         <Button>
-          {" "}
-          <Link to={"../../DeviceListView/" + networkID}>List View </Link>
+          <Link to={"../../DeviceListView/" + networkID + "/" + allSnapshots[currSnapshot]["timestamp"]}>List View</Link>
         </Button>
+      ) : null}
       </Panel>
       <Panel position="bottom-right">
         <div className="flex">

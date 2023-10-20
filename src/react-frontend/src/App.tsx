@@ -58,7 +58,7 @@ function App() {
                     <Route path="dashboard" element={<Home />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="listView" element={<ListView />} />
-                    <Route path="deviceListView/:networkID" element={<DeviceListView />} />
+                    <Route path="deviceListView/:networkID/:snapshot" element={<DeviceListView />} />
                     <Route
                         path="networkView/:networkID"
                         element={<NetworkView />}
