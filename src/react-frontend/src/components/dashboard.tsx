@@ -239,7 +239,7 @@ const Dashboard = (props: any) => {
                 if (selectedNetworkID === rescanningNetworkID) {
                   setRescanIteration((prev) => prev + 1);
                 }
-                throwCustomError("Rescan Complete");
+                throwCustomAlert("Rescan Complete");
                 ///If we stay on the same network then it auto reloads anyways
                 return;
               }
