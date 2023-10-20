@@ -3,20 +3,15 @@ from scapy.all import (
     traceroute,
     conf,
     ARP,
-    DNSRR,
-    UDP,
     IP,
     TCP,
     Ether,
     srp1,
     sr1,
     get_if_addr,
-    sniff,
-    # show_interfaces,
-    # dev_from_index,
 )
 
-import nmap3, netifaces
+import nmap3, netifaces, requests
 
 # Local
 from job import Job
@@ -335,21 +330,6 @@ def add_routes(network, tp, lb, iface=conf.iface):
     lb.reset()
 
 
-# def check_website(ip):
-
-#     url = f"http://{ip}"  # Construct the URL with the provided IP
-#     try:
-#         response = requests.get(url, timeout=1)
-        
-#         # Check if the response status code is in the 200 range (i.e., a successful response)
-#         if 200 <= response.status_code < 300:
-#             return True #return true if this hosts a website
-#         else:
-#             return False #return false if this does not host a website
-#     except requests.RequestException as e:
-#         return False #return false if this does not host a website
-    
-
 def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
 
     # Run traceroute to google's DNS server
@@ -370,6 +350,77 @@ def vertical_traceroute(network, iface=conf.iface, target_host="8.8.8.8"):
             new_device = Device(ip, mac)
             new_device.parent = traceroute_results[i+1]
             network.devices[mac] = new_device
+
+# ---------------------------------------------- WEBSITE STATUS ---------------------------------------------- #
+
+# Checks if the requested ip is hosting a website or not
+def website_status_helper(ip):
+
+    url = "http://%s" % (ip)
+    try:
+        response = requests.get(url, timeout=1)
+        
+        return 200 <= response.status_code < 300
+    except requests.RequestException:
+        return False 
+    
+
+def add_website_status(network, tp, lb):
+
+    print("[INFO] Checking website hosting statuses...")
+    # Set loading bar
+    lb.set_params("website_status", 40, len(network.devices.keys()))
+    lb.show()
+
+    # Preparing thread job parameters
+    mutex = threading.Lock()
+    cond = threading.Condition(lock=mutex)
+    counter_ptr = [0]
+    returns = [-1] * len(network.devices.keys())
+
+    # The current job, for referencing the return location for the thread
+    job_counter = 0
+    for device in network.devices.values():
+        # Create job and add to threadpool queue for execution
+        job = Job(
+            fptr=website_status_helper,
+            args=(device.ip,),
+            ret_ls=returns,
+            ret_id=job_counter,
+            counter_ptr=counter_ptr,
+            cond=cond,
+        )
+        job_counter += 1
+
+        if not tp.add_job(job):
+            return "Request size over maximum allowed size %d" % (
+                tp.MAX_QUEUE_SIZE
+            )
+
+    # Waits for all jobs to be completed
+    mutex.acquire()
+    while counter_ptr[0] < len(network.devices.keys()):
+        cond.wait()
+        lb.set_progress(counter_ptr[0])
+        lb.show()
+
+    mutex.release()
+
+    # Sets all devices websites
+    job_id = 0
+    for device in network.devices.values():
+        if returns[job_id]:
+            device.website = "http://%s" % device.ip
+        else:
+            device.website = "Not Hosted"
+        job_id += 1
+
+    print("[INFO] Website status check complete!")
+
+    # Reset loading bar for next task. Enables frontend to know job is complete.
+    lb.reset()
+    
+
 
 
 # ---------------------------------------------- OS FINGERPRINTING ---------------------------------------------- #

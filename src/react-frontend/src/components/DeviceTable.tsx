@@ -19,6 +19,7 @@ type NetworkItem = {
     os_type: string,
     hostname: string,
     parent: string,
+    website: string,
     ports: string,
     [key: string]: string;
 }
@@ -33,6 +34,7 @@ const columnDisplayNames: { [key: string]: string } = {
     hostname: "Hostname",
     parent: "Parent",
     ports: "Ports",
+    website: "Website"
 };
 function throwCustomError(message: any) {
     const errorEvent = new CustomEvent('customError', {
@@ -151,6 +153,11 @@ const columns: ColumnDef<NetworkItem>[] = [
     {
         accessorKey: "ports",
         header: ({ column }) => createSortButton(column, "Ports"),
+        sortingFn: customSort
+    },
+    {
+        accessorKey: "website",
+        header: ({ column }) => createSortButton(column, "Website"),
         sortingFn: customSort
     }
 ]
