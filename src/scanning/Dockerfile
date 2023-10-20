@@ -7,4 +7,3 @@ RUN python3 -m ensurepip
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir -r requirements.txt
 COPY . .
-EXPOSE 5001

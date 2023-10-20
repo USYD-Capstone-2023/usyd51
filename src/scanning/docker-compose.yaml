@@ -5,13 +5,12 @@ services:
     container_name: scanning_api
     image: alpine:latest
     build: .
+    network_mode: "host"
     environment:
       - SERVER_HOST=${SERVER_HOST}
       - SERVER_PORT=${SERVER_PORT}
       - POSTGRES_URI=${POSTGRES_URI}
-    ports:
-      - ${SERVER_PORT}:${SERVER_PORT}
     volumes:
       - .:/usr/src/app
     restart: always
-    entrypoint: "python3 scan_interface.py docker-local"
+    command: "python3 scan_interface.py docker-local"
