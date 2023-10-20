@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db_api_server:
+    container_name: db_api
+    image: dockerhub-flask_live_app:1.0.0
+    build: .
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    ports:
+      - 5002:5002
+    volumes:
+      - .:/usr/src/app
+    restart: always
+    command: "python3 db_server.py docker-local"
+    depends_on:
+      - db
+
+  db:
+    container_name: postgres_db
+    restart: always
+    image: postgres:latest
+    # user: postgres
+    environment:
+      - PGPORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+    - ${POSTGRES_PORT}:${POSTGRES_PORT}
+
+volumes:
+  pgdata: {}

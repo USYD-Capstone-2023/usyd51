@@ -24,14 +24,14 @@ from platform import system
 import socket, threading, subprocess, os
 from datetime import datetime
 
-MAC_TABLE_FP = "../cache/oui.csv"
+MAC_TABLE_FP = "./oui/oui.csv"
 
 mac_table = MAC_table(MAC_TABLE_FP)
-
 
 def init_scan(network_id, iface=conf.iface):
 
     ts = int(datetime.now().timestamp())
+
 
     # Retrieves dhcp server information (router ip, subnet mask, domain name)
     dhcp_server_info = get_dhcp_server_info()
@@ -111,6 +111,8 @@ def get_ssid(iface=conf.iface):
 
 # Updates the mac vendor field of all devices in the current network's table of the database
 def add_mac_vendors(network, lb):
+
+    print("[INFO] Getting MAC vendors...")
 
     # Set loading bar
     lb.set_params("mac_vendor", 40, len(network.devices.keys()))
@@ -517,6 +519,8 @@ def hostname_helper(addr):
 # Retrieves the hostnames of all devices on the network and saves them to the database
 def add_hostnames(network, tp, lb):
 
+    print("[INFO] Resolving device hostnames...")
+
     # Set loading bar
     lb.set_params("hostnames", 40, len(network.devices.keys()))
     lb.show()
@@ -572,7 +576,7 @@ def add_hostnames(network, tp, lb):
 # Gets the gateway, interface, subnet mask and domain name of the current network
 def get_dhcp_server_info():
 
-    print("[INFO] Retrieveing DHCP server info...")
+    print("[INFO] Retrieving DHCP server info...")
 
     gws = netifaces.gateways()
 

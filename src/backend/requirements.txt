@@ -1,0 +1,7 @@
+requests==2.28.1
+urllib3==1.26.17
+flask
+flask_cors
+pyjwt
+psycopg2-binary
+pycryptodome

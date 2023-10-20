@@ -2,20 +2,21 @@
 import requests
 from flask import Flask, request
 from flask_cors import CORS 
+from Crypto.Hash import SHA256
+
+# Local
+import net_tools as nt
+from config import Config
 from loading_bar import Loading_bar
 from threadpool import Threadpool
+
+# Stdlib
+import logging
+import json, sys
 import threading
 from functools import wraps
 import json
 import time
-from Crypto.Hash import SHA256
-import logging
-
-# Local
-import net_tools as nt
-
-# Stdlib
-import json, sys
 
 # Total number of threads spawned for the threadpool
 NUM_THREADS = 50
@@ -24,6 +25,32 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
+
+# Load the configuration from the specified config class
+app.config.from_object(Config)
+
+# Define the app configuration based on command line args
+if len(sys.argv) < 2:
+    print("Please enter either 'remote' or 'local'")
+    sys.exit(-1)
+
+if sys.argv[1] == "remote":
+    app.config.from_object("config.RemoteConfig")
+
+elif sys.argv[1] == "local":
+    app.config.from_object("config.LocalConfig")
+
+elif sys.argv[1] == "testing":
+    app.config.from_object("config.TestingConfig")
+
+elif sys.argv[1] == "docker-local":
+    app.config.from_object("config.DockerLocalConfig")
+
+else:
+    print("Please enter either 'remote' or 'local'")
+    sys.exit(-1)
+
+
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
@@ -38,11 +65,13 @@ loading_bars = dict()
 daemon_clients = set()
 pending_daemon_clients = set()
 
+DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]
+
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
 
 # The default settings that a new user gets
-default_settings = {
+daemon_settings = {
     "TCP"                     : True,
     "UDP"                     : True, 
     "ports"                   : [22,23,80,443],
@@ -52,6 +81,7 @@ default_settings = {
     "run_mac_vendor"          : True,
     "run_trace"               : True,
     "run_vertical_trace"      : True,
+    "run_website"             : True,
     "defaultView"             : "grid",
     "defaultNodeColour"       : "0FF54A",
     "defaultEdgeColour"       : "32FFAB",
@@ -216,6 +246,7 @@ def scan_network(auth, network_id):
     if auth in loading_bars.keys():
         return create_response("User is already running a scan.", 500)
 
+
     # Dispatches scan
     scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth))
     scan_thread.daemon = True
@@ -227,7 +258,7 @@ def scan_network(auth, network_id):
 @require_auth
 def start_daemon(auth, network_id):
 
-    global daemon_running, daemon_network_id, daemon_sleep, scan_rate
+    global daemon_running, daemon_network_id, daemon_sleep, daemon_scan_rate
     # Checks that the entered network id is valid
     network_id = validate_network_id(network_id)
     if network_id == None:
@@ -264,7 +295,7 @@ def end_daemon(auth):
 @require_auth
 def init_daemon_network(auth):
 
-    global daemon_auth_token, scan_rate
+    global daemon_auth_token, daemon_scan_rate
     daemon_auth_token = daemon_get_auth()
 
     # Checks if user is already running a scan
@@ -361,7 +392,6 @@ def run_daemon():
             daemon_sleep.clear()
             daemon_sleep.wait()
 
-        # network_id = daemon_network_id
         # create new network id if doesnt exist, then save to that id just for the daemon account
         run_scan(daemon_network_id, daemon_settings, token)
 
@@ -371,23 +401,7 @@ def run_daemon():
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        print("Please enter 'remote' or 'local'.")
-        sys.exit()
-
-    if sys.argv[1] == "remote":
-        # Remote
-        DB_SERVER_URL = "http://192.168.12.104:5000"
-
-    elif sys.argv[1] == "local":
-        # Local
-        DB_SERVER_URL = "http://127.0.0.1:5002"
-
-    else:
-        print("Please enter 'remote' or 'local'.")
-        sys.exit()
-
     daemon_thread = threading.Thread(target=run_daemon)
     daemon_thread.daemon = True
     daemon_thread.start()
-    app.run(port=5001)
+    app.run(host=app.config["SERVER_HOST"], port=app.config["SERVER_PORT"])
