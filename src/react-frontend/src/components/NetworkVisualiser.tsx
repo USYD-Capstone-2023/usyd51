@@ -27,6 +27,7 @@ type NetworkElement = {
   hostname: string;
   parent: string;
   ports: string;
+  website: string;
 };
 
 interface LayoutFlowProps {

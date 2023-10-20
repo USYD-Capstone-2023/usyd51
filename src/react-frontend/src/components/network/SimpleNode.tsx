@@ -47,7 +47,8 @@ const SimpleNode = ({
                 <li>OS Family: {data.os_family}</li>
                 <li>OS Vendor: {data.os_vendor}</li>
                 <li>OS Type: {data.os_type}</li>
-                <li>Hostname: {data.hostname}</li>
+                <li>Hostname:  {data.hostname}</li>
+                <li>Website: {data.website!="Not Hosted" || data.website!="unknown" ? (<a href={data.website}>{data.website}</a>) : (data.website)}</li>
                 <li>Parent: {data.parent}</li>
                 {data.ports !== undefined && (
                   <li>

@@ -66,7 +66,6 @@ daemon_clients = set()
 pending_daemon_clients = set()
 
 DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]
-print(f"URL{DB_SERVER_URL}\n\n\n\n\n")
 
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
@@ -88,17 +87,7 @@ default_settings = {
     "defaultBackgroundColour" : "320000"
 }
 
-daemon_settings = {
-    "TCP"                : True,
-    "UDP"                : True, 
-    "ports"              : [22,80,53,5000],
-    "run_ports"          : True,
-    "run_os"             : True,
-    "run_hostname"       : True,
-    "run_mac_vendor"     : True,
-    "run_trace"          : True,
-    "run_vertical_trace" : True,
-    }
+daemon_settings = default_settings
 
 
 def create_response(message, code, content=""):
@@ -127,7 +116,7 @@ def require_auth(func):
 
 
 # Retrieves a given user's settings from the database, adds them if they are non existent
-def get_settings(auth):
+def get_settings(auth, daemon=False):
 
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
 
@@ -135,6 +124,20 @@ def get_settings(auth):
         return None
 
     settings = json.loads(res.content.decode("utf-8"))["content"]
+
+    if daemon:
+        return {
+            "TCP"                : settings["daemon_TCP"],
+            "UDP"                : settings["daemon_UDP"], 
+            "ports"              : settings["daemon_ports"],
+            "run_ports"          : settings["daemon_run_ports"],
+            "run_os"             : settings["daemon_run_os"],
+            "run_hostname"       : settings["daemon_run_hostname"],
+            "run_mac_vendor"     : settings["daemon_run_mac_vendor"],
+            "run_trace"          : settings["daemon_run_trace"],
+            "run_vertical_trace" : settings["daemon_run_vertical_trace"],
+            }, settings["daemon_scan_rate"]
+
     return settings
 
 
@@ -173,13 +176,14 @@ def run_scan(network_id, settings, auth):
     scans = [
         {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
         {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_website_status", "func" : nt.add_website_status,  "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], settings["ports"]]},
     ]
 
     for scan in scans:
-        if settings[scan["setting"]]:
+        if scan["setting"] in settings.keys() and settings[scan["setting"]]:
             scan["func"](*scan["args"])
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
             if res.status_code != 200:
@@ -225,38 +229,25 @@ def verify_current_connection(network_id, auth):
 @require_auth
 def scan_network(auth, network_id):
 
-    # # Checks that the entered network id is valid
-    # network_id = validate_network_id(network_id)
-    # if network_id == None:
-    #     return create_response("Invalid network ID entered.", 500)
+    # Checks that the entered network id is valid
+    network_id = validate_network_id(network_id)
+    if network_id == None:
+        return create_response("Invalid network ID entered.", 500)
     
-    # # Checks that the user is connected to the network they are trying to scan
-    # res = verify_current_connection(network_id, auth)
-    # if res[1] != 200:
-    #     return res[0], res[1]
+    # Checks that the user is connected to the network they are trying to scan
+    res = verify_current_connection(network_id, auth)
+    if res[1] != 200:
+        return res[0], res[1]
     
-    # # Retrieves users scanning preferences
-    # settings = get_settings(auth)
-    # if settings == None:
-    #     return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
+    # Retrieves users scanning preferences
+    settings = get_settings(auth)
+    if settings == None:
+        return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
 
-    # # Checks if user is already running a scan
-    # if auth in loading_bars.keys():
-    #     return create_response("User is already running a scan.", 500)
+    # Checks if user is already running a scan
+    if auth in loading_bars.keys():
+        return create_response("User is already running a scan.", 500)
 
-    settings = {"TCP"                     : True,
-                "UDP"                     : True, 
-                "ports"                   : [22,23,80,443],
-                "run_ports"               : True,
-                "run_os"                  : False,
-                "run_hostname"            : True,
-                "run_mac_vendor"          : True,
-                "run_trace"               : True,
-                "run_vertical_trace"      : True,
-                "defaultView"             : "cluster",
-                "defaultNodeColour"       : "0FF54A",
-                "defaultEdgeColour"       : "32FFAB",
-                "defaultBackgroundColour" : "320000"}
 
     # Dispatches scan
     scan_thread = threading.Thread(target=run_scan, args=(network_id, settings, auth))
@@ -269,7 +260,7 @@ def scan_network(auth, network_id):
 @require_auth
 def start_daemon(auth, network_id):
 
-    global daemon_running, daemon_network_id, daemon_sleep
+    global daemon_running, daemon_network_id, daemon_sleep, daemon_scan_rate
     # Checks that the entered network id is valid
     network_id = validate_network_id(network_id)
     if network_id == None:
@@ -277,7 +268,10 @@ def start_daemon(auth, network_id):
 
     if daemon_running:
         return create_response("Daemon already running.", 500)
-    
+
+    daemon_settings = get_settings(auth, daemon=True)
+    daemon_scan_rate = daemon_settings[1]
+    daemon_settings = daemon_settings[0]
     daemon_network_id = network_id
     daemon_running = True
     daemon_sleep.set()
@@ -303,13 +297,17 @@ def end_daemon(auth):
 @require_auth
 def init_daemon_network(auth):
 
-    global daemon_auth_token
+    global daemon_auth_token, daemon_scan_rate
     daemon_auth_token = daemon_get_auth()
 
     # Checks if user is already running a scan
     if daemon_auth_token in loading_bars.keys():
         return create_response("User is already running a scan.", 500)
 
+    daemon_settings = get_settings(auth, daemon=True)
+    daemon_scan_rate = daemon_settings[1]
+    daemon_settings = daemon_settings[0]
+    
     # Dispatches scan
     scan_thread = threading.Thread(target=run_scan, args=(-1, daemon_settings, daemon_auth_token))
     scan_thread.daemon = True
@@ -404,8 +402,6 @@ def run_daemon():
 
 
 if __name__ == "__main__":
-
-    nt.show_int()
 
     daemon_thread = threading.Thread(target=run_daemon)
     daemon_thread.daemon = True
