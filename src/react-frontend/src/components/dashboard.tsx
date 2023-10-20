@@ -250,7 +250,7 @@ const Dashboard = (props: any) => {
     };
   }, [rescanInitiated]);
 
-  const rescanNetwork = (networkId: number) => {
+  const rescanNetwork = useCallback((networkId: number) => {
     setRescanningNetworkID(networkId);
 
     const authToken = localStorage.getItem("Auth-Token");
@@ -288,7 +288,7 @@ const Dashboard = (props: any) => {
       .catch((error) => {
         throwCustomError("Network Error: Something has gone wrong.");
       });
-  };
+  },[]);
 
   const shareNetworkWithUser = useCallback(
     (id: number) => {
