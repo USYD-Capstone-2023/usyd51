@@ -411,6 +411,8 @@ def add_website_status(network, tp, lb):
     for device in network.devices.values():
         if returns[job_id]:
             device.website = "http://%s" % device.ip
+        else:
+            device.website = "Not Hosted"
         job_id += 1
 
     print("[INFO] Website status check complete!")
