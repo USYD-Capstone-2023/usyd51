@@ -22,6 +22,15 @@ function throwCustomError(message: any) {
   window.dispatchEvent(errorEvent);
 }
 
+function throwCustomAlert(message: any) {
+  const AlertEvent = new CustomEvent('customAlert', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(AlertEvent);
+}
+
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
   return (
@@ -57,6 +66,7 @@ const NewNetworkButton = (props: any) => {
   }
 
   const createNewNetwork = useCallback(() => {
+    throwCustomAlert("Starting Scan");
     const options = {
       method: "POST",
       headers: {
@@ -252,7 +262,6 @@ const Dashboard = (props: any) => {
 
   const rescanNetwork = useCallback((networkId: number) => {
     setRescanningNetworkID(networkId);
-
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       throwCustomError("User has been logged out.");
@@ -278,7 +287,7 @@ const Dashboard = (props: any) => {
       .then((data) => {
         if (data["status"] === 200) {
           console.log("Rescan initiated successfully");
-          throwCustomError("Rescan started");
+          throwCustomAlert("Starting Rescan");
           setRescanInitiated(true);
 
         } else {
