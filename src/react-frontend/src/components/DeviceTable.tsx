@@ -163,7 +163,7 @@ const columns: ColumnDef<NetworkItem>[] = [
 ]
 
 const ListView = () => {
-    const { networkID } = useParams();
+    const { networkID, snapshot } = useParams();
     const [ networkDevices, setNetworkDevices] = useState<NetworkItem[]>([]);
     const [filterKeyword, setFilterKeyword] = useState('');
     const [filterColumn, setFilterColumn] = useState('');
@@ -174,7 +174,7 @@ const ListView = () => {
             return;
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-        fetch(databaseUrl + `networks/${networkID}/devices`, options)
+        fetch(databaseUrl + `networks/${networkID}/snapshots/${snapshot}`, options)
         .then((res) => {
             if (!res.ok) {
               throwCustomError(res.status + ":" + res.statusText);
