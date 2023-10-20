@@ -82,11 +82,11 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   const { networkID } = params;
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
+
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]); 
-  // State to hold snapshots
+
   const [allSnapshots, setAllSnapshots] = useState([]);
-  // Derived value for currSnapshot
   const [currSnapshot, setCurrSnapshot] = useState(-1);
 
   useEffect(() => { 
@@ -352,9 +352,9 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       </Panel>
       <Panel position="bottom-right">
         <div className="flex">
-          <Button onClick={(event) => {event.preventDefault();getSnapshot(false);}}>Prev Snap</Button>
-          <p className="bg-primary text-primary-foreground shadow w-10">{currSnapshot+1}/{allSnapshots.length}</p>
-          <Button onClick={(event) => {event.preventDefault();getSnapshot(true);}}>Next Snap</Button>
+          <Button onClick={(event) => {event.preventDefault();getSnapshot(false);}}>Previous Snapshot</Button>
+          <p className="bg-primary text-primary-foreground shadow w-10 opacity-80 align-middle inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ml-5 mr-5">{currSnapshot+1}/{allSnapshots.length}</p>
+          <Button onClick={(event) => {event.preventDefault();getSnapshot(true);}}>Next Snapshot</Button>
         </div>
       </Panel>
     </ReactFlow>
