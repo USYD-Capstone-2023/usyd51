@@ -22,7 +22,6 @@ function throwCustomError(message: any) {
   window.dispatchEvent(errorEvent);
 }
 
-
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
   return (
@@ -169,9 +168,18 @@ const Dashboard = (props: any) => {
   const [editName, setEditName] = useState(false);
   const [currentName, setCurrentName] = useState("");
   const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+  const [rescanningNetworkID, setRescanningNetworkID] = useState<number | null>(null);
   const [userListData, setUserListData] = useState<any>();
   const [newNetworkId, setNewNetworkId] = useState(-1);
+  const [rescanInitiated, setRescanInitiated] = useState(false);
+  const [rescanIteration, setRescanIteration] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+    throwCustomError("User has been logged out.");
+    return;
+  }
 
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
@@ -193,6 +201,94 @@ const Dashboard = (props: any) => {
       </button>
     );
   };
+
+  useEffect(() => {
+    let intervalId: string | number | NodeJS.Timeout | undefined;
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept" : "application/json",
+      },
+    };
+    if (rescanInitiated) {
+      intervalId = setInterval(() => {
+        fetch(scannerUrl + "progress", options)
+        .then((res) => {
+          if (!res.ok) {
+            throwCustomError(res.status + ":" + res.statusText);
+          }
+          return res.json();
+        })
+          .then((data) => {
+            if (data["status"] === 200) {
+              if (data["message"] == "Scan finished.") {
+                clearInterval(intervalId);
+                setRescanInitiated(false);
+                if (selectedNetworkID === rescanningNetworkID) {
+                  setRescanIteration((prev) => prev + 1);
+                }
+                throwCustomError("Rescan Complete");
+                ///If we stay on the same network then it auto reloads anyways
+                return;
+              }
+            } else {
+              clearInterval(intervalId);
+            }
+          })
+          .catch((error) => {
+            throwCustomError("Scanning server is unreachable. Please check it is running.");
+          });
+      }, 400);
+    }
+    // Cleanup
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [rescanInitiated]);
+
+  const rescanNetwork = useCallback((networkId: number) => {
+    setRescanningNetworkID(networkId);
+
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      throwCustomError("User has been logged out.");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept": "application/json",
+      },
+    };
+
+    fetch(scannerUrl + "scan/" + networkId, options)
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ": " + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data["status"] === 200) {
+          console.log("Rescan initiated successfully");
+          throwCustomError("Rescan started");
+          setRescanInitiated(true);
+
+        } else {
+          throwCustomError(data["status"] + " " + data["message"]);
+        }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
+      });
+  },[]);
 
   const shareNetworkWithUser = useCallback(
     (id: number) => {
@@ -477,9 +573,10 @@ const Dashboard = (props: any) => {
               )}
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart networkID={selectedNetworkID} />
+              <DashboardChart key={rescanIteration} networkID={selectedNetworkID} />
             </div>
           </div>
+          <Button onClick={() => rescanNetwork(selectedNetworkID)}>Rescan</Button>
           <ShareNetworkDropdown
             userList={userListData}
             onSelect={shareNetworkWithUser}
