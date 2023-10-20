@@ -46,8 +46,34 @@ function throwCustomError(message: any) {
   window.dispatchEvent(errorEvent);
 }
 
-
-
+async function getAllSnapshots(networkID: any){
+  const authToken = localStorage.getItem("Auth-Token");
+  if (authToken == null) {
+    console.log("User is logged out!");
+    return;
+  }
+  const options = {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "Auth-Token": authToken,
+      "Accept" : "application/json",
+    },
+  };
+  try {
+    const res = await fetch(databaseUrl + `networks/${networkID}/snapshots`, options);
+    if (!res.ok) throwCustomError(res.status + ":" + res.statusText);
+    const data = await res.json();
+    if (data["status"] === 200) {
+      return data["content"];  // return snapshots
+    } else {
+      throwCustomError(data["status"] + " " + data["message"]);
+    }
+  } catch (error) {
+    throwCustomError("Something has gone wrong");
+    return [];
+  }
+}
 
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -57,8 +83,27 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]); 
+  // State to hold snapshots
+  const [allSnapshots, setAllSnapshots] = useState([]);
+  // Derived value for currSnapshot
+  const [currSnapshot, setCurrSnapshot] = useState(-1);
 
+  useEffect(() => { 
+    const fetchData = async () => {
+      try {
+        const snapshots = await getAllSnapshots(networkID);
+        setAllSnapshots(snapshots);
+        setCurrSnapshot(snapshots.length-1)
+      } catch (error) {
+        console.error("Error fetching snapshots:", error);
+      }
+    };
+    fetchData();
+  }, [networkID]);
+
+  //console.log(currSnapshot);  
+ 
   const getLayoutedElements = useCallback(
     (nodes: any, edges: any, options: any) => {
       const isHorizontal = options.direction === "LR";
@@ -183,6 +228,8 @@ const LayoutFlow = (params: LayoutFlowProps) => {
   }, []);
 
   async function getSnapshot(next: boolean) {
+    console.log("OLD: ");
+    console.log(allSnapshots[currSnapshot]);
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       console.log("User is logged out!");
@@ -198,54 +245,28 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     };
   
     try {
-      // Array to hold the promises returned by fetch
-      const fetchPromises = [];
-  
-      // Fetch to get all snapshots
-      fetchPromises.push(
-        fetch(databaseUrl + `networks/${networkID}/snapshots`, options)
-          .then(res => {
-            if (!res.ok) throwCustomError(res.status + ":" + res.statusText);
-            return res.json();
-          })
-          .then(data => {
-            if (data["status"] === 200) {
-              return data["content"];  // return snapshots
-            } else {
-              throwCustomError(data["status"] + " " + data["message"]);
-            }
-          })
-      );
-  
-      // Fetch to get current snapshot
-      fetchPromises.push(
-        fetch(databaseUrl + `networks/${networkID}`, options)
-          .then(res => {
-            if (!res.ok) throwCustomError(res.status + ":" + res.statusText);
-            return res.json();
-          })
-          .then(data => {
-            if (data["status"] === 200) {
-              return data["content"]["timestamp"];  // return currSnapshot
-            } else {
-              throwCustomError(data["status"] + " " + data["message"]);
-            }
-          })
-      );
-  
-
-      const results = await Promise.all(fetchPromises);
-      const snapshots = results[0];
-      const currSnapshot = results[1];
-      const snapshotIndex = snapshots.findIndex(snapshot => snapshot.timestamp === currSnapshot)
       if(next){
-        const newIndex = snapshotIndex+1;
-        if (newIndex > snapshots.length-1){
-          throwCustomError("This is the most recent snapshot")
-          //return;
+        if (currSnapshot === allSnapshots.length-1){
+          throwCustomError("This is the most recent snapshot");
+          return;
         } 
+        else{
+          setCurrSnapshot(currSnapshot + 1);
+        }
 
-        fetch(databaseUrl + `networks/${networkID}/snapshots/${snapshots[snapshotIndex]["timestamp"]}`, options)
+
+      }
+      else{
+        if (currSnapshot === 0){
+          throwCustomError("This is the earliest snapshot");
+          return;
+        } 
+        else{
+          setCurrSnapshot(currSnapshot - 1);
+        }
+      }
+
+      fetch(databaseUrl + `networks/${networkID}/snapshots/${allSnapshots[currSnapshot]["timestamp"]}`, options)
         .then((res) => {
           if (!res.ok) {
             throwCustomError(res.status + ":" + res.statusText);
@@ -256,6 +277,7 @@ const LayoutFlow = (params: LayoutFlowProps) => {
             if (data["status"] === 200) {
               setNodes([]);
               setEdges([]);
+
               let newNetworkData = data["content"];
 
               let newNodes = [];
@@ -281,12 +303,9 @@ const LayoutFlow = (params: LayoutFlowProps) => {
                 };
                 newEdges.push(edge);
               }
-          
-              console.log(newNodes);
-              //console.log(newEdges);
-              console.log("changing nodes");
               setNodes(newNodes);
               setEdges(newEdges);
+              onLayout("LR");
 
             } else {
               setNetworkData([]);
@@ -296,21 +315,12 @@ const LayoutFlow = (params: LayoutFlowProps) => {
           .catch((error) => {
             throwCustomError("Network Error: Something has gone wrong.");
           });
-        
-
-      }
-      else{
-
-      }
-
-      console.log(currSnapshot);
-      console.log(snapshots);
-      console.log(snapshotIndex);
   
     } catch (error) {
-      throwCustomError("Network Error: Something has gone wrong.");
+      throwCustomError("Snapshot Unavailable.");
     }
-
+    console.log("NEW: ");
+    console.log(allSnapshots[currSnapshot]);
     return;
 
   }
@@ -333,13 +343,19 @@ const LayoutFlow = (params: LayoutFlowProps) => {
       <Background />
       <Controls />
       <Panel position="top-right">
-      <Button onClick={(event) => {event.preventDefault();getSnapshot(true);}}>Next Snap</Button>
         <Button onClick={() => onLayout("TB")}>vertical layout</Button>
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
         <Button>
           {" "}
           <Link to={"../../DeviceListView/" + networkID}>List View </Link>
         </Button>
+      </Panel>
+      <Panel position="bottom-right">
+        <div className="flex">
+          <Button onClick={(event) => {event.preventDefault();getSnapshot(false);}}>Prev Snap</Button>
+          <p className="bg-primary text-primary-foreground shadow w-10">{currSnapshot+1}/{allSnapshots.length}</p>
+          <Button onClick={(event) => {event.preventDefault();getSnapshot(true);}}>Next Snap</Button>
+        </div>
       </Panel>
     </ReactFlow>
   );
