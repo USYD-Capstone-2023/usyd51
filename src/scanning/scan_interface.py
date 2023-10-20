@@ -144,6 +144,7 @@ def run_scan(network_id, settings, auth):
     scans = [
         {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
         {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_website_status", "func" : nt.add_website_status,  "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
         {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], settings["ports"]]},
