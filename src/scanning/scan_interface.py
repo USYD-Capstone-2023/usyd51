@@ -21,8 +21,8 @@ import time
 # Total number of threads spawned for the threadpool
 NUM_THREADS = 50
 
-# log = logging.getLogger('werkzeug')
-# log.setLevel(logging.ERROR)
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 
@@ -71,7 +71,7 @@ DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]
 daemon_scan_rate = 60
 
 # The default settings that a new user gets
-default_settings = {
+daemon_settings = {
     "TCP"                     : True,
     "UDP"                     : True, 
     "ports"                   : [22,23,80,443],
@@ -81,13 +81,12 @@ default_settings = {
     "run_mac_vendor"          : True,
     "run_trace"               : True,
     "run_vertical_trace"      : True,
+    "run_website"             : True,
     "defaultView"             : "grid",
     "defaultNodeColour"       : "0FF54A",
     "defaultEdgeColour"       : "32FFAB",
     "defaultBackgroundColour" : "320000"
 }
-
-daemon_settings = default_settings
 
 
 def create_response(message, code, content=""):
@@ -102,15 +101,14 @@ def require_auth(func):
     @wraps(func)
     def decorated(*args, **kwargs):
         
-        # auth = None
-        # if "Auth-Token" in request.headers:
-        #     auth = request.headers["Auth-Token"]
-        # else:
-        #     return create_response("Authentication token not in request headers.", 401)
+        auth = None
+        if "Auth-Token" in request.headers:
+            auth = request.headers["Auth-Token"]
+        else:
+            return create_response("Authentication token not in request headers.", 401)
         
-        # # Run the decorated function
-        # return func(auth, *args, **kwargs)
-        return func("auf", *args, **kwargs)
+        # Run the decorated function
+        return func(auth, *args, **kwargs)
     
     return decorated
 
