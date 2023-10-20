@@ -27,6 +27,7 @@ type NetworkElement = {
   hostname: string;
   parent: string;
   ports: string;
+  website: string;
 };
 
 interface LayoutFlowProps {
@@ -45,8 +46,6 @@ function throwCustomError(message: any) {
   });
   window.dispatchEvent(errorEvent);
 }
-
-
 
 
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));

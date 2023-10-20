@@ -134,15 +134,10 @@ const SettingsMenu = (props: any) => {
   const [tcpSetting, setTCP] = useState(settings_json["TCP"]);
   const [portsSetting, setPorts] = useState([]);
   const [osSetting, setOS] = useState(settings_json["run_os"]);
-  const [hostnameSetting, setHostname] = useState(
-    settings_json["run_hostname"]
-  );
-  const [macvendorSetting, setMacVendor] = useState(
-    settings_json["run_mac_vendor"]
-  );
-  const [verttraceSetting, setVertTrace] = useState(
-    settings_json["run_vertical_trace"]
-  );
+  const [hostnameSetting, setHostname] = useState(settings_json["run_hostname"]);
+  const [macvendorSetting, setMacVendor] = useState(settings_json["run_mac_vendor"]);
+  const [websiteStatusSetting, setWebsiteStatus] = useState(settings_json["run_website_status"]);
+  const [verttraceSetting, setVertTrace] = useState(settings_json["run_vertical_trace"]);
   const [defaultviewSetting, setDefaultView] = useState(settings_json["defaultView"]);
 
   // DAEMON SETTINGS
@@ -151,15 +146,10 @@ const SettingsMenu = (props: any) => {
   const [d_tcpSetting, setdTCP] = useState(settings_json["daemon_TCP"]);
   const [d_portsSetting, setdPorts] = useState([]);
   const [d_osSetting, setdOS] = useState(settings_json["daemon_run_os"]);
-  const [d_hostnameSetting, setdHostname] = useState(
-    settings_json["daemon_run_hostname"]
-  );
-  const [d_macvendorSetting, setdMacVendor] = useState(
-    settings_json["daemon_run_mac_vendor"]
-  );
-  const [d_verttraceSetting, setdVertTrace] = useState(
-    settings_json["daemon_run_vertical_trace"]
-  );
+  const [d_websiteStatusSetting, setdWebsiteStatus] = useState(settings_json["daemon_run_website_status"]);
+  const [d_hostnameSetting, setdHostname] = useState(settings_json["daemon_run_hostname"]);
+  const [d_macvendorSetting, setdMacVendor] = useState(settings_json["daemon_run_mac_vendor"]);
+  const [d_verttraceSetting, setdVertTrace] = useState(settings_json["daemon_run_vertical_trace"]);
 
   const [ scanIP, setScanIP ] = useState("");
 
@@ -194,6 +184,7 @@ const SettingsMenu = (props: any) => {
           setMacVendor(data["content"]["run_mac_vendor"]);
           setVertTrace(data["content"]["run_vertical_trace"]);
           setPorts(data["content"]["ports"]);
+          setWebsiteStatus(data["content"]["run_website_status"])
 
           setdScanrate(data["content"]["daemon_scan_rate"]);
           setdUDP(data["content"]["daemon_UDP"]);
@@ -203,6 +194,7 @@ const SettingsMenu = (props: any) => {
           setdMacVendor(data["content"]["daemon_run_mac_vendor"]);
           setdVertTrace(data["content"]["daemon_run_vertical_trace"]);
           setdPorts(data["content"]["daemon_ports"]);
+          setdWebsiteStatus(data["content"]["daemon_run_website_status"])
 
           setScanIP(data["content"]["scan_server_ip"]);
           setDefaultView(data["content"]["defaultView"])
@@ -371,6 +363,12 @@ const SettingsMenu = (props: any) => {
                       c={verttraceSetting}
                       onc={setVertTrace}
                     />
+                    <SettingsSwitch
+                      switchName="Website Hosting Status"
+                      settingname="run_website_status"
+                      c={websiteStatusSetting}
+                      onc={setWebsiteStatus}
+                    />
 
                   </div>             
                 </CardContent>
@@ -522,6 +520,12 @@ const SettingsMenu = (props: any) => {
                       settingname="daemon_run_vertical_trace"
                       c={d_verttraceSetting}
                       onc={setdVertTrace}
+                    />
+                    <SettingsSwitch
+                      switchName="Website Hosting Status"
+                      settingname="daemon_run_website_status"
+                      c={d_websiteStatusSetting}
+                      onc={setdWebsiteStatus}
                     />
 
                     <div className="flex items-center justify-start space-x-2 w-1/3 p-4 m-0">

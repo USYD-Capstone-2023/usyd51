@@ -705,7 +705,7 @@ class PostgreSQL_database:
         if not self.__contains_settings(user_id):
             return Response("no_user")
 
-        attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, run_website_status" + \
+        attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, run_website_status, " + \
                 "run_trace, run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
                 "daemon_run_ports, daemon_run_os, daemon_run_hostname, daemon_run_mac_vendor, daemon_run_website_status, " + \
                 "daemon_run_trace, daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
@@ -753,6 +753,8 @@ class PostgreSQL_database:
         for key, datatype in self.settings_format.items():
             if key not in settings.keys() or not isinstance(settings[key], datatype):
                 #TODO - Check ports formats, frontend settings format
+                print(key)
+                print(datatype)
                 return Response("malformed_settings")
 
         params = (settings["TCP"],
@@ -837,7 +839,7 @@ class PostgreSQL_database:
                         daemon_run_os = %s,
                         daemon_run_hostname = %s,
                         daemon_run_mac_vendor = %s,
-                        deamon_run_website_status = %s,
+                        daemon_run_website_status = %s,
                         daemon_run_trace = %s,
                         daemon_run_vertical_trace = %s,
                         daemon_scan_rate = %s,
@@ -1204,7 +1206,7 @@ class PostgreSQL_database:
                             daemon_run_os BOOLEAN NOT NULL,
                             daemon_run_hostname BOOLEAN NOT NULL,
                             daemon_run_mac_vendor BOOLEAN NOT NULL,
-                            daemon run_website_status BOOLEAN NOT NULL,
+                            daemon_run_website_status BOOLEAN NOT NULL,
                             daemon_run_trace BOOLEAN NOT NULL,
                             daemon_run_vertical_trace BOOLEAN NOT NULL,
                             daemon_scan_rate INTEGER NOT NULL,

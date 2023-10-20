@@ -151,7 +151,7 @@ def run_scan(network_id, settings, auth):
     ]
 
     for scan in scans:
-        if settings[scan["setting"]]:
+        if scan["setting"] in settings.keys() and settings[scan["setting"]]:
             scan["func"](*scan["args"])
             res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
             if res.status_code != 200:
