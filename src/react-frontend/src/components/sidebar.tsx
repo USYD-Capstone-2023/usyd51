@@ -24,11 +24,6 @@ const Sidebar = (props: any) => {
             <Network></Network>
           </Button>
         </Link>
-        <Link to="/Settings">
-          <Button className="py-10 text-gray-900 shadow-none">
-            <Cog></Cog>
-          </Button>
-        </Link>
         <Link to="/Daemon">
           <Button className="py-10 text-gray-900 shadow-none">
             <BarChart2></BarChart2>
@@ -37,9 +32,11 @@ const Sidebar = (props: any) => {
         <DarkMode></DarkMode>
       </div>
       <div className="flex flex-col justify-end items-center">
-        <Button className="py-10 text-gray-900 shadow-none">
-          <UserCircle></UserCircle>
-        </Button>
+        <Link to="/Settings">
+          <Button className="py-10 text-gray-900 shadow-none">
+            <Cog></Cog>
+          </Button>
+        </Link>
         <Link to="/">
           <Button className="py-10 text-gray-900 shadow-none">
             <LogOut></LogOut>

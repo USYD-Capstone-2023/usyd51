@@ -1,5 +1,6 @@
 import { Handle, Position } from "reactflow";
 import { Card, CardContent, CardHeader } from "../ui/card";
+import {FileInput} from "lucide-react";
 
 const SimpleNode = ({
   data,
@@ -35,8 +36,16 @@ const SimpleNode = ({
         position={targetPosition}
         isConnectable={isConnectable}
       />
+
       <Card>
-        <CardHeader>{nodeTitle}</CardHeader>
+        {(data.website !== "unknown" && data.website!== "Not Hosted") && (
+          <FileInput style={{ position: "absolute", margin: "3", color: "green", }}></FileInput>
+        )}
+        <CardHeader style={{ display: 'flex', alignItems: 'center' }}>
+
+        {nodeTitle}
+
+        </CardHeader>
         {selected && (
           <CardContent>
             <div>
@@ -48,7 +57,7 @@ const SimpleNode = ({
                 <li>OS Vendor: {data.os_vendor}</li>
                 <li>OS Type: {data.os_type}</li>
                 <li>Hostname:  {data.hostname}</li>
-                <li>Website: {data.website!="Not Hosted" || data.website!="unknown" ? (<a href={data.website}>{data.website}</a>) : (data.website)}</li>
+                <li>Website: {data.website!="Not Hosted" && data.website!="unknown" ? (<button><a href={data.website} target="_blank" style={{color: "blue"}}>{data.website}</a></button>) : (data.website)}</li>
                 <li>Parent: {data.parent}</li>
                 {data.ports !== undefined && (
                   <li>
