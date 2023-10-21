@@ -100,12 +100,8 @@ class NetTools:
             return os.popen("iwconfig " + iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
         elif current_system == "Windows":
-            out = os.popen('netsh wlan show interfaces | findstr /c:" SSID"').read()[:-1]
-            ssid = out.split(":")[-1][1:]
-
-            if len(ssid) == 0:
-                out = os.popen('netsh lan show interfaces | findstr /c:" SSID"').read()[:-1]
-                ssid = out.split(":")[-1][1:]
+            ssid = subprocess.check_output("powershell.exe (get-netconnectionProfile).Name", shell=True)
+            ssid = ssid.decode("utf-8").split("\n")[-2].strip()
 
             if len(ssid) == 0:
                 return "new network"
@@ -119,6 +115,7 @@ class NetTools:
     # Updates the mac vendor field of all devices in the current network's table of the database
     def add_mac_vendors(self, network, lb):
 
+        print("[INFO] Getting MAC vendors...")
         # Set loading bar
         lb.set_params("mac_vendor", 40, len(network.devices.keys()))
         lb.show()
@@ -129,6 +126,7 @@ class NetTools:
             lb.increment()
             lb.show()
 
+        print("[INFO] MAC vendor resolution complete!")
         lb.reset()
 
     # ---------------------------------------------- ARP SCANNING ---------------------------------------------- #
@@ -306,7 +304,6 @@ class NetTools:
             lb.show()
 
         mutex.release()
-        print("[INFO] Traceroute complete!")
 
         to_add = []
         # Parses output
@@ -334,11 +331,13 @@ class NetTools:
         for device in to_add:
             network.devices[device.mac] = device
 
+        print("[INFO] Traceroute complete!")
         lb.reset()
 
 
     def vertical_traceroute(self, network, iface=conf.iface, target_host="8.8.8.8"):
 
+        print("[INFO] Running vertical traceroute...")
         # Run traceroute to google's DNS server
         traceroute_results = self.traceroute_helper(target_host, network.dhcp_server_info["router"], iface)
         # Print the traceroute results
@@ -357,6 +356,9 @@ class NetTools:
                 new_device = Device(ip, mac)
                 new_device.parent = traceroute_results[i+1]
                 network.devices[mac] = new_device
+
+        print("[INFO] Vertical traceroute complete!")
+        
 
     # ---------------------------------------------- WEBSITE STATUS ---------------------------------------------- #
 
@@ -423,7 +425,6 @@ class NetTools:
             job_id += 1
 
         print("[INFO] Website status check complete!")
-
         # Reset loading bar for next task. Enables frontend to know job is complete.
         lb.reset()
         
@@ -525,6 +526,7 @@ class NetTools:
     # Retrieves the hostnames of all devices on the network and saves them to the database
     def add_hostnames(self, network, lb):
 
+        print("[INFO] Resolving IPs to hostnames...")
         # Set loading bar
         lb.set_params("hostnames", 40, len(network.devices.keys()))
         lb.show()
@@ -571,7 +573,6 @@ class NetTools:
             job_counter += 1
 
         print("[INFO] Name resolution complete!")
-
         # Reset loading bar for next task. Enables frontend to know job is complete.
         lb.reset()
 
@@ -583,7 +584,6 @@ class NetTools:
     def get_dhcp_server_info(self, ):
 
         print("[INFO] Retrieveing DHCP server info...")
-
         gws = netifaces.gateways()
 
         # Failsafe defaults in the event that there is no network connection
@@ -670,6 +670,7 @@ class NetTools:
 
     def add_ports(self, network, lb, ports, iface=conf.iface):
 
+        print("[INFO] Starting port scan...")
         if ports == []:
             return
         
@@ -721,3 +722,6 @@ class NetTools:
 
             device.ports = ports_open
             job_counter += 1
+
+        print("[INFO] Port scan complete!")
+        lb.reset()
