@@ -40,27 +40,14 @@ class ProgressUI:
         self.bar_length = bar_length
         self.bars = bars
         uc.initscr()
-        # mx, my = uc.getmaxyx(uc.stdscr)
-        uc.stdscr = uc.newwin(len(bars) + 2, 100, 10, 0)
-        uc.start_color()
+        y, x = uc.getmaxyx(uc.stdscr)
+        self.height = len(bars) + 2
+        uc.stdscr = uc.newwin(self.height, x, 0, 0)
+
         self.pad_label = 0
         for bar in self.bars.values():
             self.pad_label = max(self.pad_label, len(bar.label) + 1)
 
-
-    def set_params(self, label, length, total_value):
-        # total length of progress bar in chars
-        self.length = length 
-        # "full" value of progress bar
-        self.total_value = total_value 
-        self.label = label
-        self.progress = 0
-
-    def get_bar(self, key):
-
-        if key in self.bars.keys():
-            return self.bars[key]
-        return None
 
     # Draws progress bar
     def show(self):
@@ -89,9 +76,11 @@ class ProgressUI:
 
         uc.refresh()
 
+
     def end(self):
 
-        del self.scr
+        uc.endwin()
+        uc.delwin(uc.stdscr)
 
 
     def get_progress(self):

@@ -141,6 +141,8 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
+    print(f"[INFO] Scan started...")
+
     # Initialises network
     network = nt.init_scan(network_id)
 
@@ -180,24 +182,26 @@ def run_scan(network_id, settings, auth):
             continue
 
         lb.set_total(len(network.devices))
-        
+
     loading_bars[auth].show()
 
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        loading_bars[auth].end()
         del loading_bars[auth]
         return
 
     network_id = json.loads(res.content.decode("utf-8"))["content"]
     network.network_id = network_id
 
-
     if "run_mac_vendor" in settings.keys():
         nt.add_mac_vendors(network, loading_bars[auth], bars["MAC_vendors"])
         res = update_network(network, auth)
         if res != True:
+            loading_bars[auth].end()
+            del loading_bars[auth]
             return res
 
     parallel_scans = [
@@ -205,25 +209,25 @@ def run_scan(network_id, settings, auth):
          "func"         : nt.dispatch_website_scan,
          "args"         : [network],
          "update_func"  : nt.update_website_status,
-         "lb"           : bars["website_hosting_scan"]},
+         "lb"           : None if "website_hosting_scan" not in bars.keys() else bars["website_hosting_scan"]},
 
         {"setting"      : "run_hostname",
          "func"         : nt.dispatch_hostname_scan,
          "args"         : [network],
          "update_func"  : nt.update_hostnames,
-         "lb"           : bars["hostname_resolution"]},
+         "lb"           : None if "hostname_resolution" not in bars.keys() else bars["hostname_resolution"]},
 
         {"setting"      : "run_os",
          "func"         : nt.dispatch_os_scan,
          "args"         : [network],
          "update_func"  : nt.update_os,
-         "lb"           : bars["os_scan"]},
+         "lb"           : None if "os_scan" not in bars.keys() else bars["os_scan"]},
 
         {"setting"      : "run_ports",
          "func"         : nt.dispatch_port_scan,
          "args"         : [network, settings["ports"]],
          "update_func"  : nt.update_ports,
-         "lb"           : bars["port_scan"]},
+         "lb"           : None if "port_scan" not in bars.keys() else bars["port_scan"]},
     ]
     
     thread_attrs = {}
@@ -251,6 +255,8 @@ def run_scan(network_id, settings, auth):
                     scan_attr.update_func(network, scan_attr.ret)
                     res = update_network(network, auth)
                     if res != True:
+                        loading_bars[auth].end()
+                        del loading_bars[auth]
                         return res
         
         loading_bars[auth].show()
@@ -259,8 +265,9 @@ def run_scan(network_id, settings, auth):
 
         time.sleep(0.1)
 
-    print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
+    loading_bars[auth].end()
     del loading_bars[auth]
+    print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
     return network
 
 
@@ -328,7 +335,7 @@ def scan_network(auth, network_id):
 @require_auth
 def start_daemon(auth, network_id):
 
-    global daemon_running, daemon_network_id, daemon_sleep, daemon_scan_rate
+    global daemon_running, daemon_network_id, daemon_sleep, daemon_scan_rate, daemon_settings
     # Checks that the entered network id is valid
     network_id = validate_network_id(network_id)
     if network_id == None:
@@ -343,7 +350,7 @@ def start_daemon(auth, network_id):
     daemon_network_id = network_id
     daemon_running = True
     daemon_sleep.set()
-    print("[INFO] Daemon started scanning %d..." % network_id)
+    print("[INFO] Daemon started scanning network %d..." % network_id)
     return create_response("Success", 200)
 
 

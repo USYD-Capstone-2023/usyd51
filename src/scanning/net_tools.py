@@ -494,7 +494,6 @@ class NetTools:
     # Gets the gateway, interface, subnet mask and domain name of the current network
     def get_dhcp_server_info(self, ):
 
-        print("[INFO] Retrieveing DHCP server info...")
         gws = netifaces.gateways()
 
         # Failsafe defaults in the event that there is no network connection
