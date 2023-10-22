@@ -14,9 +14,9 @@ from threadpoolAttr import ThreadpoolAttr
 import logging, json, sys, threading, time
 from functools import wraps
 
-# Hides flask output logging
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+# # Hides flask output logging
+# log = logging.getLogger('werkzeug')
+# log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 
@@ -68,6 +68,9 @@ daemon_scan_rate = 60
 
 # Settings for daemon scans, fills in from remote db when running
 daemon_settings = {}
+
+ui = ProgressUI(40)
+
 
 def create_response(message, code, content=""):
 
@@ -141,8 +144,6 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
-    print(f"[INFO] Scan started...")
-
     # Initialises network
     network = nt.init_scan(network_id)
 
@@ -160,22 +161,20 @@ def run_scan(network_id, settings, auth):
         if setting in settings.keys():
             bars[lb_map[setting]] = LoadingBar(lb_map[setting], -1)
 
-    loading_bars[auth] = ProgressUI(40, bars)
-
+    loading_bars[auth] = bars
+    ui.add_bars(auth, bars)
 
     # Retrieves devices
-    nt.add_devices(network, loading_bars[auth], bars["ARP_scan"])
+    nt.add_devices(network, bars["ARP_scan"])
     bars["traceroute"].set_total(len(network.devices))
-    loading_bars[auth].show()
 
     # Runs basic traceroute
-    nt.add_routes(network, loading_bars[auth], bars["traceroute"])
+    nt.add_routes(network, bars["traceroute"])
 
     if "run_vertical_trace" in settings.keys():
         bars["vertical_traceroute"].set_total(1)
         nt.vertical_traceroute(network)
         bars["vertical_traceroute"].set_progress(1)
-        loading_bars[auth].show()
 
     for lb in bars.values():
         if lb.label in ["ARP_scan", "traceroute", "vertical_traceroute"]:
@@ -183,13 +182,11 @@ def run_scan(network_id, settings, auth):
 
         lb.set_total(len(network.devices))
 
-    loading_bars[auth].show()
-
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
-        loading_bars[auth].end()
+        ui.rm_bars(auth)
         del loading_bars[auth]
         return
 
@@ -197,10 +194,10 @@ def run_scan(network_id, settings, auth):
     network.network_id = network_id
 
     if "run_mac_vendor" in settings.keys():
-        nt.add_mac_vendors(network, loading_bars[auth], bars["MAC_vendors"])
+        nt.add_mac_vendors(network, bars["MAC_vendors"])
         res = update_network(network, auth)
         if res != True:
-            loading_bars[auth].end()
+            ui.rm_bars(auth)
             del loading_bars[auth]
             return res
 
@@ -255,19 +252,17 @@ def run_scan(network_id, settings, auth):
                     scan_attr.update_func(network, scan_attr.ret)
                     res = update_network(network, auth)
                     if res != True:
-                        loading_bars[auth].end()
+                        ui.rm_bars(auth)
                         del loading_bars[auth]
                         return res
         
-        loading_bars[auth].show()
         if done:
             break
 
         time.sleep(0.1)
 
-    loading_bars[auth].end()
+    ui.rm_bars(auth)
     del loading_bars[auth]
-    print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
     return network
 
 
@@ -350,7 +345,6 @@ def start_daemon(auth, network_id):
     daemon_network_id = network_id
     daemon_running = True
     daemon_sleep.set()
-    print("[INFO] Daemon started scanning network %d..." % network_id)
     return create_response("Success", 200)
 
 
@@ -362,7 +356,6 @@ def end_daemon(auth):
     if daemon_running:
         daemon_running = False
         daemon_sleep.clear()
-        print("[INFO] Daemon stopping after current scan...")
         return create_response("Success", 200)
     
     return create_response("Daemon not running", 500)
@@ -406,7 +399,7 @@ def get_daemon_progress(auth):
 def get_progress(auth):
 
     if auth in loading_bars.keys():
-        return create_response("success", 200, content=loading_bars[auth].get_progress())
+        return create_response("success", 200, content={x.label : x.to_json() for x in loading_bars[auth].values()})
     
     return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 
@@ -447,10 +440,7 @@ def daemon_get_auth():
 # Starts the scanning daemon for the network that this server is connected to
 def run_daemon():
 
-    print("[INFO] Daemon is starting!")
-
     while True:
-
         token = daemon_get_auth()
         if not token:
             count = 0
@@ -465,7 +455,6 @@ def run_daemon():
 
         # Sleeps until there is a client to scan for
         if not daemon_running:
-            print("[INFO] Daemon is waiting...")
             daemon_sleep.clear()
             daemon_sleep.wait()
 
@@ -475,10 +464,20 @@ def run_daemon():
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)
 
+def run_ui():
+
+    while True:
+        ui.show()
+        time.sleep(0.1)
+
 
 if __name__ == "__main__":
 
     daemon_thread = threading.Thread(target=run_daemon)
     daemon_thread.daemon = True
     daemon_thread.start()
+
+    ui_thread = threading.Thread(target=run_ui)
+    ui_thread.daemon = True
+    ui_thread.start()
     app.run(host=app.config["SERVER_HOST"], port=app.config["SERVER_PORT"])

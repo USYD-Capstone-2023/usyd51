@@ -117,13 +117,12 @@ class NetTools:
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
     # Updates the mac vendor field of all devices in the current network's table of the database
-    def add_mac_vendors(self, network, progressUI, lb):
+    def add_mac_vendors(self, network, lb):
 
         # Adds mac vendor to device and saves to database
         for device in network.devices.values():
             device.mac_vendor = self.mac_table.find_vendor(device.mac)
             lb.increment()
-            progressUI.show()
 
     # ---------------------------------------------- ARP SCANNING ---------------------------------------------- #
 
@@ -150,7 +149,7 @@ class NetTools:
 
 
     # Gets all active active devices on the network
-    def add_devices(self, network, progressUI, lb, iface=conf.iface):
+    def add_devices(self, network, lb, iface=conf.iface):
 
         # Breaks subnet and gateway ip into bytes
         sm_split = network.dhcp_server_info["subnet_mask"].split(".")
@@ -208,7 +207,6 @@ class NetTools:
         while counter_ptr[0] < num_addrs:
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            progressUI.show()
 
         mutex.release()
 
@@ -246,7 +244,7 @@ class NetTools:
 
 
     # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
-    def add_routes(self, network, progressUI, lb, iface=conf.iface):
+    def add_routes(self, network, lb, iface=conf.iface):
 
         # Retrieve network devices from database
         device_addrs = set()
@@ -284,7 +282,6 @@ class NetTools:
         while counter_ptr[0] < len(network.devices.keys()):
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            progressUI.show()
 
         mutex.release()
 
@@ -393,7 +390,7 @@ class NetTools:
 
         nm = nmap3.Nmap()
         # Performs scan
-        data = nm.nmap_os_detection(ip, args="--script-timeout 20")
+        data = nm.nmap_os_detection(ip, args="--script-timeout 20 --host-timeout 20")
 
         os_info = {"os_type": "unknown", "os_vendor": "unknown", "os_family": "unknown"}
 
