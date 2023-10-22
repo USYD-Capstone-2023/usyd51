@@ -151,6 +151,8 @@ class NetTools:
     # Gets all active active devices on the network
     def add_devices(self, network, lb, iface=conf.iface):
 
+        lb.state = "RUNNING"
+
         # Breaks subnet and gateway ip into bytes
         sm_split = network.dhcp_server_info["subnet_mask"].split(".")
         gateway_split = network.dhcp_server_info["router"].split(".")
@@ -216,6 +218,9 @@ class NetTools:
             mac = returns[i][1]
             if mac and ip and mac not in network.devices.keys():
                 network.devices[mac] = Device(ip, mac)
+
+        lb.state = "DONE!"
+        
 
 
     # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #

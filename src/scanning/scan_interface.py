@@ -108,8 +108,8 @@ def require_auth(func):
 # Retrieves a given user's settings from the database, adds them if they are non existent
 def get_settings(auth, daemon=False):
 
+    print()
     res = requests.get(DB_SERVER_URL + "/settings", headers={"Auth-Token" : auth})
-
     if res.status_code != 200:
         return None
 
@@ -126,6 +126,7 @@ def get_settings(auth, daemon=False):
             "run_mac_vendor"     : settings["daemon_run_mac_vendor"],
             "run_trace"          : settings["daemon_run_trace"],
             "run_vertical_trace" : settings["daemon_run_vertical_trace"],
+            "run_website_status" : settings["daemon_run_website_status"],
             }, settings["daemon_scan_rate"]
 
     return settings
@@ -144,8 +145,7 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
-    # Initialises network
-    network = nt.init_scan(network_id)
+    global loading_bars
 
     lb_map = {"run_vertical_trace" : "vertical_traceroute",
               "run_mac_vendor"     : "MAC_vendors",
@@ -163,6 +163,9 @@ def run_scan(network_id, settings, auth):
 
     loading_bars[auth] = bars
     ui.add_bars(auth, bars)
+
+    # Initialises network
+    network = nt.init_scan(network_id)
 
     # Retrieves devices
     nt.add_devices(network, bars["ARP_scan"])
@@ -312,7 +315,7 @@ def scan_network(auth, network_id):
     # Retrieves users scanning preferences
     settings = get_settings(auth)
     if settings == None:
-        return create_response("Malformed settings, automatic reset has failed. Please contact system administrator.", 500)
+        return create_response("Invalid scan settings retrieved from database, possible version mismatch. Aborting...", 500)
 
     # Checks if user is already running a scan
     if auth in loading_bars.keys():
@@ -398,6 +401,7 @@ def get_daemon_progress(auth):
 @require_auth
 def get_progress(auth):
 
+    global loading_bars
     if auth in loading_bars.keys():
         return create_response("success", 200, content={x.label : x.to_json() for x in loading_bars[auth].values()})
     

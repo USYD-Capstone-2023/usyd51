@@ -31,7 +31,14 @@ class LoadingBar:
 
 
     def to_json(self):
-        return {"label" : self.label, "progress" : self.progress, "total_value" : self.total_value}
+        state = "RUNNING"
+        if self.total_value == -1:
+            state = "WAITING"
+
+        elif self.total_value == self.progress:
+            state = "DONE"
+        
+        return {"label" : self.label, "progress" : self.progress, "total" : max(0, self.total_value), "state" : state}
     
 
 # Functions as a loading bar
