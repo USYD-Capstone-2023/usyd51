@@ -100,9 +100,13 @@ class NetTools:
             return os.popen("iwconfig " + iface + " | grep ESSID | awk '{print $4}' | sed 's/" + '"' + "//g' | sed 's/.*ESSID://'").read()[:-1]
 
         elif current_system == "Windows":
-            ssid = subprocess.check_output("powershell.exe (get-netconnectionProfile).Name", shell=True)
-            ssid = ssid.decode("utf-8").split("\n")[-2].strip()
+            ssid = subprocess.check_output("powershell.exe (get-netconnectionProfile)", shell=True). decode("utf-8")
 
+            for entry in ssid.split("\r\n\r\n"):
+                if "IPv4Connectivity         : Internet" in entry:
+                    ssid = entry.split(":")[1].split("\r")[0].strip()
+                    break
+            
             if len(ssid) == 0:
                 return "new network"
             
