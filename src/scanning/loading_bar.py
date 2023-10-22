@@ -1,7 +1,7 @@
 import sys
 
 # Functions as a loading bar
-class Loading_bar:
+class LoadingBar:
 
     progress = 0
     total_value = 0

@@ -5,22 +5,15 @@ from flask_cors import CORS
 from Crypto.Hash import SHA256
 
 # Local
-import net_tools as nt
+from net_tools import NetTools
 from config import Config
-from loading_bar import Loading_bar
-from threadpool import Threadpool
+from loading_bar import LoadingBar
 
 # Stdlib
-import logging
-import json, sys
-import threading
+import logging, json, sys, threading, time
 from functools import wraps
-import json
-import time
 
-# Total number of threads spawned for the threadpool
-NUM_THREADS = 50
-
+# Hides flask output logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
@@ -54,7 +47,6 @@ else:
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
-tp = Threadpool(NUM_THREADS)
 daemon_sleep = threading.Event()
 daemon_sleep.set()
 daemon_running = False
@@ -66,6 +58,9 @@ daemon_clients = set()
 pending_daemon_clients = set()
 
 DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]
+
+# Creates a new instance of the scanning tool suite with 50 threads
+nt = NetTools(50)
 
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
@@ -152,18 +147,17 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
-    loading_bars[auth] = Loading_bar()
+    loading_bars[auth] = LoadingBar()
 
     # Initialises network
     network = nt.init_scan(network_id)
     # Retrieves devices
-    nt.add_devices(network, tp, loading_bars[auth])
+    nt.add_devices(network, loading_bars[auth])
     # Runs basic traceroute
-    nt.add_routes(network, tp, loading_bars[auth])
+    nt.add_routes(network, loading_bars[auth])
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
-        print(auth)
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
         del loading_bars[auth]
         return
@@ -174,10 +168,10 @@ def run_scan(network_id, settings, auth):
     scans = [
         {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
         {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
-        {"setting" : "run_website_status", "func" : nt.add_website_status,  "args" : [network, tp, loading_bars[auth]]},
-        {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, tp, loading_bars[auth]]},
-        {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, tp, loading_bars[auth]]},
-        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, tp, loading_bars[auth], settings["ports"]]},
+        {"setting" : "run_website_status", "func" : nt.add_website_status,  "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, loading_bars[auth]]},
+        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, loading_bars[auth], settings["ports"]]},
     ]
 
     for scan in scans:
