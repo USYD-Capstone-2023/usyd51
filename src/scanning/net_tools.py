@@ -117,12 +117,13 @@ class NetTools:
     # ---------------------------------------------- MAC VENDOR ---------------------------------------------- #
 
     # Updates the mac vendor field of all devices in the current network's table of the database
-    def add_mac_vendors(self, network, lb):
+    def add_mac_vendors(self, network, progressUI, lb):
 
         # Adds mac vendor to device and saves to database
         for device in network.devices.values():
             device.mac_vendor = self.mac_table.find_vendor(device.mac)
             lb.increment()
+            progressUI.show()
 
     # ---------------------------------------------- ARP SCANNING ---------------------------------------------- #
 
@@ -149,7 +150,7 @@ class NetTools:
 
 
     # Gets all active active devices on the network
-    def add_devices(self, network, lb, iface=conf.iface):
+    def add_devices(self, network, progressUI, lb, iface=conf.iface):
 
         # Breaks subnet and gateway ip into bytes
         sm_split = network.dhcp_server_info["subnet_mask"].split(".")
@@ -171,12 +172,13 @@ class NetTools:
         for i in range(4):
             num_addrs *= max(last_ip[i] - first_ip[i] + 1, 1)
 
-        returns = [-1] * num_addrs
+        lb.set_total(num_addrs)
 
         # Preparing thread job parameters
         mutex = threading.Lock()
         cond = threading.Condition(lock=mutex)
         counter_ptr = [0]
+        returns = [-1] * num_addrs
 
         # The current job, for referencing the return location for the thread
         job_counter = 0
@@ -206,7 +208,7 @@ class NetTools:
         while counter_ptr[0] < num_addrs:
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            lb.show()
+            progressUI.show()
 
         mutex.release()
 
@@ -244,17 +246,11 @@ class NetTools:
 
 
     # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
-    def add_routes(self, network, lb, iface=conf.iface):
-
-        print("[INFO] Tracing Routes...")
+    def add_routes(self, network, progressUI, lb, iface=conf.iface):
 
         # Retrieve network devices from database
         device_addrs = set()
         gateway = network.dhcp_server_info["router"]
-
-        # Set loading bar
-        lb.set_params("traceroute", 40, len(network.devices.keys()))
-        lb.show()
 
         # Preparing thread job parameters
         mutex = threading.Lock()
@@ -288,7 +284,7 @@ class NetTools:
         while counter_ptr[0] < len(network.devices.keys()):
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            lb.show()
+            progressUI.show()
 
         mutex.release()
 
@@ -318,13 +314,9 @@ class NetTools:
         for device in to_add:
             network.devices[device.mac] = device
 
-        print("[INFO] Traceroute complete!")
-        lb.reset()
-
 
     def vertical_traceroute(self, network, iface=conf.iface, target_host="8.8.8.8"):
 
-        print("[INFO] Running vertical traceroute...")
         # Run traceroute to google's DNS server
         traceroute_results = self.traceroute_helper(target_host, network.dhcp_server_info["router"], iface)
         # Print the traceroute results
@@ -343,8 +335,6 @@ class NetTools:
                 new_device = Device(ip, mac)
                 new_device.parent = traceroute_results[i+1]
                 network.devices[mac] = new_device
-
-        print("[INFO] Vertical traceroute complete!")
         
 
     # ---------------------------------------------- WEBSITE STATUS ---------------------------------------------- #
@@ -361,7 +351,7 @@ class NetTools:
             return False 
         
 
-    def add_website_status(self, network, lb, attr):
+    def dispatch_website_scan(self, network, attr):
 
         # The current job, for referencing the return location for the thread
         job_counter = 0

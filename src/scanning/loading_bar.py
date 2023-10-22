@@ -1,6 +1,10 @@
-from blessings import Terminal
+import unicurses as uc
 
 class LoadingBar:
+
+    progress = -1
+    label = ""
+    total_value = -1
 
     def __init__(self, label, total_value):
         self.progress = 0
@@ -8,7 +12,7 @@ class LoadingBar:
         self.total_value = total_value
 
 
-    def update(self, progress):
+    def set_progress(self, progress):
         if progress > self.total_value:
             self.progress = self.total_value
         
@@ -29,15 +33,20 @@ class LoadingBar:
         return {"label" : self.label, "progress" : self.progress, "total_value" : self.total_value}
     
 
-
-term = Terminal()
 # Functions as a loading bar
 class ProgressUI:
-
 
     def __init__(self, bar_length, bars: dict):
         self.bar_length = bar_length
         self.bars = bars
+        uc.initscr()
+        # mx, my = uc.getmaxyx(uc.stdscr)
+        uc.stdscr = uc.newwin(len(bars) + 2, 100, 10, 0)
+        uc.start_color()
+        self.pad_label = 0
+        for bar in self.bars.values():
+            self.pad_label = max(self.pad_label, len(bar.label) + 1)
+
 
     def set_params(self, label, length, total_value):
         # total length of progress bar in chars
@@ -56,23 +65,33 @@ class ProgressUI:
     # Draws progress bar
     def show(self):
 
+        uc.erase()
+        uc.border(0)
+
         line = 0
         for bar in self.bars.values():
+            line += 1
+            label = bar.label + ":" + " " * (self.pad_label - len(bar.label))
+            uc.move(line, 1)
+            if bar.total_value == -1:
+                uc.addstr("[WAITING] %s[%s]" % (label, ' ' * self.bar_length))
+                continue
 
-            with term.location(0, line):
+            percent = 100.0 * bar.progress / bar.total_value
+            completed = int(percent / (100.0 / self.bar_length))
+            status = "RUNNING"
+            if bar.progress == bar.total_value:
+                status = "DONE!  "
 
-                if bar.total_value == -1:
-                    print("[WAITING] %s: [%s]" % (bar.label, ' ' * self.length))
-                    continue
+            bar_str = "[%s%s]" % ('-' * completed, ' ' * (self.bar_length - completed))
+            uc.addstr("[%s] %s%s %d%% (%d / %d)" % \
+                (status, label, bar_str, percent, bar.progress, bar.total_value))
 
-                percent = 100.0 * bar.progress / bar.total_value
-                completed = int(percent / (100.0 / self.length))
-                status = "RUNNING"
-                if bar.progress == bar.total_value:
-                    status = "DONE!  "
+        uc.refresh()
 
-                print("[%s] %s: [%s%s] %d%% (%d / %d)" % \
-                            (status, bar.label, '-' * completed, ' ' * (self.length - completed), percent, bar.progress, bar.total_value))
+    def end(self):
+
+        del self.scr
 
 
     def get_progress(self):
