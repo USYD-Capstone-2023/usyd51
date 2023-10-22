@@ -48,6 +48,7 @@ class ProgressUI:
 
     def resize(self):
 
+        uc.move(0, 0)
         uc.clear()
         uc.refresh()
         self.pad_label = 0
@@ -77,6 +78,7 @@ class ProgressUI:
     # Draws progress bar
     def show(self):
 
+        uc.move(0, 0)
         uc.clear()
         uc.border(0)
         if len(self.scans) == 0:

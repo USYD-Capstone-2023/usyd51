@@ -158,7 +158,7 @@ def run_scan(network_id, settings, auth):
             "traceroute"           : LoadingBar("traceroute", -1)}
     
     for setting in lb_map.keys():
-        if setting in settings.keys():
+        if setting in settings.keys() and settings[setting]:
             bars[lb_map[setting]] = LoadingBar(lb_map[setting], -1)
 
     loading_bars[auth] = bars
@@ -171,7 +171,7 @@ def run_scan(network_id, settings, auth):
     # Runs basic traceroute
     nt.add_routes(network, bars["traceroute"])
 
-    if "run_vertical_trace" in settings.keys():
+    if "run_vertical_trace" in settings.keys() and settings["run_vertical_trace"]:
         bars["vertical_traceroute"].set_total(1)
         nt.vertical_traceroute(network)
         bars["vertical_traceroute"].set_progress(1)
@@ -193,7 +193,7 @@ def run_scan(network_id, settings, auth):
     network_id = json.loads(res.content.decode("utf-8"))["content"]
     network.network_id = network_id
 
-    if "run_mac_vendor" in settings.keys():
+    if "run_mac_vendor" in settings.keys() and settings["run_mac_vendor"]:
         nt.add_mac_vendors(network, bars["MAC_vendors"])
         res = update_network(network, auth)
         if res != True:
@@ -389,7 +389,7 @@ def get_daemon_progress(auth):
 
     global daemon_auth_token
     if daemon_auth_token in loading_bars.keys():
-        return create_response("success", 200, content=loading_bars[daemon_auth_token].get_progress())
+        return create_response("success", 200, content={x.label : x.to_json() for x in loading_bars[daemon_auth_token].values()})
     
     return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 

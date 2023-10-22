@@ -102,9 +102,9 @@ const NewNetworkButton = (props: any) => {
     const options = {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        Accept: "application/json",
+        "Content-Type" : "application/json",
+        "Auth-Token" : authToken,
+        "Accept" : "application/json",
       },
     };
     if (loadingBarActive) {
@@ -117,6 +117,7 @@ const NewNetworkButton = (props: any) => {
             return res.json();
           })
           .then((data) => {
+            console.log(data)
             if (data["status"] === 200) {
               if (data["message"] == "Scan finished.") {
                 setNewNetworkId(0);
