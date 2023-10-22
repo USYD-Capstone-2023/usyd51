@@ -7,7 +7,8 @@ from Crypto.Hash import SHA256
 # Local
 from net_tools import NetTools
 from config import Config
-from loading_bar import LoadingBar
+from loading_bar import LoadingBar, ProgressUI
+from threadpoolAttr import ThreadpoolAttr
 
 # Stdlib
 import logging, json, sys, threading, time
@@ -65,23 +66,8 @@ nt = NetTools(50)
 # Number of seconds between a scan ending and a new one starting in daemon mode.
 daemon_scan_rate = 60
 
-# The default settings that a new user gets
-daemon_settings = {
-    "TCP"                     : True,
-    "UDP"                     : True, 
-    "ports"                   : [22,23,80,443],
-    "run_ports"               : True,
-    "run_os"                  : False,
-    "run_hostname"            : True,
-    "run_mac_vendor"          : True,
-    "run_trace"               : True,
-    "run_vertical_trace"      : True,
-    "run_website"             : True,
-    "defaultView"             : "grid",
-    "defaultNodeColour"       : "0FF54A",
-    "defaultEdgeColour"       : "32FFAB",
-    "defaultBackgroundColour" : "320000"
-}
+# Settings for daemon scans, fills in from remote db when running
+daemon_settings = {}
 
 
 def create_response(message, code, content=""):
@@ -147,14 +133,50 @@ def validate_network_id(network_id):
 # Automatically saves network to database on completion.
 def run_scan(network_id, settings, auth):
 
-    loading_bars[auth] = LoadingBar()
+    lb_map = {"run_mac_vendor"     : "MAC_vendors",
+              "run_website_status" : "website_hosting_scan",
+              "run_hostname"       : "hostname_resolution",
+              "run_os"             : "OS_scan",
+              "run_ports"          : "port_scan"}
+
+    bars = {"ARP_scan"             : LoadingBar("ARP_scan", -1),
+            "traceroute"           : LoadingBar("traceroute", -1)}
+    
+    for setting in settings.keys():
+        if setting in lb_map.keys():
+            bars[lb_map[setting]] = LoadingBar(lb_map[setting], -1)
+
+
+    loading_bars[auth] = ProgressUI(30, bars)
 
     # Initialises network
     network = nt.init_scan(network_id)
+
     # Retrieves devices
-    nt.add_devices(network, loading_bars[auth])
+    nt.add_devices(network, bars["ARP_scan"])
+    for lb in bars:
+        if lb.label == "ARP_scan":
+            continue
+
+        lb.set_total(len(network.devices))
+
     # Runs basic traceroute
-    nt.add_routes(network, loading_bars[auth])
+    nt.add_routes(network, bars["traceroute"])
+    for lb in bars:
+        if lb.label in ["ARP_scan", "traceroute"]:
+            continue
+
+        lb.set_total(len(network.devices))
+
+
+    if "run_vertical_trace" in settings.keys():
+        nt.vertical_traceroute(network)
+        for lb in bars:
+            if lb.label in ["ARP_scan", "traceroute"]:
+                continue
+
+            lb.set_total(len(network.devices))
+
     # Saves to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
@@ -166,22 +188,67 @@ def run_scan(network_id, settings, auth):
     network.network_id = network_id
 
     scans = [
-        {"setting" : "run_vertical_trace", "func" : nt.vertical_traceroute, "args" : [network]},
-        {"setting" : "run_mac_vendor",     "func" : nt.add_mac_vendors,     "args" : [network, loading_bars[auth]]},
-        {"setting" : "run_website_status", "func" : nt.add_website_status,  "args" : [network, loading_bars[auth]]},
-        {"setting" : "run_hostname",       "func" : nt.add_hostnames,       "args" : [network, loading_bars[auth]]},
-        {"setting" : "run_os",             "func" : nt.add_os_info,         "args" : [network, loading_bars[auth]]},
-        {"setting" : "run_ports",          "func" : nt.add_ports,           "args" : [network, loading_bars[auth], settings["ports"]]},
-    ]
+        {"setting"      : "run_mac_vendor",     
+         "func"         : nt.add_mac_vendors,
+         "args"         : [network, bars["MAC_vendors"]],
+        "update_func"   : nt.update_mac_vendors},
 
+        {"setting"      : "run_website_status",
+         "func"         : nt.dispatch_website_scan,
+         "args"         : [network, bars["website_hosting_scan"]],
+         "update_func"  : nt.update_website_status},
+
+        {"setting"      : "run_hostname",
+         "func"         : nt.dispatch_hostname_scan,
+         "args"         : [network, bars["hostname_resolution"]],
+         "update_func"  : nt.update_hostnames},
+
+        {"setting"      : "run_os",
+         "func"         : nt.dispatch_os_scan,
+         "args"         : [network, bars["OS_scan"]],
+         "update_func"  : nt.update_os},
+
+        {"setting"      : "run_ports",
+         "func"         : nt.dispatch_port_scan,
+         "args"         : [network, bars["port_scan"], settings["ports"]],
+         "update_func"  : nt.update_ports},
+    ]
+    
+    thread_attrs = {}
     for scan in scans:
         if scan["setting"] in settings.keys() and settings[scan["setting"]]:
-            scan["func"](*scan["args"])
-            res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
-            if res.status_code != 200:
-                print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
-                del loading_bars[auth]
-                return
+            thread_attrs[scan["setting"]] = ThreadpoolAttr(len(network.devices), scan["update_func"])
+            scan["func"](*scan["args"], thread_attrs[scan["setting"]])
+
+    while True:
+        
+        done = True
+        for scan_attr in thread_attrs.values():
+            if not scan_attr.batch_done:
+                done = False
+                # Updates loading bar progress
+                scan_attr.mutex.acquire()
+                if scan_attr.ctr[0] != lb.progress:
+                    lb.set_progress(scan_attr.ctr[0])
+                    if lb.progress == lb.total_value:
+                        scan_attr.batch_done = True
+
+                scan_attr.mutex.release()
+
+                if scan_attr.batch_done:
+                    scan_attr.update_func(network, scan_attr.ret)
+        
+        ProgressUI.show()
+        if done:
+            break
+
+        time.sleep(0.1)
+
+    res = requests.put(DB_SERVER_URL + "/networks/update", json=network.to_json(), headers={"Auth-Token" : auth})
+    if res.status_code != 200:
+        print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
+        del loading_bars[auth]
+        return
 
     print(f"[INFO] Successfully scanned network '{network.name}', added to database.")
     del loading_bars[auth]
