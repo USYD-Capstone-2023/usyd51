@@ -1,14 +1,16 @@
 import unittest
+import sys
 
-from backend import PostgreSQL_database
-from backend import Response
+sys.path.append("../backend")
+from database import PostgreSQL_database
+from response import Response
 
 VALID_NETWORK_KEYS = ["network_id", "ssid", "gateway_mac", "name", "devices", "timestamp"]
 VALID_NETWORK_VALUES = [1, "test_network_ssid", "12:34:56:78:90:AB", "test_network_name", {}, 0]
 VALID_DEVICE_KEYS = ["mac", "ip", "mac_vendor", "os_family", "os_vendor", "os_type", "hostname", "parent", "ports"]
 VALID_DEVICE_VALUES = ["FE:DC:BA:09:87:65", "198.162.0.1", "test_vendor", "test_os", "test_os_vendor", "test_os_type", "test_host", "test_parent", "22,80,500"]
 
-class DatabaseTester(unittest.Testcase):
+class DatabaseTester(unittest.TestCase):
 
     # template for copy pasting purpose
     """
@@ -21,8 +23,9 @@ class DatabaseTester(unittest.Testcase):
 
     # before each
     def setUp(self):
-        self.postgres = PostgreSQL_database("testing", "postgres", "root")
-        self.user_id = self.postgres.get_user_by_login({"username": "postgres","password":"root"})["user_id"]
+        self.postgres = PostgreSQL_database("testing", "postgres", "root", "127.0.0.1", 5432)
+        self.user_id = self.postgres.add_user({"username": "test","password":"test", "email":"test", "salt":""})
+        self.user_id = self.postgres.get_user_by_login("test", "test").content["user_id"]
         
         # TODO
         # some dummy data to test queries
@@ -847,7 +850,7 @@ class DatabaseTester(unittest.Testcase):
             "FE:DC:BA:09:87:69",
         ]
 
-        devices = []
+        devices = {}
 
         for i, mac in enumerate(device_macs):
             device_vals[0] = mac
