@@ -145,6 +145,7 @@ class PostgreSQL_database:
                 _ = int(byte, 16)
             except:
                 return False
+            
         return True
     
 
@@ -397,12 +398,12 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        res = self.__query(query, params, res=True)[0]
+        res = self.__query(query, params, res=True)
         if not res:
             return Response("db_error")
 
         # Formats output if the query is completed successfully
-        net_dict = dict(zip(attrs.split(", "), res))
+        net_dict = dict(zip(attrs.split(", "), res[0]))
         net_dict["timestamp"] = self.__get_most_recent_timestamp(net_dict["network_id"])
 
         return Response("success", net_dict)
