@@ -3,6 +3,7 @@ from flask import Flask, request
 from flask_cors import CORS
 import jwt
 import sys
+import os
 from functools import wraps
 from datetime import timedelta, datetime
 
@@ -32,6 +33,9 @@ elif sys.argv[1] == "local":
 elif sys.argv[1] == "testing":
     app.config.from_object("config.TestingConfig")
 
+elif sys.argv[1] == "docker-local":
+    app.config.from_object("config.DockerLocalConfig")
+
 else:
     print("Please enter either 'remote' or 'local'")
     sys.exit(-1)
@@ -39,7 +43,7 @@ else:
 CORS(app, allow_headers=["Content-Type", "Auth-Token", "Access-Control-Allow-Credentials"],
     expose_headers="Auth-Token")
 
-db = pdb(app.config["DATABASE_NAME"], "postgres", "root")
+db = pdb(app.config["POSTGRES_DB"], app.config["POSTGRES_USER"], app.config["POSTGRES_PASSWORD"], app.config["POSTGRES_HOST"], app.config["POSTGRES_PORT"])
 
 # CHECK /documentation/database_API.md FOR RETURN STRUCTURE
 

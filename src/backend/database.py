@@ -23,35 +23,58 @@ class PostgreSQL_database:
                      "os_type"    : str,
                      "hostname"   : str,
                      "parent"     : str,
+                     "website"    : str,
                      "ports"      : list}
 
-    settings_format = {"TCP"                     : bool,
-                       "UDP"                     : bool,
-                       "ports"                   : list,
-                       "run_ports"               : bool,
-                       "run_os"                  : bool,
-                       "run_hostname"            : bool,
-                       "run_mac_vendor"          : bool,
-                       "run_trace"               : bool,
-                       "run_vertical_trace"      : bool,
-                       "defaultView"             : str,
-                       "defaultNodeColour"       : str,
-                       "defaultEdgeColour"       : str,
-                       "defaultBackgroundColour" : str}
+    settings_format = {
+                        "TCP"                       : bool,
+                        "UDP"                       : bool,
+                        "ports"                     : list,
+                        "run_ports"                 : bool,
+                        "run_os"                    : bool,
+                        "run_hostname"              : bool,
+                        "run_mac_vendor"            : bool,
+                        "run_website_status"        : bool,
+                        "run_trace"                 : bool,
+                        "run_vertical_trace"        : bool,
+                        "defaultView"               : str,
+                        "daemon_TCP"                : bool,
+                        "daemon_UDP"                : bool,
+                        "daemon_ports"              : list,
+                        "daemon_run_website_status" : bool,
+                        "daemon_run_ports"          : bool,
+                        "daemon_run_os"             : bool,
+                        "daemon_run_hostname"       : bool,
+                        "daemon_run_mac_vendor"     : bool,
+                        "daemon_run_trace"          : bool,
+                        "daemon_run_vertical_trace" : bool,
+                        "daemon_scan_rate"          : int,
+                        "scan_server_ip"            : str
+                       }
     
-    default_settings = {"TCP"                     : True,
-                        "UDP"                     : True, 
-                        "ports"                   : [22,23,80,443],
-                        "run_ports"               : True,
-                        "run_os"                  : False,
-                        "run_hostname"            : True,
-                        "run_mac_vendor"          : True,
-                        "run_trace"               : True,
-                        "run_vertical_trace"      : True,
-                        "defaultView"             : "cluster",
-                        "defaultNodeColour"       : "0FF54A",
-                        "defaultEdgeColour"       : "32FFAB",
-                        "defaultBackgroundColour" : "320000"}
+    default_settings = {"TCP"                       : True,
+                        "UDP"                       : True, 
+                        "ports"                     : [22,23,80,443],
+                        "run_ports"                 : True,
+                        "run_os"                    : True,
+                        "run_hostname"              : True,
+                        "run_mac_vendor"            : True,
+                        "run_website_status"        : True,
+                        "run_trace"                 : True,
+                        "run_vertical_trace"        : True,
+                        "defaultView"               : "Horizontal",
+                        "daemon_TCP"                : True,
+                        "daemon_UDP"                : True,
+                        "daemon_ports"              : [22,23,80,443],
+                        "daemon_run_ports"          : True,
+                        "daemon_run_os"             : True,
+                        "daemon_run_hostname"       : True,
+                        "daemon_run_mac_vendor"     : True,
+                        "daemon_run_website_status" : True,
+                        "daemon_run_trace"          : True,
+                        "daemon_run_vertical_trace" : True,
+                        "daemon_scan_rate"          : 120,
+                        "scan_server_ip"            : "127.0.0.1:5002"}
 
     user_format = {"user_id"  : int,
                    "username" : str,
@@ -60,11 +83,13 @@ class PostgreSQL_database:
                    "salt"     : str}
 
 
-    def __init__(self, database, user, password):
+    def __init__(self, database, user, password, host, port):
 
         self.db = database
         self.user = user
         self.password = password
+        self.host = host
+        self.port = port
 
         # Creates database if it doesnt exist, creates table if they dont exist
         if not (self.__init_db() and self.__init_tables()):
@@ -79,7 +104,7 @@ class PostgreSQL_database:
         response = None
         try:
             # Open db connection
-            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host="localhost") as conn:
+            with psycopg2.connect(database=self.db, user=self.user, password=self.password, host=self.host, port=self.port) as conn:
                 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
                 with conn.cursor() as cur:
@@ -418,7 +443,7 @@ class PostgreSQL_database:
         elif not self.contains_snapshot(network_id, timestamp):
             return Response("no_snapshot")
             
-        attrs = "mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, ports"
+        attrs = "mac, ip, mac_vendor, os_family, os_vendor, os_type, hostname, parent, website, ports"
 
         query = f"""
                 SELECT {attrs}
@@ -511,10 +536,11 @@ class PostgreSQL_database:
                     os_vendor, 
                     os_family, 
                     parent, 
+                    website,
                     ports,
                     network_id, 
                     timestamp)
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """
         
         params = (device["mac"], 
@@ -525,6 +551,7 @@ class PostgreSQL_database:
                   device["os_vendor"], 
                   device["os_family"], 
                   device["parent"], 
+                  device["website"],
                   device["ports"],
                   network_id, 
                   timestamp,)
@@ -549,6 +576,7 @@ class PostgreSQL_database:
                     os_vendor = %s, 
                     os_family = %s, 
                     parent = %s, 
+                    website = %s,
                     ports = %s
                 WHERE network_id = %s and timestamp = %s and mac = %s;
                 """
@@ -560,6 +588,7 @@ class PostgreSQL_database:
                   device["os_vendor"], 
                   device["os_family"], 
                   device["parent"], 
+                  device["website"],
                   device["ports"],
                   network_id, 
                   timestamp,
@@ -678,9 +707,10 @@ class PostgreSQL_database:
         if not self.__contains_settings(user_id):
             return Response("no_user")
 
-        attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, " + \
-                "run_trace, run_vertical_trace, defaultView, defaultNodeColour, defaultEdgeColour, " + \
-                "defaultBackgroundColour"
+        attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, run_website_status, " + \
+                "run_trace, run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
+                "daemon_run_ports, daemon_run_os, daemon_run_hostname, daemon_run_mac_vendor, daemon_run_website_status, " + \
+                "daemon_run_trace, daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
         
         query = f"""
                 SELECT {attrs}
@@ -703,6 +733,8 @@ class PostgreSQL_database:
             # Formats port string into a list
             settings["ports"] = settings["ports"].replace("{", "").replace("}", "").split(",")
             settings["ports"] = [int(x) for x in settings["ports"]]
+            settings["daemon_ports"] = settings["daemon_ports"].replace("{", "").replace("}", "").split(",")
+            settings["daemon_ports"] = [int(x) for x in settings["daemon_ports"]]
         except:
             return Response("malformed_settings")
 
@@ -723,8 +755,9 @@ class PostgreSQL_database:
         for key, datatype in self.settings_format.items():
             if key not in settings.keys() or not isinstance(settings[key], datatype):
                 #TODO - Check ports formats, frontend settings format
+                print(key)
+                print(datatype)
                 return Response("malformed_settings")
-            
 
         params = (settings["TCP"],
                   settings["UDP"], 
@@ -733,13 +766,23 @@ class PostgreSQL_database:
                   settings["run_os"],
                   settings["run_hostname"],
                   settings["run_mac_vendor"],
+                  settings["run_website_status"],
                   settings["run_trace"],
                   settings["run_vertical_trace"],
                   settings["defaultView"],
-                  settings["defaultNodeColour"],
-                  settings["defaultEdgeColour"],
-                  settings["defaultBackgroundColour"],)
-            
+                  settings["daemon_TCP"],
+                  settings["daemon_UDP"],
+                  settings["daemon_ports"],
+                  settings["daemon_run_ports"],
+                  settings["daemon_run_os"],
+                  settings["daemon_run_hostname"],
+                  settings["daemon_run_mac_vendor"],
+                  settings["daemon_run_website_status"],
+                  settings["daemon_run_trace"],
+                  settings["daemon_run_vertical_trace"],
+                  settings["daemon_scan_rate"],
+                  settings["scan_server_ip"])
+
         # Create settings entry for user if they dont exist
         if not self.__contains_settings(user_id):
 
@@ -753,13 +796,24 @@ class PostgreSQL_database:
                         run_os,
                         run_hostname,
                         run_mac_vendor,
+                        run_website_status,
                         run_trace,
                         run_vertical_trace,
                         defaultView,
-                        defaultNodeColour,
-                        defaultEdgeColour,
-                        defaultBackgroundColour)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                        daemon_TCP,
+                        daemon_UDP,
+                        daemon_ports,
+                        daemon_run_ports,
+                        daemon_run_os,
+                        daemon_run_hostname,
+                        daemon_run_mac_vendor,
+                        daemon_run_website_status,
+                        daemon_run_trace,
+                        daemon_run_vertical_trace,
+                        daemon_scan_rate,
+                        scan_server_ip)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
             
             params = (user_id, *params)
@@ -776,12 +830,22 @@ class PostgreSQL_database:
                         run_os = %s,
                         run_hostname = %s,
                         run_mac_vendor = %s,
+                        run_website_status = %s,
                         run_trace = %s,
                         run_vertical_trace = %s,
                         defaultView = %s,
-                        defaultNodeColour = %s,
-                        defaultEdgeColour = %s,
-                        defaultBackgroundColour = %s
+                        daemon_TCP = %s,
+                        daemon_UDP = %s,
+                        daemon_ports = %s,
+                        daemon_run_ports = %s,
+                        daemon_run_os = %s,
+                        daemon_run_hostname = %s,
+                        daemon_run_mac_vendor = %s,
+                        daemon_run_website_status = %s,
+                        daemon_run_trace = %s,
+                        daemon_run_vertical_trace = %s,
+                        daemon_scan_rate = %s,
+                        scan_server_ip = %s
                     WHERE user_id = %s;
                     """
             
@@ -1071,7 +1135,7 @@ class PostgreSQL_database:
         conn = None
         try:
             # Open Database Connection
-            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host="localhost")
+            conn = psycopg2.connect(database="postgres", user=self.user, password=self.password, host=self.host, port=self.port)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             # Create Cursor Object
@@ -1133,12 +1197,22 @@ class PostgreSQL_database:
                             run_os BOOLEAN NOT NULL,
                             run_hostname BOOLEAN NOT NULL,
                             run_mac_vendor BOOLEAN NOT NULL,
+                            run_website_status BOOLEAN NOT NULL,
                             run_trace BOOLEAN NOT NULL,
                             run_vertical_trace BOOLEAN NOT NULL,
                             defaultView TEXT NOT NULL,
-                            defaultNodeColour TEXT NOT NULL,
-                            defaultEdgeColour TEXT NOT NULL,
-                            defaultBackgroundColour TEXT NOT NULL);
+                            daemon_TCP BOOLEAN NOT NULL,
+                            daemon_UDP BOOLEAN NOT NULL,
+                            daemon_ports TEXT NOT NULL,
+                            daemon_run_ports BOOLEAN NOT NULL,
+                            daemon_run_os BOOLEAN NOT NULL,
+                            daemon_run_hostname BOOLEAN NOT NULL,
+                            daemon_run_mac_vendor BOOLEAN NOT NULL,
+                            daemon_run_website_status BOOLEAN NOT NULL,
+                            daemon_run_trace BOOLEAN NOT NULL,
+                            daemon_run_vertical_trace BOOLEAN NOT NULL,
+                            daemon_scan_rate INTEGER NOT NULL,
+                            scan_server_ip TEXT NOT NULL);
                         """
 
         init_snapshots = """
@@ -1159,6 +1233,7 @@ class PostgreSQL_database:
                             os_vendor TEXT,
                             os_family TEXT,
                             parent TEXT,
+                            website TEXT,
                             ports TEXT,
                             network_id INTEGER NOT NULL,
                             timestamp INTEGER NOT NULL,
@@ -1206,7 +1281,7 @@ class PostgreSQL_database:
         conn = None
         try:
             # Connects to default schema to drop the current database
-            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host="localhost")
+            conn = psycopg2.connect(database="template1", user=self.user, password=self.password, host=self.host, port=self.port)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             with conn.cursor() as cur:

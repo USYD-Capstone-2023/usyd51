@@ -19,6 +19,7 @@ type NetworkItem = {
     os_type: string,
     hostname: string,
     parent: string,
+    website: string,
     ports: string,
     [key: string]: string;
 }
@@ -33,6 +34,7 @@ const columnDisplayNames: { [key: string]: string } = {
     hostname: "Hostname",
     parent: "Parent",
     ports: "Ports",
+    website: "Website"
 };
 function throwCustomError(message: any) {
     const errorEvent = new CustomEvent('customError', {
@@ -152,11 +154,16 @@ const columns: ColumnDef<NetworkItem>[] = [
         accessorKey: "ports",
         header: ({ column }) => createSortButton(column, "Ports"),
         sortingFn: customSort
+    },
+    {
+        accessorKey: "website",
+        header: ({ column }) => createSortButton(column, "Website"),
+        sortingFn: customSort
     }
 ]
 
 const ListView = () => {
-    const { networkID } = useParams();
+    const { networkID, snapshot } = useParams();
     const [ networkDevices, setNetworkDevices] = useState<NetworkItem[]>([]);
     const [filterKeyword, setFilterKeyword] = useState('');
     const [filterColumn, setFilterColumn] = useState('');
@@ -167,7 +174,7 @@ const ListView = () => {
             return;
         }
         const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
-        fetch(databaseUrl + `networks/${networkID}/devices`, options)
+        fetch(databaseUrl + `networks/${networkID}/snapshots/${snapshot}`, options)
         .then((res) => {
             if (!res.ok) {
               throwCustomError(res.status + ":" + res.statusText);

@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  scanning_api_server:
+    container_name: scanning_api
+    image: dockerhub-flask_live_app:1.0.0
+    build: .
+    network_mode: "host"
+    environment:
+      - SERVER_HOST=${SERVER_HOST}
+      - SERVER_PORT=${SERVER_PORT}
+      - POSTGRES_URI=${POSTGRES_URI}
+    volumes:
+      - .:/usr/src/app
+    restart: always
+    command: "python3 scan_interface.py docker-local"

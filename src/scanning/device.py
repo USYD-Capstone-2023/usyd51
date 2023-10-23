@@ -10,6 +10,7 @@ class Device:
     os_type = default
     hostname = default
     parent = default
+    website = default
     ports = []
 
 
@@ -30,4 +31,5 @@ class Device:
                 "os_type"    : self.os_type, 
                 "hostname"   : self.hostname, 
                 "parent"     : self.parent, 
+                "website"    : self.website,
                 "ports"      : self.ports}

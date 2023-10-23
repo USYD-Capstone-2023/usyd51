@@ -7,21 +7,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import DashboardChart from "./DashboardChart";
 import { Link } from "react-router-dom";
-import { Heart, Search, Plus, Clock, Edit2} from "lucide-react";
+import { Heart, Search, Plus, Clock, Edit2 } from "lucide-react";
 import { databaseUrl, scannerUrl } from "@/servers";
 import ShareNetworkDropdown from "./ShareNetworkDropdown";
+import { stringify } from "querystring";
 
 function throwCustomError(message: any) {
   console.log("errorEvent");
-  const errorEvent = new CustomEvent('customError', {
+  const errorEvent = new CustomEvent("customError", {
     detail: {
-      message: message
-    }
+      message: message,
+    },
   });
   console.log(errorEvent);
   window.dispatchEvent(errorEvent);
 }
 
+function throwCustomAlert(message: any) {
+  const AlertEvent = new CustomEvent('customAlert', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(AlertEvent);
+}
 
 const CustomCard = (props: any) => {
   const { title, subtitle, children } = props;
@@ -41,137 +50,160 @@ const CustomCard = (props: any) => {
   );
 };
 
-const NewNetworkButton = (props: any) => {
-  const { setNewNetworkId } = props;
-  const [loadingBarActive, setLoadingBarActive] = useState(false);
-  const [loadingBarProgress, setLoadingBarProgress] = useState({
-    label: " ",
-    progress: 0,
-    total: 100,
-  });
 
-  // const [networkId, setNetworkId] = useState(-1);
+const Dashboard = (props: any) => {
+  const navigate = useNavigate();
+  const [networkListData, setNetworkListData] = useState([]);
+  const [editName, setEditName] = useState(false);
+  const [currentName, setCurrentName] = useState("");
+  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
+  const [rescanningNetworkID, setRescanningNetworkID] = useState<number | null>(null);
+  const [userListData, setUserListData] = useState<any>();
+  const [newNetworkId, setNewNetworkId] = useState(-1);
+  const [rescanInitiated, setRescanInitiated] = useState(false);
+  const [rescanIteration, setRescanIteration] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [loadingBarActive, setLoadingBarActive] = useState(false);
+
+  const NewNetworkButton = (props: any) => {
+    const [loadingBarProgress, setLoadingBarProgress] = useState([]);
+    const { setNewNetworkId } = props;
+  
+    // const [networkId, setNetworkId] = useState(-1);
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      throwCustomError("User has been logged out.");
+      return;
+    }
+  
+    const createNewNetwork = useCallback(() => {
+      throwCustomAlert("Starting Scan");
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Auth-Token": authToken,
+          Accept: "application/json",
+        },
+      };
+      if (!loadingBarActive) {
+        setLoadingBarActive(true);
+        fetch(scannerUrl + "scan/-1", options)
+          .then((res) => {
+            if (!res.ok) {
+              throwCustomError(res.status + ":" + res.statusText);
+            }
+            return res.json();
+          })
+          .then((data) => {
+            if (data["status"] === 200) {
+              setNewNetworkId(parseInt(data["content"]));
+            } else {
+              throwCustomError(data["status"] + " " + data["message"]);
+            }
+          })
+          .catch((error) => {
+            throwCustomError("Network Error: Something has gone wrong.");
+          });
+      }
+    }, [loadingBarActive]);
+  
+    useEffect(() => {
+      let intervalId: string | number | NodeJS.Timeout | undefined;
+      const options = {
+        method: "GET",
+        headers: {
+          "Content-Type" : "application/json",
+          "Auth-Token" : authToken,
+          "Accept" : "application/json",
+        },
+      };
+      if (loadingBarActive) {
+        intervalId = setInterval(() => {
+          fetch(scannerUrl + "progress", options)
+            .then((res) => {
+              if (!res.ok) {
+                throwCustomError(res.status + ":" + res.statusText);
+              }
+              return res.json();
+            })
+            .then((data) => {
+              if (data["status"] === 200) {
+                if (data["message"] == "Scan finished.") {
+                  clearInterval(intervalId);
+                  setLoadingBarActive(false);
+                  setNewNetworkId(0);
+                  return;
+                }
+                setLoadingBarProgress(data["content"]);
+
+              } else {
+                clearInterval(intervalId);
+              }
+            })
+            .catch((error) => {
+              throwCustomError(
+                "Scanning server is unreachable. Please check it is running."
+              );
+            });
+        }, 400);
+      }
+  
+      // Cleanup
+      return () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    }, [loadingBarActive]);
+  
+    const getLoadingBars = useCallback(() => {
+      const bars = []
+      for (let bar of loadingBarProgress) {
+        
+        bars.push(
+          <div>
+            <div>
+            {bar.label} ({bar.progress}/{bar.total}) 
+            </div>
+            <div className="flex">
+              <div className="mr-3 ml-1">
+                [{bar.state.padEnd(7, ' ')}]
+              </div>
+              <Progress
+                className="w-full mr-2"
+                value={Math.floor(
+                  (100 * bar.progress) / bar.total
+                  )} />
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+        {bars}
+        </div>
+      );
+    }, [loadingBarProgress]);
+  
+    
+    if (!loadingBarActive) {
+      return (
+        <Card className="w-full" onClick={createNewNetwork}>
+          Create new network
+        </Card>
+      );
+    } else {
+      return <Card className="w-full">{getLoadingBars()}</Card>;
+    }
+  };
+  
+
   const authToken = localStorage.getItem("Auth-Token");
   if (authToken == null) {
     throwCustomError("User has been logged out.");
     return;
   }
-
-  const createNewNetwork = useCallback(() => {
-    const options = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        "Accept" : "application/json",
-      },
-    };
-    if (!loadingBarActive) {
-      setLoadingBarActive(true);
-      fetch(scannerUrl + "scan/-1", options)
-      .then((res) => {
-        if (!res.ok) {
-          throwCustomError(res.status + ":" + res.statusText);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (data["status"] === 200) {
-          setNewNetworkId(parseInt(data["content"]));
-        } else {
-          throwCustomError(data["status"] + " " + data["message"]);
-        }
-      })
-      .catch((error) => {
-        throwCustomError("Network Error: Something has gone wrong.");
-      });
-    }
-  }, [loadingBarActive]);
-
-  useEffect(() => {
-    let intervalId: string | number | NodeJS.Timeout | undefined;
-    const options = {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Auth-Token": authToken,
-        "Accept" : "application/json",
-      },
-    };
-    if (loadingBarActive) {
-      intervalId = setInterval(() => {
-        fetch(scannerUrl + "progress", options)
-        .then((res) => {
-          if (!res.ok) {
-            throwCustomError(res.status + ":" + res.statusText);
-          }
-          return res.json();
-        })
-          .then((data) => {
-            if (data["status"] === 200) {
-              if (data["message"] == "Scan finished.") {
-                setNewNetworkId(0);
-                clearInterval(intervalId);
-                return;
-              }
-              setLoadingBarProgress({
-                label: data["content"].label,
-                total: data["content"].total,
-                progress: data["content"].progress,
-              });
-            } else {
-              clearInterval(intervalId);
-            }
-          })
-          .catch((error) => {
-            throwCustomError("Scanning server is unreachable. Please check it is running.");
-          });
-      }, 400);
-    } 
-
-    // Cleanup
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [loadingBarActive]);
-
-  let getLoadingBar = useCallback(() => {
-    return (
-      <>
-        <Progress
-          className="w-full"
-          value={Math.floor(
-            (100 * loadingBarProgress.progress) / loadingBarProgress.total
-          )}
-        ></Progress>
-      </>
-    );
-  }, [loadingBarProgress]);
-
-  if (!loadingBarActive) {
-    return (
-      <Card className="w-full" onClick={createNewNetwork}>
-        Create new network
-      </Card>
-    );
-  } else {
-    return <Card className="w-full">{getLoadingBar()}</Card>;
-  }
-};
-
-const Dashboard = (props: any) => {
-  const navigate = useNavigate();
-  const [networkListData, setNetworkListData] = useState([
-    { name: "TestName", id: 0 },
-  ]);
-  const [editName, setEditName] = useState(false);
-  const [currentName, setCurrentName] = useState("");
-  const [selectedNetworkID, setSelectedNetworkID] = useState<any | null>(null);
-  const [userListData, setUserListData] = useState<any>();
-  const [newNetworkId, setNewNetworkId] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const NetworkButton = (props: any) => {
     const clickButton = (id: any) => {
@@ -194,6 +226,47 @@ const Dashboard = (props: any) => {
     );
   };
 
+
+  const rescanNetwork = useCallback((networkId: number) => {
+    setRescanningNetworkID(networkId);
+    setLoadingBarActive(true);
+    const authToken = localStorage.getItem("Auth-Token");
+    if (authToken == null) {
+      throwCustomError("User has been logged out.");
+      return;
+    }
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept": "application/json",
+      },
+    };
+
+    fetch(scannerUrl + "scan/" + networkId, options)
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ": " + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data["status"] === 200) {
+          console.log("Rescan initiated successfully");
+          throwCustomAlert("Starting Rescan");
+          setRescanInitiated(true);
+
+        } else {
+          throwCustomError(data["status"] + " " + data["message"]);
+        }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
+      });
+  },[]);
+
   const shareNetworkWithUser = useCallback(
     (id: number) => {
       const authToken = localStorage.getItem("Auth-Token");
@@ -206,17 +279,17 @@ const Dashboard = (props: any) => {
         headers: {
           "Content-Type": "application/json",
           "Auth-Token": authToken,
-          "Accept": "application/json",
+          Accept: "application/json",
         },
       };
 
       fetch(databaseUrl + `networks/${selectedNetworkID}/share/${id}`, options)
-      .then((res) => {
-        if (!res.ok) {
-          throwCustomError(res.status + ":" + res.statusText);
-        }
-        return res.json();
-      })
+        .then((res) => {
+          if (!res.ok) {
+            throwCustomError(res.status + ":" + res.statusText);
+          }
+          return res.json();
+        })
         .then((data) => {
           if (data.status !== 200) {
             throwCustomError(data["status"] + " " + data["message"]);
@@ -226,8 +299,7 @@ const Dashboard = (props: any) => {
         })
         .catch((error) => {
           throwCustomError("Network Error: Something has gone wrong.");
-        });;
-
+        });
     },
     [selectedNetworkID]
   );
@@ -243,17 +315,17 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        "Accept" : "application/json",
+        Accept: "application/json",
       },
     };
 
     fetch(databaseUrl + "networks", options)
-    .then((res) => {
-      if (!res.ok) {
-        throwCustomError(res.status + ":" + res.statusText);
-      }
-      return res.json();
-    })
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
       .then((data) => {
         if (data.status === 200) {
           let network_list = [];
@@ -271,7 +343,9 @@ const Dashboard = (props: any) => {
         }
       })
       .catch((error) => {
-        throwCustomError("Scanning server is unreachable. Please check it is running.");
+        throwCustomError(
+          "Scanning server is unreachable. Please check it is running."
+        );
       });
   }, [newNetworkId]);
 
@@ -286,7 +360,7 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        "Accept" : "application/json",
+        Accept: "application/json",
       },
     };
 
@@ -294,15 +368,14 @@ const Dashboard = (props: any) => {
       databaseUrl + `networks/${selectedNetworkID}/rename/${currentName}`,
       options
     )
-    .then((res) => {
-      if (!res.ok) {
-        throwCustomError(res.status + ":" + res.statusText);
-      }
-      return res.json();
-    })
+      .then((res) => {
+        if (!res.ok) {
+          throwCustomError(res.status + ":" + res.statusText);
+        }
+        return res.json();
+      })
       .then((data) => {
         if (data.status !== 200) {
-          //console.log(`${data.status} ${data.content}`);
           throwCustomError(data["status"] + " " + data["message"]);
         } else {
           const options = {
@@ -310,17 +383,17 @@ const Dashboard = (props: any) => {
             headers: {
               "Content-Type": "application/json",
               "Auth-Token": authToken,
-              "Accept" : "application/json",
+              Accept: "application/json",
             },
           };
 
           fetch(databaseUrl + "networks", options)
-          .then((res) => {
-            if (!res.ok) {
-              throwCustomError(res.status + ":" + res.statusText);
-            }
-            return res.json();
-          })
+            .then((res) => {
+              if (!res.ok) {
+                throwCustomError(res.status + ":" + res.statusText);
+              }
+              return res.json();
+            })
             .then((data) => {
               if (data.status === 200) {
                 let network_list = [];
@@ -356,7 +429,6 @@ const Dashboard = (props: any) => {
   }, [editName]);
 
   const update_share_list = () => {
-
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
       throwCustomError("User has been logged out.");
@@ -368,17 +440,17 @@ const Dashboard = (props: any) => {
       headers: {
         "Content-Type": "application/json",
         "Auth-Token": authToken,
-        "Accept" : "application/json",
+        Accept: "application/json",
       },
     };
-    if(selectedNetworkID){
-      fetch(databaseUrl +`users/${selectedNetworkID}`, options)
-      .then((res) => {
-        if (!res.ok) {
-          throwCustomError(res.status + ":" + res.statusText);
-        }
-        return res.json();
-      })
+    if (selectedNetworkID) {
+      fetch(databaseUrl + `users/${selectedNetworkID}`, options)
+        .then((res) => {
+          if (!res.ok) {
+            throwCustomError(res.status + ":" + res.statusText);
+          }
+          return res.json();
+        })
         .then((data) => {
           if (data.status === 200) {
             let user_list = [];
@@ -400,9 +472,11 @@ const Dashboard = (props: any) => {
           throwCustomError("Network Error: Something has gone wrong.");
         });
     }
-  }
+  };
 
-  useEffect(() => {update_share_list();}, [selectedNetworkID]);
+  useEffect(() => {
+    update_share_list();
+  }, [selectedNetworkID]);
 
   /*<div className="h-1/6 w-full flex items-center justify-center">
   <div className="w-full h-full flex gap-10 justify-between items-center">
@@ -448,8 +522,7 @@ const Dashboard = (props: any) => {
         <Card className="flex flex-col justify-between items-center w-2/3 gap-10 pb-8">
           <div className="h-full w-full  rounded-xl">
             <div className="h-1/8 font-medium text-2xl p-8 text-left">
-            
-            {editName && (
+              {editName && (
                 <input
                   type="text"
                   ref={inputRef}
@@ -466,7 +539,8 @@ const Dashboard = (props: any) => {
                     setEditName(true);
                     inputRef.current !== null && inputRef.current.focus();
                   }}
-                  style={{ display: 'flex', alignItems: 'center' }}>
+                  style={{ display: "flex", alignItems: "center" }}
+                >
                   <Edit2 className="w-4 h-4"></Edit2>
                   {
                     networkListData?.find(
@@ -477,13 +551,16 @@ const Dashboard = (props: any) => {
               )}
             </div>
             <div className="flex justify-center items-center h-5/6 w-full p-3">
-              <DashboardChart networkID={selectedNetworkID} />
+              <DashboardChart key={rescanIteration} networkID={selectedNetworkID} />
             </div>
           </div>
-          <ShareNetworkDropdown
-            userList={userListData}
-            onSelect={shareNetworkWithUser}
-          />
+          <div className="flex w-full justify-center">
+            <Button className="ml-5 mr-5" disabled={loadingBarActive} onClick={() => rescanNetwork(selectedNetworkID)} >Rescan</Button>
+            <ShareNetworkDropdown
+              userList={userListData}
+              onSelect={shareNetworkWithUser}
+              />
+          </div>
         </Card>
       </div>
     </div>

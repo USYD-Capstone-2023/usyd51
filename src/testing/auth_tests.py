@@ -14,21 +14,23 @@ from response import Response
 
 # Start test db server and wait for it to be running
 proc = Popen("python ../backend/db_server.py testing", shell=True)
-time.sleep(2)
+print("Waiting for test server to start...")
+time.sleep(5)
 
-# TODO - Need to reset the database before each run if we want to test anything more than auth, 
-# having psycopg2 transaction issues
+signup_info = {"username" : "sam", "password" : "passwd", "email" : "sam@same", "salt" : ""}
+login_info = {"username" : "sam", "password" : "passwd"}
+
 class auth_tests(unittest.TestCase):
 
     # Tests that the signup system works with valid input, and doesnt produce duplicates
     def test_signup(self):
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup",
-                            json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                            json=signup_info)
         
         res = json.loads(res.content)
         assert res["status"] in [Response("success").status, Response("dup_user").status]
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                            json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                            json=signup_info)
         
         res = json.loads(res.content)
         assert res["status"] == Response("dup_user").status
@@ -37,10 +39,10 @@ class auth_tests(unittest.TestCase):
     # Checks that the login system works for an existing user, and that it returns an auth token
     def test_login(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                            json={"username" : "sam", "password" : "passwd"})
+                            json=login_info)
         
         res = json.loads(res.content)
         assert res["status"] == Response("success").status
@@ -72,7 +74,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_get_networks_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -87,10 +89,10 @@ class auth_tests(unittest.TestCase):
     # correctly in this context), when a valid auth token is given.
     def test_get_networks_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                            json={"username" : "sam", "password" : "passwd"})
+                            json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -126,7 +128,7 @@ class auth_tests(unittest.TestCase):
     # information with an expired auth token.
     def test_get_network_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -141,10 +143,10 @@ class auth_tests(unittest.TestCase):
     # wont process it correctly in this context), when a valid auth token is given.
     def test_get_network_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                            json={"username" : "sam", "password" : "passwd"})
+                            json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -180,7 +182,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_get_network_devices_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -195,10 +197,10 @@ class auth_tests(unittest.TestCase):
     # it correctly in this context), when a valid auth token is given.
     def test_get_network_devices_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                            json={"username" : "sam", "password" : "passwd"})
+                            json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -234,7 +236,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_add_network_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -249,10 +251,10 @@ class auth_tests(unittest.TestCase):
     # it correctly in this context), when a valid auth token is given.
     def test_add_network_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -288,7 +290,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_rename_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -303,10 +305,10 @@ class auth_tests(unittest.TestCase):
     # correctly in this context), when a valid auth token is given.
     def test_rename_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -342,7 +344,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_delete_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -357,10 +359,10 @@ class auth_tests(unittest.TestCase):
     # correctly in this context), when a valid auth token is given.
     def test_delete_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -395,7 +397,7 @@ class auth_tests(unittest.TestCase):
     # with an expired auth token.
     def test_get_settings_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -410,10 +412,10 @@ class auth_tests(unittest.TestCase):
     # it correctly in this context), when a valid auth token is given.
     def test_get_settings_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -449,7 +451,7 @@ class auth_tests(unittest.TestCase):
     # settings with an expired auth token.
     def test_set_settings_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -464,10 +466,10 @@ class auth_tests(unittest.TestCase):
     # process it correctly in this context), when a valid auth token is given.
     def test_set_settings_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -503,7 +505,7 @@ class auth_tests(unittest.TestCase):
     # list with an expired auth token.
     def test_get_snapshots_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -518,10 +520,10 @@ class auth_tests(unittest.TestCase):
     # it correctly in this context), when a valid auth token is given.
     def test_get_snapshots_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]
@@ -557,7 +559,7 @@ class auth_tests(unittest.TestCase):
     # snapshot with an expired auth token.
     def test_get_snapshot_old_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         exp = (datetime.utcnow() - timedelta(minutes=1)).strftime("%d/%m/%Y/%H/%M/%S")
         token = jwt.encode({"user_id" : 0, "expiry" : exp}, TestingConfig.SECRET_KEY, algorithm="HS256")
@@ -572,10 +574,10 @@ class auth_tests(unittest.TestCase):
     # process it correctly in this context), when a valid auth token is given.
     def test_get_snapshot_valid_auth(self):
         requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/signup", 
-                      json={"username" : "sam", "password" : "passwd", "email" : "sam@same"})
+                      json=signup_info)
         
         res = requests.post(f"http://{TestingConfig.SERVER_URI}:{TestingConfig.SERVER_PORT}/login", 
-                      json={"username" : "sam", "password" : "passwd"})
+                      json=login_info)
         
         res = json.loads(res.content)
         token = res["content"]["Auth-Token"]

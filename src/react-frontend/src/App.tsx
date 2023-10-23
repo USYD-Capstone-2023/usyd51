@@ -12,13 +12,19 @@ import DeviceListView from "./pages/DeviceListView";
 import Login from "./pages/LogIn"
 import DaemonPage from "./pages/Daemon";
 import ErrorNotification from './components/Error'; 
+import AlertNotification from './components/Alert'; 
 
 function App() {
     // const [count, setCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [Alert, setAlert] = useState<string | null>(null);
 
     const clearError = () => {
       setError(null);
+    };
+
+    const clearAlert = () => {
+        setAlert(null);
     };
 
     
@@ -39,17 +45,38 @@ function App() {
           };
         
 
-          window.addEventListener('customError', handleCustomError);
+        window.addEventListener('customError', handleCustomError);
+        
+
+
+        const handleCustomAlert = (event: CustomEvent) => {
+            // event.detail contains the details of the Alert
+            const { detail } = event;
           
-          // Cleanup: remove the event listeners when the component is unmounted
-          return () => {
-            window.removeEventListener('customError', handleCustomError);
+            let AlertMessage = 'Alert!';
+          
+            if (detail && detail.message) {
+              AlertMessage = detail.message;
+            }
+            setAlert(AlertMessage);
           };
+        
+
+        window.addEventListener('customAlert', handleCustomAlert);
+        
+
+                  // Cleanup: remove the event listeners when the component is unmounted
+        return () => {
+            window.removeEventListener('customError', handleCustomError);
+            window.removeEventListener('customAlert', handleCustomAlert);
+        };
+
     }, []); 
   
 
     return (
         <BrowserRouter>
+        <AlertNotification message={Alert} clearAlert={clearAlert} />
         <ErrorNotification message={error} clearError={clearError} />
             <Routes>
                 
@@ -58,7 +85,7 @@ function App() {
                     <Route path="dashboard" element={<Home />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="listView" element={<ListView />} />
-                    <Route path="deviceListView/:networkID" element={<DeviceListView />} />
+                    <Route path="deviceListView/:networkID/:snapshot" element={<DeviceListView />} />
                     <Route
                         path="networkView/:networkID"
                         element={<NetworkView />}
