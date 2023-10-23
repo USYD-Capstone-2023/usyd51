@@ -69,6 +69,7 @@ const DashboardChart = ({ networkID, mode="normal" }) => {
     })
       .then((data) => {
         if (data.status === 200) {
+          console.log(data["content"]);
           data["content"].forEach((element: any) => {
             const date = new Date(element.timestamp * 1000);
             const hours = date.getHours().toString().padStart(2, "0");

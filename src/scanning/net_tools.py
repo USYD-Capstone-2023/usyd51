@@ -37,7 +37,7 @@ class NetTools:
             cls.instance.threadpool = Threadpool(NUM_THREADS)
             cls.instance.mac_table = MACTable(MAC_TABLE_FP)
         return cls.instance
-
+    
 
     def init_scan(self, network_id, iface=conf.iface):
 
@@ -119,19 +119,10 @@ class NetTools:
     # Updates the mac vendor field of all devices in the current network's table of the database
     def add_mac_vendors(self, network, lb):
 
-        print("[INFO] Getting MAC vendors...")
-        # Set loading bar
-        lb.set_params("mac_vendor", 40, len(network.devices.keys()))
-        lb.show()
-
         # Adds mac vendor to device and saves to database
         for device in network.devices.values():
             device.mac_vendor = self.mac_table.find_vendor(device.mac)
             lb.increment()
-            lb.show()
-
-        print("[INFO] MAC vendor resolution complete!")
-        lb.reset()
 
     # ---------------------------------------------- ARP SCANNING ---------------------------------------------- #
 
@@ -160,8 +151,6 @@ class NetTools:
     # Gets all active active devices on the network
     def add_devices(self, network, lb, iface=conf.iface):
 
-        print("[INFO] Getting all active devices on network.")
-
         # Breaks subnet and gateway ip into bytes
         sm_split = network.dhcp_server_info["subnet_mask"].split(".")
         gateway_split = network.dhcp_server_info["router"].split(".")
@@ -182,16 +171,13 @@ class NetTools:
         for i in range(4):
             num_addrs *= max(last_ip[i] - first_ip[i] + 1, 1)
 
-        returns = [-1] * num_addrs
-
-        # Set loading bar
-        lb.set_params("get_devices", 40, num_addrs)
-        lb.show()
+        lb.set_total(num_addrs)
 
         # Preparing thread job parameters
         mutex = threading.Lock()
         cond = threading.Condition(lock=mutex)
         counter_ptr = [0]
+        returns = [-1] * num_addrs
 
         # The current job, for referencing the return location for the thread
         job_counter = 0
@@ -221,7 +207,6 @@ class NetTools:
         while counter_ptr[0] < num_addrs:
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            lb.show()
 
         mutex.release()
 
@@ -232,8 +217,6 @@ class NetTools:
             if mac and ip and mac not in network.devices.keys():
                 network.devices[mac] = Device(ip, mac)
 
-        print("[INFO] Found %d devices!" % (len(network.devices)))
-        lb.reset()
 
     # ---------------------------------------------- TRACEROUTE ---------------------------------------------- #
 
@@ -263,15 +246,9 @@ class NetTools:
     # Runs a traceroute on all devices in the database to get their neighbours in the routing path, updates and saves to database
     def add_routes(self, network, lb, iface=conf.iface):
 
-        print("[INFO] Tracing Routes...")
-
         # Retrieve network devices from database
         device_addrs = set()
         gateway = network.dhcp_server_info["router"]
-
-        # Set loading bar
-        lb.set_params("traceroute", 40, len(network.devices.keys()))
-        lb.show()
 
         # Preparing thread job parameters
         mutex = threading.Lock()
@@ -305,7 +282,6 @@ class NetTools:
         while counter_ptr[0] < len(network.devices.keys()):
             cond.wait()
             lb.set_progress(counter_ptr[0])
-            lb.show()
 
         mutex.release()
 
@@ -335,13 +311,9 @@ class NetTools:
         for device in to_add:
             network.devices[device.mac] = device
 
-        print("[INFO] Traceroute complete!")
-        lb.reset()
-
 
     def vertical_traceroute(self, network, iface=conf.iface, target_host="8.8.8.8"):
 
-        print("[INFO] Running vertical traceroute...")
         # Run traceroute to google's DNS server
         traceroute_results = self.traceroute_helper(target_host, network.dhcp_server_info["router"], iface)
         # Print the traceroute results
@@ -360,8 +332,6 @@ class NetTools:
                 new_device = Device(ip, mac)
                 new_device.parent = traceroute_results[i+1]
                 network.devices[mac] = new_device
-
-        print("[INFO] Vertical traceroute complete!")
         
 
     # ---------------------------------------------- WEBSITE STATUS ---------------------------------------------- #
@@ -378,18 +348,7 @@ class NetTools:
             return False 
         
 
-    def add_website_status(self, network, lb):
-
-        print("[INFO] Checking website hosting statuses...")
-        # Set loading bar
-        lb.set_params("website_status", 40, len(network.devices.keys()))
-        lb.show()
-
-        # Preparing thread job parameters
-        mutex = threading.Lock()
-        cond = threading.Condition(lock=mutex)
-        counter_ptr = [0]
-        returns = [-1] * len(network.devices.keys())
+    def dispatch_website_scan(self, network, attr):
 
         # The current job, for referencing the return location for the thread
         job_counter = 0
@@ -398,10 +357,10 @@ class NetTools:
             job = Job(
                 fptr=self.website_status_helper,
                 args=(device.ip,),
-                ret_ls=returns,
+                ret_ls=attr.ret,
                 ret_id=job_counter,
-                counter_ptr=counter_ptr,
-                cond=cond,
+                counter_ptr=attr.ctr,
+                cond=attr.cond,
             )
             job_counter += 1
 
@@ -410,29 +369,19 @@ class NetTools:
                     self.threadpool.MAX_QUEUE_SIZE
                 )
 
-        # Waits for all jobs to be completed
-        mutex.acquire()
-        while counter_ptr[0] < len(network.devices.keys()):
-            cond.wait()
-            lb.set_progress(counter_ptr[0])
-            lb.show()
 
-        mutex.release()
-
+    
+    def update_website_status(self, network, ret):
         # Sets all devices websites
         job_id = 0
         for device in network.devices.values():
-            if returns[job_id]:
+            if ret[job_id]:
                 device.website = "http://%s" % device.ip
             else:
                 device.website = "Not Hosted"
             job_id += 1
 
-        print("[INFO] Website status check complete!")
-        # Reset loading bar for next task. Enables frontend to know job is complete.
-        lb.reset()
         
-
     # ---------------------------------------------- OS FINGERPRINTING ---------------------------------------------- #
 
 
@@ -440,10 +389,13 @@ class NetTools:
     def os_helper(self, ip):
 
         nm = nmap3.Nmap()
-        # Performs scan
-        data = nm.nmap_os_detection(ip, args="--script-timeout 20")
 
         os_info = {"os_type": "unknown", "os_vendor": "unknown", "os_family": "unknown"}
+        try:
+            # Performs scan
+            data = nm.nmap_os_detection(ip, args="--script-timeout 20 --host-timeout 20")
+        except:
+            return os_info
 
         # Parses output for os info
         if ip in data.keys():
@@ -459,19 +411,7 @@ class NetTools:
         return os_info
 
 
-    def add_os_info(self, network, lb, iface=conf.iface):
-
-        print("[INFO] Getting OS info...")
-
-        # Set loading bar
-        lb.set_params("os_scan", 40, len(network.devices.keys()))
-        lb.show()
-
-        # Preparing thread job parameters
-        mutex = threading.Lock()
-        cond = threading.Condition(lock=mutex)
-        counter_ptr = [0]
-        returns = [-1] * len(network.devices.keys())
+    def dispatch_os_scan(self, network, attr, iface=conf.iface):
 
         # The current job, for referencing the return location for the thread
         job_counter = 0
@@ -480,10 +420,10 @@ class NetTools:
             job = Job(
                 fptr=self.os_helper,
                 args=(device.ip,),
-                ret_ls=returns,
+                ret_ls=attr.ret,
                 ret_id=job_counter,
-                counter_ptr=counter_ptr,
-                cond=cond,
+                counter_ptr=attr.ctr,
+                cond=attr.cond,
             )
             job_counter += 1
 
@@ -491,28 +431,16 @@ class NetTools:
                 return "Request size over maximum allowed size %d" % (
                     self.threadpool.MAX_QUEUE_SIZE
                 )
+            
 
-        # Waits for all jobs to be completed
-        mutex.acquire()
-        while counter_ptr[0] < len(network.devices.keys()):
-            cond.wait()
-            lb.set_progress(counter_ptr[0])
-            lb.show()
-
-        mutex.release()
-
+    def update_os(self, network, ret):
         # Sets all devices OS information
         job_id = 0
         for device in network.devices.values():
-            device.os_type = returns[job_id]["os_type"]
-            device.os_family = returns[job_id]["os_family"]
-            device.os_vendor = returns[job_id]["os_vendor"]
+            device.os_type = ret[job_id]["os_type"]
+            device.os_family = ret[job_id]["os_family"]
+            device.os_vendor = ret[job_id]["os_vendor"]
             job_id += 1
-
-        print("[INFO] OS scan complete!")
-
-        # Reset loading bar for next task. Enables frontend to know job is complete.
-        lb.reset()
 
 
     # ---------------------------------------------- HOSTNAME LOOKUP ---------------------------------------------- #
@@ -528,57 +456,36 @@ class NetTools:
 
 
     # Retrieves the hostnames of all devices on the network and saves them to the database
-    def add_hostnames(self, network, lb):
-
-        print("[INFO] Resolving IPs to hostnames...")
-        # Set loading bar
-        lb.set_params("hostnames", 40, len(network.devices.keys()))
-        lb.show()
-
-        # Preparing thread job parameters
-        mutex = threading.Lock()
-        cond = threading.Condition(lock=mutex)
-        counter_ptr = [0]
-        returns = [-1] * len(network.devices.keys())
+    def dispatch_hostname_scan(self, network, attr):
 
         # The current job, for referencing the return location for the thread
         job_counter = 0
-
         for device in network.devices.values():
 
             # Create job and add to threadpool queue for execution
             job = Job(
                 fptr=self.hostname_helper,
                 args=(device.ip,),
-                ret_ls=returns,
+                ret_ls=attr.ret,
                 ret_id=job_counter,
-                counter_ptr=counter_ptr,
-                cond=cond,
+                counter_ptr=attr.ctr,
+                cond=attr.cond,
             )
             job_counter += 1
 
             if not self.threadpool.add_job(job):
-                return "Request size over maximum allowed size %d" % (tp.MAX_QUEUE_SIZE)
+                return "Request size over maximum allowed size %d" % (
+                    self.threadpool.MAX_QUEUE_SIZE
+                )
 
-        # Wait for all jobs to be comleted
-        mutex.acquire()
-        while counter_ptr[0] < len(network.devices.keys()):
-            cond.wait()
-            lb.set_progress(counter_ptr[0])
-            lb.show()
 
-        mutex.release()
-
+    def update_hostnames(self, network, ret):
         # Add returned hostnames to devices, save to database
         job_counter = 0
         for device in network.devices.values():
-            if returns[job_counter] != "unkown":
-                device.hostname = returns[job_counter]
+            if ret[job_counter] != "unkown":
+                device.hostname = ret[job_counter]
             job_counter += 1
-
-        print("[INFO] Name resolution complete!")
-        # Reset loading bar for next task. Enables frontend to know job is complete.
-        lb.reset()
 
 
     # ---------------------------------------------- DHCP INFO ---------------------------------------------- #
@@ -587,7 +494,6 @@ class NetTools:
     # Gets the gateway, interface, subnet mask and domain name of the current network
     def get_dhcp_server_info(self, ):
 
-        print("[INFO] Retrieveing DHCP server info...")
         gws = netifaces.gateways()
 
         # Failsafe defaults in the event that there is no network connection
@@ -652,7 +558,7 @@ class NetTools:
 
     def ports_helper(self, ip, iface, ports):
 
-        out = [False] * len(ports)
+        out = []
         idx = 0
 
         for port in ports:
@@ -663,8 +569,7 @@ class NetTools:
                 if response and response.haslayer(TCP):
                     # TCP SYN-ACK flag
                     if response.getlayer(TCP).flags == 0x12:  
-                        #return True if the port is open
-                        out[idx] = True
+                        out.append(port)
             except Exception as e:
                 print(f"An error occurred: {str(e)}")
 
@@ -672,60 +577,37 @@ class NetTools:
         return out
 
 
-    def add_ports(self, network, lb, ports, iface=conf.iface):
+    def dispatch_port_scan(self, network, ports, attr, iface=conf.iface):
 
-        print("[INFO] Starting port scan...")
         if ports == []:
             return
-        
-        # Set loading bar
-        lb.set_params("ports", 40, len(network.devices.keys()))
-        lb.show()
-
-        # Preparing thread job parameters
-        mutex = threading.Lock()
-        cond = threading.Condition(lock=mutex)
-        counter_ptr = [0]
-        returns = [-1] * len(network.devices.keys())
-
+    
         # The current job, for referencing the return location for the thread
         job_counter = 0
-
         for device in network.devices.values():
 
             # Create job and add to threadpool queue for execution
             job = Job(
                 fptr=self.ports_helper,
                 args=(device.ip, iface, ports,),
-                ret_ls=returns,
+                ret_ls=attr.ret,
                 ret_id=job_counter,
-                counter_ptr=counter_ptr,
-                cond=cond,
+                counter_ptr=attr.ctr,
+                cond=attr.cond,
             )
             job_counter += 1
 
             if not self.threadpool.add_job(job):
-                return "Request size over maximum allowed size %d" % (tp.MAX_QUEUE_SIZE)
+                return "Request size over maximum allowed size %d" % (self.threadpool.MAX_QUEUE_SIZE)
 
-        # Wait for all jobs to be comleted
-        mutex.acquire()
-        while counter_ptr[0] < len(network.devices.keys()):
-            cond.wait()
-            lb.set_progress(counter_ptr[0])
-            lb.show()
 
-        mutex.release()
-
+    def update_ports(self, network, ret):
         # Add returned hostnames to devices, save to database
         job_counter = 0
         for device in network.devices.values():
             ports_open = []
-            for port_idx in range(len(returns[job_counter])):
-                if returns[job_counter][port_idx]:
-                    ports_open.append(ports[port_idx])
+            for port in ret[job_counter]:
+                ports_open.append(port)
 
             device.ports = ports_open
             job_counter += 1
-
-        print("[INFO] Port scan complete!")
-        lb.reset()
