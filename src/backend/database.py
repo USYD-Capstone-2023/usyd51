@@ -253,6 +253,15 @@ class PostgreSQL_database:
         
         if not self.__query(query, params):
             return Response("db_error")
+        
+        # Deletes the network
+        query = """
+                DELETE FROM access
+                WHERE network_id = %s;
+                """
+
+        if not self.__query(query, params):
+            return Response("db_error")
 
         # Deletes the network
         query = """
