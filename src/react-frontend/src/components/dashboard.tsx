@@ -130,13 +130,13 @@ const Dashboard = (props: any) => {
             .then((data) => {
               if (data["status"] === 200) {
                 if (data["message"] == "Scan finished.") {
-                  setNewNetworkId(0);
                   clearInterval(intervalId);
                   setLoadingBarActive(false);
+                  setNewNetworkId(0);
                   return;
                 }
-                console.log(data["content"])
                 setLoadingBarProgress(data["content"]);
+
               } else {
                 clearInterval(intervalId);
               }
@@ -376,7 +376,6 @@ const Dashboard = (props: any) => {
       })
       .then((data) => {
         if (data.status !== 200) {
-          //console.log(`${data.status} ${data.content}`);
           throwCustomError(data["status"] + " " + data["message"]);
         } else {
           const options = {
