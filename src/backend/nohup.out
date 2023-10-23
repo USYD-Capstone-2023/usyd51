@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/db_server.py", line 11, in <module>
+    from database import PostgreSQL_database as pdb
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+Traceback (most recent call last):
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/db_server.py", line 11, in <module>
+    from database import PostgreSQL_database as pdb
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+Traceback (most recent call last):
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/db_server.py", line 11, in <module>
+    from database import PostgreSQL_database as pdb
+  File "/mnt/c/Users/samke/Desktop/comp3888_th16_01_p51/src/backend/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'

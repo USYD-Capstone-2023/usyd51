@@ -52,6 +52,8 @@ Thumbs.db
 *.png
 *.tmp
 
+src/backend/pid.txt
+
 # backend python venv
 src/backend/backend
 

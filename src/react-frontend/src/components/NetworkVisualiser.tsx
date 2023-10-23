@@ -2,8 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { databaseUrl } from "@/servers";
 import Dagre from "dagre";
-import React, { useCallback, useEffect, useState } from "react";
-import { redirect } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ReactFlow, {
   ReactFlowProvider,
@@ -14,6 +13,10 @@ import ReactFlow, {
   Background,
   Controls,
 } from "reactflow";
+import "reactflow/dist/style.css";
+import SimpleNode from "./network/SimpleNode";
+
+
 
 type NetworkElement = {
   mac: string;
@@ -34,47 +37,56 @@ const nodeWidth = 500;
 const nodeHeight = 36;
 const maxNum = 10;
 
-import "reactflow/dist/style.css";
+function throwCustomError(message: any) {
+  const errorEvent = new CustomEvent('customError', {
+    detail: {
+      message: message
+    }
+  });
+  window.dispatchEvent(errorEvent);
+}
+
 
 const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-const getLayoutedElements = (nodes: any, edges: any, options: any) => {
-
-  const isHorizontal = options.direction === "LR";
-
-  g.setGraph({ rankdir: options.direction });
-
-  edges.forEach((edge: any) => g.setEdge(edge.source, edge.target));
-  nodes.forEach((node: any) => g.setNode(node.id, node));
-
-  Dagre.layout(g);
-
-  nodes.forEach((node: any) => {
-    const nodeWithPosition = g.node(node.id);
-    node.targetPosition = isHorizontal ? "left" : "top";
-    node.sourcePosition = isHorizontal ? "right" : "bottom";
-
-    // We are shifting the dagre node position (anchor=center center) to the top left
-    // so it matches the React Flow node anchor point (top left).
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
-    };
-
-    return node;
-  });
-
-  return { nodes, edges };
-};
-
 const LayoutFlow = (params: LayoutFlowProps) => {
-  const [showReactFlow, setShowReactFlow] = useState(true);
   const [num, setNum] = useState(0);
   const { networkID } = params;
   const [networkData, setNetworkData] = useState<NetworkElement[]>([]);
   const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const getLayoutedElements = useCallback(
+    (nodes: any, edges: any, options: any) => {
+      const isHorizontal = options.direction === "LR";
+
+      g.setGraph({ rankdir: options.direction });
+
+      edges.forEach((edge: any) => g.setEdge(edge.source, edge.target));
+      nodes.forEach((node: any) => g.setNode(node.id, node));
+
+      Dagre.layout(g);
+
+      nodes.forEach((node: any) => {
+        node.targetPosition = isHorizontal ? "left" : "top";
+        node.sourcePosition = isHorizontal ? "right" : "bottom";
+
+        // We are shifting the dagre node position (anchor=center center) to the top left
+        // so it matches the React Flow node anchor point (top left).
+        const nodeWithPosition = g.node(node.id);
+        node.position = {
+          x: nodeWithPosition.x - nodeWidth / 2,
+          y: nodeWithPosition.y - nodeHeight / 2,
+        };
+
+        return node;
+      });
+
+      return { nodes, edges };
+    },
+    [nodes]
+  );
 
   const onLayout = useCallback(
     (direction: any) => {
@@ -90,28 +102,37 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     [nodes, edges, setNodes, setEdges, fitView]
   );
 
-  const toggleReactFlowVisibility = () => {
-    setShowReactFlow(!showReactFlow);
-  };
-
   useEffect(() => {
     const authToken = localStorage.getItem("Auth-Token");
     if (authToken == null) {
-        console.log("User is logged out!");
-        return;
+      console.log("User is logged out!");
+      return;
     }
-    const options = {method: "GET", headers: {"Content-Type" : "application/json", "Auth-Token" : authToken, 'Accept': 'application/json'}}
+    const options = {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Auth-Token": authToken,
+        "Accept" : "application/json",
+      },
+    };
     fetch(databaseUrl + `networks/${networkID}/devices`, options)
-      .then((res) => (res.json()))
+    .then((res) => {
+      if (!res.ok) {
+        throwCustomError(res.status + ":" + res.statusText);
+      }
+      return res.json();
+    })
       .then((data) => {
-
         if (data["status"] === 200) {
           setNetworkData(data["content"]);
-
         } else {
           setNetworkData([]);
-          console.log(data["status"] + " " + data["message"]);
+          throwCustomError(data["status"] + " " + data["message"]);
         }
+      })
+      .catch((error) => {
+        throwCustomError("Network Error: Something has gone wrong.");
       });
   }, []);
 
@@ -124,8 +145,9 @@ const LayoutFlow = (params: LayoutFlowProps) => {
     for (let device of networkData) {
       let node = {
         id: device.ip,
-        data: { label: device.hostname },
+        data: { ...device },
         position: { x: 100, y: 100 },
+        type: "simpleNode",
       };
       newNodes.push(node);
       if (device.parent === "unknown") {
@@ -144,34 +166,40 @@ const LayoutFlow = (params: LayoutFlowProps) => {
 
     setNodes(newNodes);
     setEdges(newEdges);
-
   }, [networkData, setEdges, setNodes]);
 
   useEffect(() => {
     if (nodes.length > 0 && edges.length > 0 && num < maxNum) {
-            onLayout('LR');
-            onLayout('TB');
-            setNum(num +1)
+      onLayout("LR");
+      onLayout("TB");
+      setNum(num + 1);
     }
   }, [nodes, edges, onLayout, num]);
 
+  const nodeTypes = useMemo(() => {
+    return { simpleNode: SimpleNode };
+  }, []);
 
   return (
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        fitView
-      >
-        <Background />
-        <Controls />
-        <Panel position="top-right">
-          <Button onClick={() => onLayout("TB")}>vertical layout</Button>
-          <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
-          <Button>  <Link to={"../../DeviceListView/" + networkID}>List View </Link></Button>
-        </Panel>
-      </ReactFlow>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      nodeTypes={nodeTypes}
+      onEdgesChange={onEdgesChange}
+      fitView
+    >
+      <Background />
+      <Controls />
+      <Panel position="top-right">
+        <Button onClick={() => onLayout("TB")}>vertical layout</Button>
+        <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
+        <Button>
+          {" "}
+          <Link to={"../../DeviceListView/" + networkID}>List View </Link>
+        </Button>
+      </Panel>
+    </ReactFlow>
   );
 };
 
