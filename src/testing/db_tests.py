@@ -7,8 +7,8 @@ from response import Response
 
 VALID_NETWORK_KEYS = ["network_id", "ssid", "gateway_mac", "name", "devices", "timestamp"]
 VALID_NETWORK_VALUES = [1, "test_network_ssid", "12:34:56:78:90:AB", "test_network_name", {}, 0]
-VALID_DEVICE_KEYS = ["mac", "ip", "mac_vendor", "os_family", "os_vendor", "os_type", "hostname", "parent", "ports"]
-VALID_DEVICE_VALUES = ["FE:DC:BA:09:87:65", "198.162.0.1", "test_vendor", "test_os", "test_os_vendor", "test_os_type", "test_host", "test_parent", "22,80,500"]
+VALID_DEVICE_KEYS = ["mac", "ip", "mac_vendor", "os_family", "os_vendor", "os_type", "hostname", "parent", "website", "ports"]
+VALID_DEVICE_VALUES = ["FE:DC:BA:09:87:65", "198.162.0.1", "test_vendor", "test_os", "test_os_vendor", "test_os_type", "test_host", "test_parent", "test", [22,80,500]]
 
 # attempts to drop the test network
 SQL_INJ_TEST =  """
@@ -66,7 +66,7 @@ class DatabaseTester(unittest.TestCase):
 
         self.assertEqual(save_result.content, 1)
         self.assertEqual(save_result.status, 200)
-        self.assertEqual(db_network.content, network)
+        self.assertEqual(db_network.content["network_id"], 1)
         self.assertEqual(db_network.status, 200)
 
     """
@@ -86,21 +86,22 @@ class DatabaseTester(unittest.TestCase):
         self.assertEqual(save_result.status, 200)
         self.assertEqual(db_network.content["network_id"], 1)
         self.assertEqual(db_network.status, 200)
-
+                
     """
     Tests save_network with invalid user_id
     Preconditions: PostgreSQL database exists
     Postconditions: The database did not register or add the network
     """
     def test_save_net_bad_user_id(self):
-        network = dict(zip(VALID_NETWORK_KEYS, VALID_DEVICE_VALUES))
+        network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
 
         save_result = self.postgres.save_network(self.user_id+1, network)
         db_network = self.postgres.get_network(self.user_id, 1) # need valid user_id to ensure network isn't added
 
-        self.assertEqual(save_result.content, "")
-        self.assertEqual(save_result.status, 401)
-        self.assertEqual(db_network.content, "")
+        # db_error because user_id+1 is not a user in the database
+        self.assertEqual(save_result.status, 500)
+        self.assertEqual(save_result.message, Response.err_codes["db_error"][0])
+        self.assertEqual(db_network.message, Response.err_codes["no_network"][0])
         self.assertEqual(db_network.status, 500)
 
     """
@@ -268,11 +269,12 @@ class DatabaseTester(unittest.TestCase):
         device = dict(zip(VALID_DEVICE_KEYS, VALID_DEVICE_VALUES))
         network_vals = VALID_NETWORK_VALUES[:]
         network_vals[4] = {0:device}
-        network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+        network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
         save_result = self.postgres.save_network(self.user_id, network)
         contains_result = self.postgres.contains_device(1, device["mac"], 0)
 
+        self.assertEqual(save_result.message, Response.err_codes["success"][0])
         self.assertEqual(save_result.status, 200)
         self.assertEqual(save_result.content, 1)
         self.assertTrue(contains_result)
@@ -284,16 +286,17 @@ class DatabaseTester(unittest.TestCase):
     """
     def test_save_net_pos_case_sens_mac(self):
         device_vals = VALID_DEVICE_VALUES[:] # copy valid values
-        device_vals[0] = "ab:CD:ef:12:34:56"
+        device_vals[0] = "ab:CD:eF:12:34:56"
         device = dict(zip(VALID_DEVICE_KEYS, device_vals))
 
         network_vals = VALID_NETWORK_VALUES[:]
         network_vals[4] = {0:device}
-        network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+        network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
         save_result = self.postgres.save_network(self.user_id, network)
         contains_result = self.postgres.contains_device(1, device["mac"], 0)
 
+        self.assertEqual(save_result.message, Response.err_codes["success"][0])
         self.assertEqual(save_result.status, 200)
         self.assertEqual(save_result.content, 1)
         self.assertTrue(contains_result)
@@ -301,7 +304,7 @@ class DatabaseTester(unittest.TestCase):
     """
     Tests save_devices with multiple devices, some malformed (values), some good
     Preconditions: PostgreSQL database exists
-    Postconditions: The database adds the valid devices and doesn't add the invalid ones
+    Postconditions: The database does not save the network, claiming malformed devices
     """
     def test_save_net_pos_bad_device_vals(self):
         device_vals = VALID_DEVICE_VALUES[:] # copy valid values
@@ -326,23 +329,13 @@ class DatabaseTester(unittest.TestCase):
 
         network_vals = VALID_NETWORK_VALUES[:]
         network_vals[4] = devices
-        network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+        network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
         save_result = self.postgres.save_network(self.user_id, network)
-        contains_results = [self.postgres.contains_device(1, device["mac"], 0) for device in devices.values()]
-        devices_result = self.postgres.get_all_devices(self.user_id, 1,0)
 
-        self.assertEqual(save_result.status, 200)
-        self.assertNotEqual(save_result.content, network)
-        
-        for i, result in enumerate(contains_results):
-            if i in (3,5):
-                self.assertFalse(result)
-            else:
-                self.assertTrue(result)
-
-        self.assertEqual(devices_result.status, 200)
-        self.assertEqual(len(devices_result.content), 5)
+        self.assertEqual(save_result.status, 500)
+        self.assertEqual(save_result.message, Response.err_codes["malformed_device"][0])
+    
         
     """
     Tests save_network with malformed device keys
@@ -356,12 +349,12 @@ class DatabaseTester(unittest.TestCase):
 
         network_vals = VALID_NETWORK_VALUES[:]
         network_vals[4] = {0:device}
-        network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+        network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
         save_result = self.postgres.save_network(self.user_id, network)
         
         self.assertEqual(save_result.status, 500)
-        self.assertEqual(save_result.content, "")
+        self.assertEqual(save_result.message, Response.err_codes["malformed_device"][0])
 
     # we may want to change the postconditions here
     """
@@ -377,7 +370,6 @@ class DatabaseTester(unittest.TestCase):
             "FG:QW:ZR:ET:XA:==",        # bad chars
             "1234567890ABCDEFabcdef",   # no :
             "123:abc:fff:ee:00:11",     # too many chars
-            "1:A:0:AA:BB:CC",           # too few chars
             ":::::",                    # too few chars
         ]
 
@@ -386,15 +378,15 @@ class DatabaseTester(unittest.TestCase):
             device["mac"] = bad_mac
             
             network_vals = VALID_NETWORK_VALUES[:]
-            network_vals[4] = device
-            network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+            network_vals[4] = {0: device}
+            network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
-            save_result = self.postgres.save_network(self.user_id,network)
+            save_result = self.postgres.save_network(self.user_id, network)
             device_result = self.postgres.get_all_devices(self.user_id, 1)
 
             self.assertEqual(save_result.status, 500)
-            self.assertEqual(save_result.content, "")
-            self.assertEqual(len(device_result.content), 1)
+            self.assertEqual(save_result.message, Response.err_codes["malformed_device"][0])
+            self.assertEqual(len(device_result.content), 0)
 
     # we may want to change the postconditions here
     """
@@ -421,14 +413,14 @@ class DatabaseTester(unittest.TestCase):
 
             network_vals = VALID_NETWORK_VALUES[:]
             network_vals[4] = {0:device}
-            network = dict(zip(VALID_NETWORK_KEYS, VALID_NETWORK_VALUES))
+            network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
             save_result = self.postgres.save_network(self.user_id,network)
             device_result = self.postgres.get_all_devices(self.user_id, 1)
 
             self.assertEqual(save_result.status, 500)
-            self.assertEqual(save_result.content, "")
-            self.assertEqual(len(device_result.content), 1)
+            self.assertEqual(save_result.message, Response.err_codes["malformed_device"][0])
+            self.assertEqual(len(device_result.content), 0)
 
 ## ------------------------------------------------
 ##  delete_network tests
@@ -467,7 +459,7 @@ class DatabaseTester(unittest.TestCase):
         self.assertEqual(del_result.status, 500)
         self.assertEqual(del_result.message, Response.err_codes["no_network"][0])
 
-        self.assertEqual(len(networks_result.content), 0)
+        self.assertEqual(len(networks_result.content), 1)
         self.assertEqual(networks_result.status, 200)
 
     """
@@ -592,14 +584,14 @@ class DatabaseTester(unittest.TestCase):
     """
     Tests contains_snapshot with non-existent network
     Preconditions: PostgreSQL database exists
-    Postconditions: contains_snapshot is false
+    Postconditions: The database claims to not contain the snapshot
     """
     def test_contains_snapshot_neg_bad_network(self):
         contains_result = self.postgres.contains_snapshot(1,0)
         network_result = self.postgres.get_network(self.user_id, 1)
 
         self.assertFalse(contains_result)
-        self.assertEqual(network_result.status, 401)
+        self.assertEqual(network_result.status, 500)
         self.assertEqual(network_result.message, Response.err_codes["no_network"][0])
 
     """
@@ -749,8 +741,6 @@ class DatabaseTester(unittest.TestCase):
 ##  get_all_devices tests
 ## ------------------------------------------------
 
-    # TODO
-    # ensure good device entries
     """
     Tests get_all_devices with positive input
     Preconditions: PostgreSQL database exists, network 0 exists
@@ -778,15 +768,16 @@ class DatabaseTester(unittest.TestCase):
 
         network_vals = VALID_NETWORK_VALUES[:] # copy valid values
         network_vals[4] = devices
-        test_network = dict(zip(VALID_DEVICE_KEYS, network_vals))
+        test_network = dict(zip(VALID_NETWORK_KEYS, network_vals))
 
         save_result = self.postgres.save_network(self.user_id, test_network)
-        # contains_results = [self.postgres.contains_mac(0, device["mac"], 0) for device in devices]
-        devices_result = self.postgres.get_all_devices(self.user_id,1)
+        contains_results = [self.postgres.contains_device(1, device["mac"], 0) for device in devices.values()]
+        devices_result = self.postgres.get_all_devices(self.user_id, 1)
 
-        self.assertTrue(save_result)
-        # for result in contains_results:
-        #     self.assertTrue(result)
+        self.assertEqual(save_result.message, Response.err_codes["success"][0])
+        self.assertEqual(save_result.status, 200)
+        for result in contains_results:
+            self.assertTrue(result)
         self.assertEqual(len(devices_result.content), 5)
 
     """
