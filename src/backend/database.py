@@ -157,7 +157,7 @@ class PostgreSQL_database:
         for byte in split_ip:
             try:
                 val = int(byte)
-                if val < 0 or val > 255:
+                if len(byte) > 3 or val < 0 or val > 255:
                     return False
             except:
                 return False
@@ -183,7 +183,7 @@ class PostgreSQL_database:
                 if key not in device.keys() or not isinstance(device[key], datatype):
                     return Response("malformed_device")
                 
-        # Ensures all mac addresses are valid
+        # Ensures all mac and ip addresses are valid
         for device in devices.values():
 
             if not self.validate_mac(device["mac"]):
