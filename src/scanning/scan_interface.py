@@ -15,8 +15,8 @@ import logging, json, sys, threading, time
 from functools import wraps
 
 # # Hides flask output logging
-# log = logging.getLogger('werkzeug')
-# log.setLevel(logging.ERROR)
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 
@@ -58,7 +58,9 @@ loading_bars = dict()
 daemon_clients = set()
 pending_daemon_clients = set()
 
-DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]
+DB_SERVER_URL = "http://" + app.config["POSTGRES_URI"]\
+# Updates per second
+TUI_REFRESH = 0.1
 
 # Creates a new instance of the scanning tool suite with 50 threads
 nt = NetTools(50)
@@ -69,7 +71,7 @@ daemon_scan_rate = 60
 # Settings for daemon scans, fills in from remote db when running
 daemon_settings = {}
 
-ui = ProgressUI(40)
+ui = ProgressUI(30)
 
 
 def create_response(message, code, content=""):
@@ -142,20 +144,21 @@ def validate_network_id(network_id):
     
 
 # Runs a network scan on the given network with the given settings arguments.
-# Automatically saves network to database on completion.
+# Automatically saves network to database after each checkpoint (individual scan is complete)
 def run_scan(network_id, settings, auth):
 
     global loading_bars
 
-    lb_map = {"run_vertical_trace" : "vertical_traceroute",
-              "run_mac_vendor"     : "MAC_vendors",
-              "run_website_status" : "website_hosting_scan",
-              "run_hostname"       : "hostname_resolution",
-              "run_os"             : "os_scan",
-              "run_ports"          : "port_scan"}
+    # Maps related setting to loading bar key
+    lb_map = {"run_vertical_trace" : "Vertical Traceroute",
+              "run_mac_vendor"     : "MAC Vendors",
+              "run_website_status" : "Website Hosting Check",
+              "run_hostname"       : "Hostname Retrieval",
+              "run_os"             : "OS Scan",
+              "run_ports"          : "Port Scan",}
 
-    bars = {"ARP_scan"             : LoadingBar("ARP_scan", -1),
-            "traceroute"           : LoadingBar("traceroute", -1)}
+    bars = {"ARP_scan"             : LoadingBar("Device Discovery (ARP)", -1),
+            "traceroute"           : LoadingBar("Traceroute", -1)}
     
     for setting in lb_map.keys():
         if setting in settings.keys() and settings[setting]:
@@ -164,7 +167,7 @@ def run_scan(network_id, settings, auth):
     loading_bars[auth] = bars
     ui.add_bars(auth, bars)
 
-    # Initialises network
+    # Initialises network with basic information
     network = nt.init_scan(network_id)
 
     # Retrieves devices
@@ -174,18 +177,20 @@ def run_scan(network_id, settings, auth):
     # Runs basic traceroute
     nt.add_routes(network, bars["traceroute"])
 
-    if "run_vertical_trace" in settings.keys() and settings["run_vertical_trace"]:
-        bars["vertical_traceroute"].set_total(1)
+    scan = "run_vertical_trace"
+    if scan in settings.keys() and settings[scan]:
+        bars[lb_map[scan]].set_total(1)
         nt.vertical_traceroute(network)
-        bars["vertical_traceroute"].set_progress(1)
+        bars[lb_map[scan]].set_progress(1)
 
+    # Updates all relevant bars with new total value 
     for lb in bars.values():
-        if lb.label in ["ARP_scan", "traceroute", "vertical_traceroute"]:
+        if lb.label in ["Device Discovery (ARP)", "Traceroute", lb_map["run_vertical_trace"]]:
             continue
 
         lb.set_total(len(network.devices))
 
-    # Saves to database
+    # Saves base network to database
     res = requests.put(DB_SERVER_URL + "/networks/add", json=network.to_json(), headers={"Auth-Token" : auth})
     if res.status_code != 200:
         print(f"[ERR ] Failed to write network to database.\n\t [{res.status_code}]: {res.content.decode('utf-8')}")
@@ -193,11 +198,13 @@ def run_scan(network_id, settings, auth):
         del loading_bars[auth]
         return
 
+    # Retrieve network ID assigned by the database 
     network_id = json.loads(res.content.decode("utf-8"))["content"]
     network.network_id = network_id
 
-    if "run_mac_vendor" in settings.keys() and settings["run_mac_vendor"]:
-        nt.add_mac_vendors(network, bars["MAC_vendors"])
+    scan = "run_mac_vendor"
+    if scan in settings.keys() and settings[scan]:
+        nt.add_mac_vendors(network, bars[lb_map[scan]])
         res = update_network(network, auth)
         if res != True:
             ui.rm_bars(auth)
@@ -206,43 +213,51 @@ def run_scan(network_id, settings, auth):
 
     parallel_scans = [
         {"setting"      : "run_website_status",
-         "func"         : nt.dispatch_website_scan,
+         "dispatch_func"         : nt.dispatch_website_scan,
          "args"         : [network],
          "update_func"  : nt.update_website_status,
-         "lb"           : None if "website_hosting_scan" not in bars.keys() else bars["website_hosting_scan"]},
+         "lb"           : None if lb_map["run_website_status"] not in bars.keys() \
+                            else bars[lb_map["run_website_status"]]},
 
         {"setting"      : "run_hostname",
-         "func"         : nt.dispatch_hostname_scan,
+         "dispatch_func"         : nt.dispatch_hostname_scan,
          "args"         : [network],
          "update_func"  : nt.update_hostnames,
-         "lb"           : None if "hostname_resolution" not in bars.keys() else bars["hostname_resolution"]},
+         "lb"           : None if lb_map["run_hostname"] not in bars.keys() \
+                            else bars[lb_map["run_hostname"]]},
 
         {"setting"      : "run_os",
-         "func"         : nt.dispatch_os_scan,
+         "dispatch_func"         : nt.dispatch_os_scan,
          "args"         : [network],
          "update_func"  : nt.update_os,
-         "lb"           : None if "os_scan" not in bars.keys() else bars["os_scan"]},
+         "lb"           : None if lb_map["run_os"] not in bars.keys() \
+                            else bars[lb_map["run_os"]]},
 
         {"setting"      : "run_ports",
-         "func"         : nt.dispatch_port_scan,
+         "dispatch_func"         : nt.dispatch_port_scan,
          "args"         : [network, settings["ports"]],
          "update_func"  : nt.update_ports,
-         "lb"           : None if "port_scan" not in bars.keys() else bars["port_scan"]},
+         "lb"           : None if lb_map["run_ports"] not in bars.keys() \
+                            else bars[lb_map["run_ports"]]},
     ]
     
+    # Create list of batch jobs based on settings 
     thread_attrs = {}
     for scan in parallel_scans:
         if scan["setting"] in settings.keys() and settings[scan["setting"]]:
+            # Create job attribute struct
             thread_attrs[scan["setting"]] = ThreadpoolAttr(len(network.devices), scan["update_func"], scan["lb"])
-            scan["func"](*scan["args"], thread_attrs[scan["setting"]])
+            # Dispatch batch job
+            scan["dispatch_func"](*scan["args"], thread_attrs[scan["setting"]])
 
+    # Collects values returned from threadpool for each job until all are completed
     while True:
-        
         done = True
         for scan_attr in thread_attrs.values():
+            # Checks if all jobs have been completed
             if not scan_attr.batch_done:
                 done = False
-                # Updates loading bar progress
+                # Checks if individual job has been completed
                 scan_attr.mutex.acquire()
                 if scan_attr.ctr[0] != scan_attr.lb.progress:
                     scan_attr.lb.set_progress(scan_attr.ctr[0])
@@ -251,8 +266,10 @@ def run_scan(network_id, settings, auth):
 
                 scan_attr.mutex.release()
 
+                # Update network with new values if job has been completed
                 if scan_attr.batch_done:
                     scan_attr.update_func(network, scan_attr.ret)
+                    # Save to db
                     res = update_network(network, auth)
                     if res != True:
                         ui.rm_bars(auth)
@@ -262,15 +279,17 @@ def run_scan(network_id, settings, auth):
         if done:
             break
 
-        time.sleep(0.1)
+        time.sleep(TUI_REFRESH)
 
     ui.rm_bars(auth)
     del loading_bars[auth]
     return network
 
 
+# Checks that the requested network is scannable by this scanning interface
 def verify_current_connection(network_id, auth):
 
+    # A new network is implicitly valid
     if network_id == -1:
         return create_response("Valid", 200)
 
@@ -282,7 +301,7 @@ def verify_current_connection(network_id, auth):
     
     # Not authorised for this network, or some other database error code
     if network.status_code != 200:
-        return network.content.decode("utf8"), network.status_code
+        return network
 
     network = json.loads(network.content.decode("utf-8"))["content"]
 
@@ -392,7 +411,7 @@ def get_daemon_progress(auth):
 
     global daemon_auth_token
     if daemon_auth_token in loading_bars.keys():
-        return create_response("success", 200, content={x.label : x.to_json() for x in loading_bars[daemon_auth_token].values()})
+        return create_response("success", 200, content=[x.to_json() for x in loading_bars[daemon_auth_token].values()])
     
     return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 
@@ -403,7 +422,7 @@ def get_progress(auth):
 
     global loading_bars
     if auth in loading_bars.keys():
-        return create_response("success", 200, content={x.label : x.to_json() for x in loading_bars[auth].values()})
+        return create_response("success", 200, content=[x.to_json() for x in loading_bars[auth].values()])
     
     return create_response("Scan finished.", 200, content={"label" : "", "total" : 0, "progress" : 0})
 
@@ -468,11 +487,13 @@ def run_daemon():
         # Waits configurable amount of time before scanning again
         time.sleep(daemon_scan_rate)
 
+
+# Updates the TUI on a set interval
 def run_ui():
 
     while True:
         ui.show()
-        time.sleep(0.1)
+        time.sleep(TUI_REFRESH)
 
 
 if __name__ == "__main__":

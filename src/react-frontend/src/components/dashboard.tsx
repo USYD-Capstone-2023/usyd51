@@ -66,7 +66,7 @@ const Dashboard = (props: any) => {
   const [loadingBarActive, setLoadingBarActive] = useState(false);
 
   const NewNetworkButton = (props: any) => {
-    const [loadingBarProgress, setLoadingBarProgress] = useState(new Map<string, any>());
+    const [loadingBarProgress, setLoadingBarProgress] = useState([]);
     const { setNewNetworkId } = props;
   
     // const [networkId, setNetworkId] = useState(-1);
@@ -128,7 +128,6 @@ const Dashboard = (props: any) => {
               return res.json();
             })
             .then((data) => {
-              console.log(data)
               if (data["status"] === 200) {
                 if (data["message"] == "Scan finished.") {
                   setNewNetworkId(0);
@@ -136,6 +135,7 @@ const Dashboard = (props: any) => {
                   setLoadingBarActive(false);
                   return;
                 }
+                console.log(data["content"])
                 setLoadingBarProgress(data["content"]);
               } else {
                 clearInterval(intervalId);
@@ -159,23 +159,28 @@ const Dashboard = (props: any) => {
   
     const getLoadingBars = useCallback(() => {
       const bars = []
-      for (let [key, value] of Object.entries(loadingBarProgress)) {
+      for (let bar of loadingBarProgress) {
         
         bars.push(
           <div>
             <div>
-            {value.label} ({value.progress}/{value.total}) [{value.state}]
+            {bar.label} ({bar.progress}/{bar.total}) 
             </div>
-            <Progress
-              className="w-full"
-              value={Math.floor(
-                (100 * value.progress) / value.total
-                )} />
+            <div className="flex">
+              <div className="mr-3 ml-1">
+                [{bar.state.padEnd(7, ' ')}]
+              </div>
+              <Progress
+                className="w-full mr-2"
+                value={Math.floor(
+                  (100 * bar.progress) / bar.total
+                  )} />
+            </div>
           </div>
         );
       }
       return (
-        <div style={{display: 'inline-block'}}>
+        <div>
         {bars}
         </div>
       );
@@ -221,53 +226,6 @@ const Dashboard = (props: any) => {
     );
   };
 
-  // useEffect(() => {
-  //   let intervalId: string | number | NodeJS.Timeout | undefined;
-  //   const options = {
-  //     method: "GET",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //       "Auth-Token": authToken,
-  //       "Accept" : "application/json",
-  //     },
-  //   };
-  //   if (rescanInitiated) {
-  //     intervalId = setInterval(() => {
-  //       fetch(scannerUrl + "progress", options)
-  //       .then((res) => {
-  //         if (!res.ok) {
-  //           throwCustomError(res.status + ":" + res.statusText);
-  //         }
-  //         return res.json();
-  //       })
-  //         .then((data) => {
-  //           if (data["status"] === 200) {
-  //             if (data["message"] == "Scan finished.") {
-  //               clearInterval(intervalId);
-  //               setRescanInitiated(false);
-  //               if (selectedNetworkID === rescanningNetworkID) {
-  //                 setRescanIteration((prev) => prev + 1);
-  //               }
-  //               throwCustomAlert("Rescan Complete");
-  //               ///If we stay on the same network then it auto reloads anyways
-  //               return;
-  //             }
-  //           } else {
-  //             clearInterval(intervalId);
-  //           }
-  //         })
-  //         .catch((error) => {
-  //           throwCustomError("Scanning server is unreachable. Please check it is running.");
-  //         });
-  //     }, 400);
-  //   }
-  //   // Cleanup
-  //   return () => {
-  //     if (intervalId) {
-  //       clearInterval(intervalId);
-  //     }
-  //   };
-  // }, [rescanInitiated]);
 
   const rescanNetwork = useCallback((networkId: number) => {
     setRescanningNetworkID(networkId);
@@ -598,7 +556,7 @@ const Dashboard = (props: any) => {
             </div>
           </div>
           <div className="flex w-full justify-center">
-            <Button className="ml-5 mr-5" onClick={() => rescanNetwork(selectedNetworkID)} >Rescan</Button>
+            <Button className="ml-5 mr-5" disabled={loadingBarActive} onClick={() => rescanNetwork(selectedNetworkID)} >Rescan</Button>
             <ShareNetworkDropdown
               userList={userListData}
               onSelect={shareNetworkWithUser}
