@@ -52,8 +52,7 @@ Thumbs.db
 *.png
 *.tmp
 
-# backend python venv
-src/backend/backend
+src/backend/env/
 
 # bun
 src/react-frontend/bun.lockb

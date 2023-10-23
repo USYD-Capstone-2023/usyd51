@@ -1,18 +1,31 @@
-"use client"
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
-
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
+import { useEffect } from "react";
 
 export function DarkMode() {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const usingDark = (event: any) => {
+      const newColorScheme = event.matches ? "dark" : "light";
+      setTheme(newColorScheme);
+    };
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", usingDark);
+
+    return window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .removeEventListener("change", usingDark);
+  }, []);
 
   return (
     <DropdownMenu>
@@ -24,16 +37,25 @@ export function DarkMode() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem
+          onClick={() => setTheme("light")}
+          className={theme === "light" ? "light-active" : ""}
+        >
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem
+          onClick={() => setTheme("dark")}
+          className={theme === "dark" ? "dark-active" : ""}
+        >
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
+        <DropdownMenuItem
+          onClick={() => setTheme("system")}
+          className={theme === "system" ? "system-active" : ""}
+        >
           System
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 import csv, os
 
-class MAC_table:
+class MACTable:
 
     mac_table = {}
 
