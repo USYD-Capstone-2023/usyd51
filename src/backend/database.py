@@ -129,7 +129,41 @@ class PostgreSQL_database:
 
     
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
+
+
+    def validate_mac(self, mac):
+        # Check mac is valid
+        split_mac = mac.split(":")
+        if len(split_mac) != 6:
+            return False
         
+        for byte in split_mac:
+            if len(byte) != 2:
+                return False
+            
+            try:
+                _ = int(byte, 16)
+            except:
+                return False
+        return True
+    
+
+    def validate_ip(self, ip):
+        # Check ip is valid 
+        split_ip = ip.split(".")
+        if len(split_ip) != 4:
+            return False
+        
+        for byte in split_ip:
+            try:
+                val = int(byte)
+                if val < 0 or val > 255:
+                    return False
+            except:
+                return False
+            
+        return True
+            
 
     # Saves a network and all of its devices to the database
     def save_network(self, user_id, network, exists=False):
@@ -152,39 +186,11 @@ class PostgreSQL_database:
         # Ensures all mac addresses are valid
         for device in devices.values():
 
-            # Check mac is valid
-            split_mac = device["mac"].split(":")
-            if len(split_mac) != 6:
-                print("mac1")
+            if not self.validate_mac(device["mac"]):
                 return Response("malformed_device")
             
-            for byte in split_mac:
-                if len(byte) != 2:
-                    print("mac2")
-                    return Response("malformed_device")
-                
-                try:
-                    val = int(byte, 16)
-                except:
-                    print("mac3")
-                    return Response("malformed_device")
-                
-            # Check ip is valid 
-            split_ip = device["ip"].split(".")
-            if len(split_ip) != 4:
-                print("ip1")
+            if not self.validate_ip(device["ip"]):
                 return Response("malformed_device")
-            
-            for byte in split_ip:
-                try:
-                    val = int(byte)
-                    if val < 0 or val > 255:
-                        print("ip2")
-                        return Response("malformed_device")
-                except:
-                    print("ip3")
-                    return Response("malformed_device")
-
                 
         # Gets the next valid ID if the ID parameter is unset
         network_id = network["network_id"]
