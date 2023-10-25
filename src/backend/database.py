@@ -796,7 +796,7 @@ class PostgreSQL_database:
         attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, run_website_status, " + \
                 "run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
                 "daemon_run_ports, daemon_run_os, daemon_run_hostname, daemon_run_mac_vendor, daemon_run_website_status, " + \
-                " daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
+                "daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
         
         query = f"""
                 SELECT {attrs}
@@ -914,8 +914,8 @@ class PostgreSQL_database:
                         daemon_run_vertical_trace,
                         daemon_scan_rate,
                         scan_server_ip)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                     """
             
             params = (user_id, *params)

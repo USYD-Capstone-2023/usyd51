@@ -128,7 +128,6 @@ def to_ints(vals):
 @returns_response_obj
 def signup():
 
-    print("hellow")
     user_data = None   
     try:
         user_data = request.get_json()
@@ -136,7 +135,6 @@ def signup():
         return Response("bad_input")
         
     res = db.add_user(user_data)
-    print(res.to_json())
     if res.status != 200:
         return res
     
@@ -174,7 +172,11 @@ def login():
 @require_auth
 def get_networks(user_id):
 
-    return db.get_networks(user_id)
+    args = to_ints([user_id])
+    if not args:
+        return Response("bad_input")
+
+    return db.get_networks(args[0])
 
 
 # Gives basic information about all networks accessible by the user.
@@ -192,7 +194,11 @@ def get_daemon_networks(user_id):
 @require_auth
 def get_daemon_snapshots(user_id, network_id):
         
-    return db.get_snapshots(0, network_id)
+    args = to_ints([network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.get_snapshots(0, args[0])
 
 
 # Shares access to a network with another user
@@ -200,8 +206,12 @@ def get_daemon_snapshots(user_id, network_id):
 @returns_response_obj
 @require_auth
 def share_daemon_network(user_id, network_id):
+
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
     
-    return db.grant_access(0, user_id, network_id)
+    return db.grant_access(0, args[0], args[1])
     
 
 # Gives basic information about the requested network.
@@ -210,7 +220,11 @@ def share_daemon_network(user_id, network_id):
 @require_auth
 def get_network(user_id, network_id):
 
-    return db.get_network(user_id, network_id)
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.get_network(args[0], args[1])
     
 
 # Gives all the devices associated with the given network id, as they were in the most recent scan
@@ -219,7 +233,11 @@ def get_network(user_id, network_id):
 @require_auth
 def get_devices(user_id, network_id):
         
-    return db.get_all_devices(user_id, network_id)
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
+    
+    return db.get_all_devices(args[0], args[1])
      
 
 # Adds a network network to the database, along with its attributes and devices
@@ -228,14 +246,18 @@ def get_devices(user_id, network_id):
 @require_auth
 def save_network(user_id):
 
+    args = to_ints([user_id])
+    if not args:
+        return Response("bad_input")
+
     network = None
     try:
         network = request.get_json()
     except:
         return Response("bad_input")
         
-    network["user_id"] = user_id
-    return db.save_network(user_id, network)
+    network["user_id"] = args[0]
+    return db.save_network(args[0], network)
     
 
 # Updates an existing snapshot of a network in place
@@ -244,6 +266,10 @@ def save_network(user_id):
 @require_auth
 def update_network(user_id):
 
+    args = to_ints([user_id])
+    if not args:
+        return Response("bad_input")
+
     network = None
     try:
         network = request.get_json()
@@ -251,7 +277,7 @@ def update_network(user_id):
         return Response("bad_input")
         
     network["user_id"] = user_id
-    return db.save_network(user_id, network, exists=True)
+    return db.save_network(args[0], network, exists=True)
     
 
 # Renames a network in the database
@@ -260,7 +286,11 @@ def update_network(user_id):
 @require_auth
 def rename_network(user_id, network_id, new_name):
 
-    return db.rename_network(user_id, network_id, new_name)
+    args = to_ints([user_id, network_id, new_name])
+    if not args:
+        return Response("bad_input")
+
+    return db.rename_network(args[0], args[1], args[2])
 
 
 # Deletes a network and all related devices from the dzatabase
@@ -269,7 +299,11 @@ def rename_network(user_id, network_id, new_name):
 @require_auth
 def delete_network(user_id, network_id):
 
-    return db.delete_network(user_id, network_id)
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
+
+    return db.delete_network(args[0], args[1])
 
 
 # Shares access to a network with another user
@@ -277,8 +311,12 @@ def delete_network(user_id, network_id):
 @returns_response_obj
 @require_auth
 def share_network(user_id, network_id, recipient_id):
+
+    args = to_ints([user_id, network_id, recipient_id])
+    if not args:
+        return Response("bad_input")
     
-    return db.grant_access(user_id, recipient_id, network_id)
+    return db.grant_access(args[0], args[1], args[2])
 
 
 # Gets the ID and name of all users with access to the given network
@@ -287,7 +325,11 @@ def share_network(user_id, network_id, recipient_id):
 @require_auth
 def get_users(user_id, network_id):
 
-    return db.get_users_with_access(user_id, network_id)
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
+
+    return db.get_users_with_access(args[0], args[1])
 
 
 # Retrieves the logged in user's settings json from the database
@@ -296,7 +338,11 @@ def get_users(user_id, network_id):
 @require_auth
 def get_settings(user_id):
 
-    return db.get_settings(user_id)
+    args = to_ints([user_id])
+    if not args:
+        return Response("bad_input")
+
+    return db.get_settings(args[0])
 
 
 # Sets a user's settings for scanning and frontend preferences in the database
@@ -305,13 +351,17 @@ def get_settings(user_id):
 @require_auth
 def set_settings(user_id):
 
+    args = to_ints([user_id])
+    if not args:
+        return Response("bad_input")
+
     settings = None
     try:
         settings = request.get_json()
     except:
         return Response("bad_input")
         
-    return db.set_settings(user_id, settings)
+    return db.set_settings(args[0], settings)
 
 
 # Retrieves basic information about all snapshots of a certain network in the databsase
@@ -319,8 +369,12 @@ def set_settings(user_id):
 @returns_response_obj
 @require_auth
 def get_snapshots(user_id, network_id):
+
+    args = to_ints([user_id, network_id])
+    if not args:
+        return Response("bad_input")
         
-    return db.get_snapshots(user_id, network_id)
+    return db.get_snapshots(args[0], args[1])
 
 
 # Retrieves a specific snapshot of a network at a point in time
@@ -328,8 +382,12 @@ def get_snapshots(user_id, network_id):
 @returns_response_obj
 @require_auth
 def get_snapshot(user_id, network_id, timestamp):
+
+    args = to_ints([user_id, network_id, timestamp])
+    if not args:
+        return Response("bad_input")
         
-    return db.get_all_devices(user_id, network_id, timestamp) 
+    return db.get_all_devices(args[0], args[1], args[2]) 
 
 
 # Retrieves the salt associated with a certain username

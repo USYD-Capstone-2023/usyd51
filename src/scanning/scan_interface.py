@@ -126,7 +126,6 @@ def get_settings(auth, daemon=False):
             "run_os"             : settings["daemon_run_os"],
             "run_hostname"       : settings["daemon_run_hostname"],
             "run_mac_vendor"     : settings["daemon_run_mac_vendor"],
-            "run_trace"          : settings["daemon_run_trace"],
             "run_vertical_trace" : settings["daemon_run_vertical_trace"],
             "run_website_status" : settings["daemon_run_website_status"],
             }, settings["daemon_scan_rate"]

@@ -168,7 +168,7 @@ const Dashboard = (props: any) => {
             </div>
             <div className="flex">
               <div className="mr-3 ml-1">
-                [{bar.state.padEnd(7, ' ')}]
+                {('[' + bar.state + ']').padEnd(9, ' ')}
               </div>
               <Progress
                 className="w-full mr-2"
