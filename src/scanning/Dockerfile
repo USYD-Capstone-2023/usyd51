@@ -1,7 +1,8 @@
+# Work in progress, doesnt work in docker at the minute
 FROM alpine
 LABEL maintainer "Sam Kelly <skel4720@uni.sydney.edu.au>"
 WORKDIR /app
-COPY requirements.txt ./
+COPY ./install/requirements.txt ./
 RUN apk add --no-cache zeromq-dev linux-headers python3 python3-dev libc-dev gcc sudo nmap wireless-tools
 RUN python3 -m ensurepip
 RUN pip3 install --upgrade pip

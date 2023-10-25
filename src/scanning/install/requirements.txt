@@ -6,3 +6,4 @@ flask-cors
 requests==2.28.1
 urllib3==1.26.17
 pycryptodome
+uni-curses

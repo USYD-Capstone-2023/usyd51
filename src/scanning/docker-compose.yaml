@@ -1,3 +1,5 @@
+# WIP, doenst run in docker at the minute
+
 version: "3.9"
 
 services:
