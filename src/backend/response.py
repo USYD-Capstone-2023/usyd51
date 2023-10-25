@@ -11,7 +11,7 @@ class Response:
                 "malformed_user"     : ("Provided user information is malformed.", 500),
                 "dup_user"           : ("A user with that username already exists.", 500),
                 "db_error"           : ("The database server encountered an error, please try again.", 500),
-                "bad_input"          : ("Input was not numeric.", 500),
+                "bad_input"          : ("Bad request.", 500),
                 "already_authorized" : ("Given user already has access to this network.", 500),
                 "no_access"          : ("Current user does not have access to this resource.", 401),
                 "malformed_auth"     : ("Provided authentication token is malformed.", 401),

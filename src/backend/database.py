@@ -35,7 +35,6 @@ class PostgreSQL_database:
                         "run_hostname"              : bool,
                         "run_mac_vendor"            : bool,
                         "run_website_status"        : bool,
-                        "run_trace"                 : bool,
                         "run_vertical_trace"        : bool,
                         "defaultView"               : str,
                         "daemon_TCP"                : bool,
@@ -46,7 +45,6 @@ class PostgreSQL_database:
                         "daemon_run_os"             : bool,
                         "daemon_run_hostname"       : bool,
                         "daemon_run_mac_vendor"     : bool,
-                        "daemon_run_trace"          : bool,
                         "daemon_run_vertical_trace" : bool,
                         "daemon_scan_rate"          : int,
                         "scan_server_ip"            : str
@@ -60,7 +58,6 @@ class PostgreSQL_database:
                         "run_hostname"              : True,
                         "run_mac_vendor"            : True,
                         "run_website_status"        : True,
-                        "run_trace"                 : True,
                         "run_vertical_trace"        : True,
                         "defaultView"               : "Horizontal",
                         "daemon_TCP"                : True,
@@ -71,7 +68,6 @@ class PostgreSQL_database:
                         "daemon_run_hostname"       : True,
                         "daemon_run_mac_vendor"     : True,
                         "daemon_run_website_status" : True,
-                        "daemon_run_trace"          : True,
                         "daemon_run_vertical_trace" : True,
                         "daemon_scan_rate"          : 120,
                         "scan_server_ip"            : "127.0.0.1:5002"}
@@ -514,6 +510,9 @@ class PostgreSQL_database:
         if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
+        if timestamp != None and not isinstance(timestamp, int):
+            return Response("bad_input")
+        
         # Checks requested network exists, and current user can access it
         res = self.validate_network_access(user_id, network_id)
         if res.status != 200:
@@ -561,6 +560,9 @@ class PostgreSQL_database:
 
     # Checks if a device is contained in a certain snapshot of a network
     def contains_device(self, network_id, mac, timestamp):
+
+        if not (isinstance(network_id, int) and isinstance(timestamp, int)):
+            return Response("bad_input")
 
         query = """
                 SELECT 1
@@ -792,9 +794,9 @@ class PostgreSQL_database:
             return Response("no_user")
 
         attrs = "user_id, TCP, UDP, ports, run_ports, run_os, run_hostname, run_mac_vendor, run_website_status, " + \
-                "run_trace, run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
+                "run_vertical_trace, defaultView, daemon_TCP, daemon_UDP, daemon_ports, " + \
                 "daemon_run_ports, daemon_run_os, daemon_run_hostname, daemon_run_mac_vendor, daemon_run_website_status, " + \
-                "daemon_run_trace, daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
+                " daemon_run_vertical_trace, daemon_scan_rate, scan_server_ip"
         
         query = f"""
                 SELECT {attrs}
@@ -871,7 +873,6 @@ class PostgreSQL_database:
                   settings["run_hostname"],
                   settings["run_mac_vendor"],
                   settings["run_website_status"],
-                  settings["run_trace"],
                   settings["run_vertical_trace"],
                   settings["defaultView"],
                   settings["daemon_TCP"],
@@ -882,7 +883,6 @@ class PostgreSQL_database:
                   settings["daemon_run_hostname"],
                   settings["daemon_run_mac_vendor"],
                   settings["daemon_run_website_status"],
-                  settings["daemon_run_trace"],
                   settings["daemon_run_vertical_trace"],
                   settings["daemon_scan_rate"],
                   settings["scan_server_ip"])
@@ -901,7 +901,6 @@ class PostgreSQL_database:
                         run_hostname,
                         run_mac_vendor,
                         run_website_status,
-                        run_trace,
                         run_vertical_trace,
                         defaultView,
                         daemon_TCP,
@@ -912,7 +911,6 @@ class PostgreSQL_database:
                         daemon_run_hostname,
                         daemon_run_mac_vendor,
                         daemon_run_website_status,
-                        daemon_run_trace,
                         daemon_run_vertical_trace,
                         daemon_scan_rate,
                         scan_server_ip)
@@ -935,7 +933,6 @@ class PostgreSQL_database:
                         run_hostname = %s,
                         run_mac_vendor = %s,
                         run_website_status = %s,
-                        run_trace = %s,
                         run_vertical_trace = %s,
                         defaultView = %s,
                         daemon_TCP = %s,
@@ -946,7 +943,6 @@ class PostgreSQL_database:
                         daemon_run_hostname = %s,
                         daemon_run_mac_vendor = %s,
                         daemon_run_website_status = %s,
-                        daemon_run_trace = %s,
                         daemon_run_vertical_trace = %s,
                         daemon_scan_rate = %s,
                         scan_server_ip = %s
@@ -997,6 +993,9 @@ class PostgreSQL_database:
     # Checks if the database contains the given user_id
     def contains_user_id(self, user_id):
 
+        if not isinstance(user_id, int):
+            return Response("bad_input")
+
         query = """
                 SELECT 1
                 FROM users
@@ -1013,7 +1012,6 @@ class PostgreSQL_database:
     def add_user(self, user):
 
         for key, datatype in self.user_format.items():
-
             if key == "user_id":
                 continue
 
@@ -1126,7 +1124,14 @@ class PostgreSQL_database:
         return Response("success", content=out)
 
 
-    def get_users_with_access(self, network_id):
+    def get_users_with_access(self, user_id, network_id):
+
+        if not (isinstance(user_id, int) and isinstance(network_id, int)):
+            return Response("bad_input")
+        
+        res = self.validate_network_access(user_id, network_id)
+        if res.status != 200:
+            return res 
 
         query = f"""
                 SELECT user_id
@@ -1189,7 +1194,7 @@ class PostgreSQL_database:
     # Gives a user access to the given network
     def grant_access(self, user_id, recipient_id, network_id):
 
-        if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
+        if not (isinstance(user_id, int) and isinstance(recipient_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
         if user_id == 0:
@@ -1320,7 +1325,6 @@ class PostgreSQL_database:
                             run_hostname BOOLEAN NOT NULL,
                             run_mac_vendor BOOLEAN NOT NULL,
                             run_website_status BOOLEAN NOT NULL,
-                            run_trace BOOLEAN NOT NULL,
                             run_vertical_trace BOOLEAN NOT NULL,
                             defaultView TEXT NOT NULL,
                             daemon_TCP BOOLEAN NOT NULL,
@@ -1331,7 +1335,6 @@ class PostgreSQL_database:
                             daemon_run_hostname BOOLEAN NOT NULL,
                             daemon_run_mac_vendor BOOLEAN NOT NULL,
                             daemon_run_website_status BOOLEAN NOT NULL,
-                            daemon_run_trace BOOLEAN NOT NULL,
                             daemon_run_vertical_trace BOOLEAN NOT NULL,
                             daemon_scan_rate INTEGER NOT NULL,
                             scan_server_ip TEXT NOT NULL);
