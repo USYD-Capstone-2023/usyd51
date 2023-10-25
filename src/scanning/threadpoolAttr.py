@@ -1,5 +1,6 @@
 import threading
 
+# The attributes required to handle on batch scan
 class ThreadpoolAttr:
 
     def __init__(self, ret_size, update_func, lb):

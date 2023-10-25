@@ -171,6 +171,9 @@ class PostgreSQL_database:
 
         if not isinstance(user_id, int):
             return Response("bad_input")
+        
+        if not self.contains_user_id(user_id):
+            return Response("no_user")
 
         # Checks type and key of all attributes of the network
         for key, datatype in self.network_format.items():
@@ -812,10 +815,19 @@ class PostgreSQL_database:
         settings = dict(zip(attrs.split(", "), response[0]))
         try:
             # Formats port string into a list
-            settings["ports"] = settings["ports"].replace("{", "").replace("}", "").split(",")
-            settings["ports"] = [int(x) for x in settings["ports"]]
-            settings["daemon_ports"] = settings["daemon_ports"].replace("{", "").replace("}", "").split(",")
-            settings["daemon_ports"] = [int(x) for x in settings["daemon_ports"]]
+            if settings["ports"] == "{}":
+                settings["ports"] = []
+            
+            else:
+                settings["ports"] = settings["ports"].replace("{", "").replace("}", "").split(",")
+                settings["ports"] = [int(x) for x in settings["ports"]]
+
+            if settings["daemon_ports"] == "{}":
+                settings["daemon_ports"] = []
+            
+            else:
+                settings["daemon_ports"] = settings["daemon_ports"].replace("{", "").replace("}", "").split(",")
+                settings["daemon_ports"] = [int(x) for x in settings["daemon_ports"]]
         except:
             return Response("malformed_settings")
 
@@ -834,11 +846,22 @@ class PostgreSQL_database:
         
         # Ensures format and typing in settings json is correct
         for key, datatype in self.settings_format.items():
+ 
             if key not in settings.keys() or not isinstance(settings[key], datatype):
-                #TODO - Check ports formats, frontend settings format
-                print(key)
-                print(datatype)
                 return Response("malformed_settings")
+            
+            if key == "ports":
+
+                try:
+                    for port in settings["ports"]:
+                        p = int(port)
+                        if p < 0 or p > 65535:
+                            return Response("malformed_settings")
+                except:
+                    return Response("malformed_settings")
+                
+                if len(settings["ports"]) == 0:
+                    settings["run_ports"] = False
 
         params = (settings["TCP"],
                   settings["UDP"], 
@@ -966,6 +989,21 @@ class PostgreSQL_database:
                 """
         
         params = (username,)
+
+        response = self.__query(query, params, res=True)
+        return response != None and len(response) > 0
+    
+
+    # Checks if the database contains the given user_id
+    def contains_user_id(self, user_id):
+
+        query = """
+                SELECT 1
+                FROM users
+                WHERE user_id = %s;
+                """
+        
+        params = (user_id,)
 
         response = self.__query(query, params, res=True)
         return response != None and len(response) > 0

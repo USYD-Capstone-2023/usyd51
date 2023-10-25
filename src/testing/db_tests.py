@@ -100,7 +100,7 @@ class DatabaseTester(unittest.TestCase):
 
         # db_error because user_id+1 is not a user in the database
         self.assertEqual(save_result.status, 500)
-        self.assertEqual(save_result.message, Response.err_codes["db_error"][0])
+        self.assertEqual(save_result.message, Response.err_codes["no_user"][0])
         self.assertEqual(db_network.message, Response.err_codes["no_network"][0])
         self.assertEqual(db_network.status, 500)
 
