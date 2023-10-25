@@ -129,7 +129,42 @@ class PostgreSQL_database:
 
     
     # ---------------------------------------------- NETWORKS ------------------------------------------ #
+
+
+    def validate_mac(self, mac):
+        # Check mac is valid
+        split_mac = mac.split(":")
+        if len(split_mac) != 6:
+            return False
         
+        for byte in split_mac:
+            if len(byte) != 2:
+                return False
+            
+            try:
+                _ = int(byte, 16)
+            except:
+                return False
+            
+        return True
+    
+
+    def validate_ip(self, ip):
+        # Check ip is valid 
+        split_ip = ip.split(".")
+        if len(split_ip) != 4:
+            return False
+        
+        for byte in split_ip:
+            try:
+                val = int(byte)
+                if len(byte) > 3 or val < 0 or val > 255:
+                    return False
+            except:
+                return False
+            
+        return True
+            
 
     # Saves a network and all of its devices to the database
     def save_network(self, user_id, network, exists=False):
@@ -148,6 +183,15 @@ class PostgreSQL_database:
             for key, datatype in self.device_format.items():
                 if key not in device.keys() or not isinstance(device[key], datatype):
                     return Response("malformed_device")
+                
+        # Ensures all mac and ip addresses are valid
+        for device in devices.values():
+
+            if not self.validate_mac(device["mac"]):
+                return Response("malformed_device")
+            
+            if not self.validate_ip(device["ip"]):
+                return Response("malformed_device")
                 
         # Gets the next valid ID if the ID parameter is unset
         network_id = network["network_id"]
@@ -216,6 +260,15 @@ class PostgreSQL_database:
         
         if not self.__query(query, params):
             return Response("db_error")
+        
+        # Deletes the network
+        query = """
+                DELETE FROM access
+                WHERE network_id = %s;
+                """
+
+        if not self.__query(query, params):
+            return Response("db_error")
 
         # Deletes the network
         query = """
@@ -229,16 +282,35 @@ class PostgreSQL_database:
         return Response("success")
     
 
+    def contains_network(self, network_id):
+
+        if not isinstance(network_id, int):
+            return Response("bad_input")
+        
+        query = """
+                SELECT network_id
+                FROM networks
+                WHERE network_id = %s;
+                """
+        
+        params = (network_id,)
+        response = self.__query(query, params, res=True)
+        return response != None and len(response) > 0
+    
+
     # Checks if the current network exists in the database, and that the provided user has access
     def validate_network_access(self, user_id, network_id):
 
         if not (isinstance(user_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
-        # Implicitly has access, as network doesnt exist
+        # Implicitly has access to -1, as network doesnt exist
         if network_id == -1:
             return Response("success")
-
+        
+        if not self.contains_network(network_id):
+            return Response("no_network")
+        
         query = """
                 SELECT user_id
                 FROM access
@@ -248,13 +320,22 @@ class PostgreSQL_database:
         params = (network_id,)
         response = self.__query(query, params, res=True)
 
-        if not response:
-            return Response("no_network")
+        if response == None:
+            return Response("db_error")
         
         for user in response:
             if user[0] == user_id:
                 return Response("success")
 
+        daemon_networks = self.get_networks(0)
+        if daemon_networks.status != 200:
+            return Response("db_error")
+        
+
+        for network in daemon_networks.content:
+            if int(network["network_id"]) == network_id:
+                return Response("success")
+        
         return Response("no_access")
         
     
@@ -317,12 +398,12 @@ class PostgreSQL_database:
         
         params = (network_id,)
 
-        res = self.__query(query, params, res=True)[0]
+        res = self.__query(query, params, res=True)
         if not res:
             return Response("db_error")
 
         # Formats output if the query is completed successfully
-        net_dict = dict(zip(attrs.split(", "), res))
+        net_dict = dict(zip(attrs.split(", "), res[0]))
         net_dict["timestamp"] = self.__get_most_recent_timestamp(net_dict["network_id"])
 
         return Response("success", net_dict)
@@ -1071,6 +1152,9 @@ class PostgreSQL_database:
     def grant_access(self, user_id, recipient_id, network_id):
 
         if not isinstance(user_id, int) or not isinstance(recipient_id, int) or not isinstance(network_id, int):
+            return Response("bad_input")
+        
+        if user_id == 0:
             return Response("bad_input")
 
         res = self.validate_network_access(user_id, network_id)
