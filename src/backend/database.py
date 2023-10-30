@@ -1197,7 +1197,7 @@ class PostgreSQL_database:
         if not (isinstance(user_id, int) and isinstance(recipient_id, int) and isinstance(network_id, int)):
             return Response("bad_input")
         
-        if user_id == 0:
+        if recipient_id == 0:
             return Response("bad_input")
 
         res = self.validate_network_access(user_id, network_id)
